@@ -1,0 +1,16 @@
+{
+  "name": "agy-staff",
+  "owner": {
+    "name": "Keli Wen",
+    "url": "https://github.com/keli-wen"
+  },
+  "description": "agy-staff: delegate work to Google's Antigravity CLI (agy) from Claude Code and Codex.",
+  "plugins": [
+    {
+      "name": "agy",
+      "source": "./",
+      "description": "Research, review, and implement via agy (Gemini free quota), with a two-profile permission model and background jobs.",
+      "tags": ["antigravity", "gemini", "delegation", "code-review"]
+    }
+  ]
+}
