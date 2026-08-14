@@ -1,0 +1,19 @@
+{
+  "name": "agy-staff",
+  "interface": {
+    "displayName": "Agy Staff"
+  },
+  "plugins": [
+    {
+      "name": "agy",
+      "source": {
+        "source": "local",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Engineering"
+    }
+  ]
+}
