@@ -2,13 +2,14 @@
 
 把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code** 和 **OpenAI Codex** 的「agy 员工」。
 
-agy-staff 是一个轻量的双平台插件，让你的主力编程 Agent 把工作委托给 `agy`——它自带 Gemini 3.7 Flash 的免费额度——共三种模式：
+agy-staff 是一个轻量的双平台插件，让你的主力编程 Agent 把工作委托给 `agy`——它自带 Gemini 3.7 Flash 的免费额度——共四种模式：
 
 | 模式 | 说明 | 默认模型 | 默认权限档 | 默认执行方式 |
 |---|---|---|---|---|
 | `research` | 深度调研：要求引用来源、显式标注未验证结论 | `gemini-3.7-flash-high` | strict | 前台等待 |
 | `review` | 第二意见验证者：按严重度排序的 findings，带 `file:line` 引用 | `gemini-3.7-flash-medium` | strict | 前台等待 |
 | `implement` | 边界清晰的编码任务；agy 直接修改工作区，由你审阅 diff | `gemini-3.7-flash-medium` | loose | 后台运行 |
+| `ask` | 廉价的零工具单轮问答（约 3s）；兼作装后冒烟测试 | `gemini-3.7-flash-low` | strict（仅 prompt） | 前台等待（固定） |
 
 两个平台使用同一个插件名 `agy`（命令均为 `/agy:*`），共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。
 
@@ -29,11 +30,15 @@ agy-staff 是一个轻量的双平台插件，让你的主力编程 Agent 把工
 /plugin install agy@agy-staff
 ```
 
-命令为 `/agy:research`、`/agy:review`、`/agy:implement`、`/agy:continue`、`/agy:status`、`/agy:result`、`/agy:cancel`、`/agy:setup`。
+命令为 `/agy:research`、`/agy:review`、`/agy:implement`、`/agy:ask`、`/agy:continue`、`/agy:status`、`/agy:result`、`/agy:cancel`、`/agy:setup`。
 
 ### Codex
 
-仓库带有 `.codex-plugin/plugin.json` manifest，暴露 `skills/` 下的四个 skill。安装方式：把本仓库作为插件源加入你的 Codex marketplace 配置——例如在你已有的个人 marketplace（如 `dev-skills`/`devai`）里加一条指向本仓库的条目，或用 Codex 的插件管理界面/命令直接安装。skills 会在 `/agy:*` 或「让 agy review 一下」这类自然表达时触发。
+仓库带有 `.codex-plugin/plugin.json` manifest，暴露 `skills/` 下的五个 skill，另有 Codex marketplace manifest 位于 `.agents/plugins/marketplace.json`。安装方式：把本仓库作为插件源加入你的 Codex marketplace 配置——例如在你已有的个人 marketplace（如 `dev-skills`/`devai`）里加一条指向本仓库的条目，或用 Codex 的插件管理界面/命令直接安装。skills 会在 `/agy:*` 或「让 agy review 一下」这类自然表达时触发。
+
+### 装后冒烟测试
+
+装好后第一件事运行 `/agy:ask "reply with OK"`。它零工具、无需任何 setup，几秒内返回 "OK"（外加 `[agy-staff]` footer）即可证明插件、companion 脚本和 `agy` 二进制已全链路打通。
 
 ### 首次设置
 
@@ -59,6 +64,8 @@ agy-staff 是一个轻量的双平台插件，让你的主力编程 Agent 把工
 /agy:review --target main --loose    # 可能需要跑测试套件的审查
 /agy:research "调研 X 在本仓库和上游是如何工作的"
 /agy:implement "修复 foo_test.py 里失败的测试"
+/agy:ask "reply with OK"             # 装后冒烟测试；也可问任何快问题
+/agy:ask "APFS 上 rename 之后还需要 fsync 保证崩溃安全吗？"
 /agy:continue "再检查一下错误处理路径"
 /agy:status                          # 后台任务列表
 /agy:result <job-id>                 # 已结束任务的存档输出
@@ -75,9 +82,9 @@ agy-staff 是一个轻量的双平台插件，让你的主力编程 Agent 把工
 | `--model <id>` | 显式指定 agy 模型（见 `agy models`）；优先于 `--effort` |
 | `--effort low\|medium\|high` | `gemini-3.7-flash-<effort>` 的简写 |
 | `--strict` / `--loose` | 覆盖权限档 |
-| `--background` / `--wait` | 覆盖执行方式 |
+| `--background` / `--wait` | 覆盖执行方式（ask 固定前台，会拒绝 `--background`） |
 | `--json` | （review）按 schema 强制输出 JSON findings；默认是自由格式 markdown |
-| `--timeout <dur>` | agy 的 `--print-timeout`（默认：research/implement 10m，review 5m） |
+| `--timeout <dur>` | agy 的 `--print-timeout`（默认：research/implement 10m，review 5m，ask 2m） |
 | `--diff-file <path>` | （review）把该文件内容内联进 prompt |
 | `--pr <num>` / `--target <ref>` | （review）自主取证模式 |
 
@@ -103,7 +110,7 @@ agy-staff 是一个轻量的双平台插件，让你的主力编程 Agent 把工
 
 ```
 companion/agy-companion.mjs   唯一的大脑（所有模式、任务、setup）
-templates/                    共享 prompt 模板（research/review/implement）
+templates/                    共享 prompt 模板（research/review/implement/ask）
 .claude-plugin/               Claude Code 插件 + 自托管 marketplace manifest
 commands/                     Claude Code 斜杠命令（薄壳）
 .codex-plugin/plugin.json     Codex 插件 manifest

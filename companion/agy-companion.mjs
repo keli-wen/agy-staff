@@ -3,10 +3,11 @@
  * agy-companion — the single brain of the agy-staff plugin.
  *
  * Wraps Google's Antigravity CLI (`agy`) so Claude Code and OpenAI Codex can
- * delegate work to Gemini via three modes: research, review, implement.
+ * delegate work to Gemini via four modes: research, review, implement, ask.
  *
  * Subcommands:
  *   research | review | implement   run a task (see flags below)
+ *   ask <question>                  cheap zero-tool one-shot Q&A (always foreground)
  *   continue <text>                 continue the most recent conversation (any mode)
  *   status [job-id]                 list background jobs / show one job
  *   result [job-id]                 print the stored output of a finished job
@@ -41,17 +42,18 @@ const TEMPLATES_DIR = path.join(path.dirname(SELF), '..', 'templates');
 const AGY_BIN = process.env.AGY_BIN || 'agy';
 const AGY_SETTINGS = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'settings.json');
 
-const MODES = ['research', 'review', 'implement'];
+const MODES = ['research', 'review', 'implement', 'ask'];
 
 const DEFAULTS = {
   model: {
     research: 'gemini-3.7-flash-high',
     review: 'gemini-3.7-flash-medium',
     implement: 'gemini-3.7-flash-medium',
+    ask: 'gemini-3.7-flash-low',
   },
-  profile: { research: 'strict', review: 'strict', implement: 'loose' },
-  timeout: { research: '10m', review: '5m', implement: '10m' },
-  background: { research: false, review: false, implement: true },
+  profile: { research: 'strict', review: 'strict', implement: 'loose', ask: 'strict' },
+  timeout: { research: '10m', review: '5m', implement: '10m', ask: '2m' },
+  background: { research: false, review: false, implement: true, ask: false },
 };
 
 // Read-only evidence-gathering allowlist installed by `setup`.
@@ -359,6 +361,12 @@ function resolveRun(mode, opts) {
 
   // execution style
   if (opts.background && opts.wait) die('--background and --wait are mutually exclusive');
+  if (mode === 'ask' && opts.background) {
+    die(
+      'ask is always foreground — it is the quick mode and answers in seconds, so backgrounding it ' +
+        'would only add bookkeeping. Drop --background, or use `research --background` for longer work.'
+    );
+  }
   const background = opts.background ? true : opts.wait ? false : DEFAULTS.background[mode];
 
   const timeout = opts.timeout || DEFAULTS.timeout[mode];
@@ -388,10 +396,12 @@ function buildPrompt(mode, opts) {
     return fillTemplate('review', { TASK: task || 'General code review.', CONTEXT: context, DIFF: diffSection });
   }
 
-  if (!task) die(`${mode} needs a task description`);
+  if (!task) die(mode === 'ask' ? 'ask needs a question' : `${mode} needs a task description`);
   if (Buffer.byteLength(task) > MAX_INLINE_BYTES) {
     die(`task text exceeds the ${MAX_INLINE_BYTES / 1024}KB inline limit`);
   }
+  // ask is zero-tool by design: question only, no workspace context
+  if (mode === 'ask') return fillTemplate('ask', { TASK: task });
   return fillTemplate(mode, { TASK: task, CONTEXT: context });
 }
 
@@ -753,7 +763,7 @@ function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd) {
     die(
-      'usage: agy-companion.mjs <research|review|implement|continue|status|result|cancel|setup> [flags] [task]'
+      'usage: agy-companion.mjs <research|review|implement|ask|continue|status|result|cancel|setup> [flags] [task]'
     );
   }
   const opts = parseFlags(tokenize(rest));

@@ -2,13 +2,14 @@
 
 Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code** and **OpenAI Codex**.
 
-agy-staff is a thin dual-platform plugin that lets your primary coding agent delegate work to `agy` — which ships free-quota access to Gemini 3.7 Flash — through three modes:
+agy-staff is a thin dual-platform plugin that lets your primary coding agent delegate work to `agy` — which ships free-quota access to Gemini 3.7 Flash — through four modes:
 
 | Mode | What it is | Default model | Default profile | Default execution |
 |---|---|---|---|---|
 | `research` | Deep survey with cited sources and explicit unverified-claims marking | `gemini-3.7-flash-high` | strict | wait |
 | `review` | Second-opinion verifier: severity-ranked findings with `file:line` refs | `gemini-3.7-flash-medium` | strict | wait |
 | `implement` | Well-scoped coding task; agy edits the working tree, you review the diff | `gemini-3.7-flash-medium` | loose | background |
+| `ask` | Cheap zero-tool one-shot Q&A (~3s); doubles as the post-install smoke test | `gemini-3.7-flash-low` | strict (prompt-only) | wait (always) |
 
 Both platforms surface the same commands under the `agy` plugin name (`/agy:*`), backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`).
 
@@ -29,11 +30,15 @@ The repo is its own single-plugin marketplace:
 /plugin install agy@agy-staff
 ```
 
-Commands appear as `/agy:research`, `/agy:review`, `/agy:implement`, `/agy:continue`, `/agy:status`, `/agy:result`, `/agy:cancel`, `/agy:setup`.
+Commands appear as `/agy:research`, `/agy:review`, `/agy:implement`, `/agy:ask`, `/agy:continue`, `/agy:status`, `/agy:result`, `/agy:cancel`, `/agy:setup`.
 
 ### Codex
 
-The repo carries a `.codex-plugin/plugin.json` manifest exposing the four skills in `skills/`. Install it by adding this repo as a plugin source in your Codex marketplace setup — e.g. add an entry pointing at this repo in the marketplace you already use (such as a personal `dev-skills`/`devai` marketplace), or install the repo directly with Codex's plugin management UI/command. The skills trigger on `/agy:*` phrasing and natural requests like "have agy review this".
+The repo carries a `.codex-plugin/plugin.json` manifest exposing the five skills in `skills/`, plus a Codex marketplace manifest at `.agents/plugins/marketplace.json`. Install it by adding this repo as a plugin source in your Codex marketplace setup — e.g. add an entry pointing at this repo in the marketplace you already use (such as a personal `dev-skills`/`devai` marketplace), or install the repo directly with Codex's plugin management UI/command. The skills trigger on `/agy:*` phrasing and natural requests like "have agy review this".
+
+### Install smoke test
+
+Run `/agy:ask "reply with OK"` as the first thing after install. It is zero-tool and needs no setup, so a fast "OK" (plus the `[agy-staff]` footer) proves the plugin, the companion script, and the `agy` binary are wired up end to end.
 
 ### First-time setup
 
@@ -59,6 +64,8 @@ Every mode runs under exactly one of two profiles. The mode picks the default; `
 /agy:review --target main --loose    # review that may run the test suite
 /agy:research "survey how X works in this repo and upstream"
 /agy:implement "fix the failing test in foo_test.py"
+/agy:ask "reply with OK"             # install smoke test; also any quick question
+/agy:ask "is fsync needed after rename for crash safety on APFS?"
 /agy:continue "now check the error path too"
 /agy:status                          # background jobs table
 /agy:result <job-id>                 # stored output of a finished job
@@ -75,9 +82,9 @@ Every mode runs under exactly one of two profiles. The mode picks the default; `
 | `--model <id>` | explicit agy model (see `agy models`); overrides `--effort` |
 | `--effort low\|medium\|high` | shorthand for `gemini-3.7-flash-<effort>` |
 | `--strict` / `--loose` | permission profile override |
-| `--background` / `--wait` | execution style override |
+| `--background` / `--wait` | execution style override (ask is always foreground and rejects `--background`) |
 | `--json` | (review) schema-enforced JSON findings; default is free-form markdown |
-| `--timeout <dur>` | agy `--print-timeout` (defaults: 10m research/implement, 5m review) |
+| `--timeout <dur>` | agy `--print-timeout` (defaults: 10m research/implement, 5m review, 2m ask) |
 | `--diff-file <path>` | (review) file whose content is inlined into the prompt |
 | `--pr <num>` / `--target <ref>` | (review) autonomous evidence gathering |
 
@@ -103,7 +110,7 @@ Background jobs are plain detached processes (the companion re-spawns itself as 
 
 ```
 companion/agy-companion.mjs   the single brain (all modes, jobs, setup)
-templates/                    shared prompt templates (research/review/implement)
+templates/                    shared prompt templates (research/review/implement/ask)
 .claude-plugin/               Claude Code plugin + self-hosting marketplace manifests
 commands/                     Claude Code slash commands (thin shells)
 .codex-plugin/plugin.json     Codex plugin manifest
