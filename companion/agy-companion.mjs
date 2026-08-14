@@ -56,6 +56,50 @@ const DEFAULTS = {
   background: { research: false, review: false, implement: true, ask: false },
 };
 
+// agy only accepts effort-suffixed model ids; bare family names are rejected
+// with status ERROR ("--model gemini-3.7-flash requires --effort").
+// Known ids from `agy models` (v1.1.13):
+const KNOWN_MODELS = new Set([
+  'gemini-3.7-flash-high', 'gemini-3.7-flash-medium', 'gemini-3.7-flash-low',
+  'gemini-3.6-flash-high', 'gemini-3.6-flash-medium', 'gemini-3.6-flash-low',
+  'gemini-3.5-flash-high', 'gemini-3.5-flash-medium', 'gemini-3.5-flash-low',
+  'gemini-3.1-pro-high', 'gemini-3.1-pro-low',
+  'claude-sonnet-4-6', 'claude-opus-4-6-thinking', 'gpt-oss-120b-medium',
+]);
+const MODEL_FAMILIES = {
+  'gemini-3.7-flash': ['low', 'medium', 'high'],
+  'gemini-3.6-flash': ['low', 'medium', 'high'],
+  'gemini-3.5-flash': ['low', 'medium', 'high'],
+  'gemini-3.1-pro': ['low', 'high'],
+};
+const MODEL_ALIASES = { flash: 'gemini-3.7-flash', pro: 'gemini-3.1-pro' };
+
+/** Normalize a user-supplied --model value to an id agy accepts, or die
+ *  pre-flight with a helpful message. Never lets a bare family reach agy. */
+function normalizeModel(raw, effort) {
+  const name = MODEL_ALIASES[raw] || raw;
+  if (KNOWN_MODELS.has(name)) return name;
+  const efforts = MODEL_FAMILIES[name];
+  if (efforts) {
+    let e = effort || 'medium';
+    if (!efforts.includes(e)) {
+      // e.g. gemini-3.1-pro has no medium: fall back to its highest tier
+      const fallback = efforts[efforts.length - 1];
+      process.stderr.write(`agy-staff: ${name} has no "${e}" effort; using ${name}-${fallback}\n`);
+      e = fallback;
+    }
+    return `${name}-${e}`;
+  }
+  // future-tolerance: pass through anything already effort-suffixed
+  if (/-(low|medium|high|thinking)$/.test(name)) return name;
+  die(
+    `unknown model id "${raw}". agy needs effort-suffixed ids, e.g. ` +
+      `gemini-3.7-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
+      `Aliases accepted here: "flash" (gemini-3.7-flash), "pro" (gemini-3.1-pro), ` +
+      `optionally combined with --effort. Run \`agy models\` for the full list.`
+  );
+}
+
 // Read-only evidence-gathering allowlist installed by `setup`.
 // agy command rules are prefix-matched on the command target
 // ("command(git)" matches "git add" but not "github").
@@ -296,7 +340,13 @@ function runAgy({ prompt, model, timeout, conversation, loose, jsonSchema }) {
     maxBuffer: 64 * 1024 * 1024,
     timeout: budget,
   });
+  if (r.error && r.error.code === 'ETIMEDOUT') {
+    die(`agy timed out: no result within ${timeout} plus 60s grace. Retry with a larger --timeout, or narrow the task.`);
+  }
   if (r.error) die(`failed to launch agy (${AGY_BIN}): ${r.error.message}`);
+  if (r.signal) {
+    die(`agy was killed by signal ${r.signal} before returning a result (companion budget: ${timeout} + 60s grace).`);
+  }
 
   const stdout = (r.stdout || '').trim();
   const stderr = (r.stderr || '').trim();
@@ -317,17 +367,53 @@ function runAgy({ prompt, model, timeout, conversation, loose, jsonSchema }) {
         `stderr: ${stderr.slice(0, 800) || '(empty)'}`
     );
   }
-  return { payload, stderr };
+  return { payload, stderr, exit: r.status ?? 0 };
 }
 
-/** agy reports status:"SUCCESS" even when every tool call was denied; the
- *  response is then empty and stderr carries the permission note. */
-function checkEmptyResponse(payload, stderr, profile) {
+/** Triage the agy result into three distinct failure classes with distinct
+ *  guidance (never cross-suggested), or return the response text on success.
+ *  1. status ERROR / nonzero exit  → agy's own error verbatim; NEVER suggest --loose.
+ *  2. timeout                      → say so plainly.
+ *  3. status SUCCESS, empty body   → permission fail-closed signature; suggest
+ *                                    setup/--loose only for tool-using modes.
+ */
+function triageResult({ payload, stderr, exit }, mode, profile) {
+  const status = (payload.status || '').toUpperCase();
   const response = (payload.response || '').trim();
+  const convNote = payload.conversation_id
+    ? `\nConversation id (you can still continue it): ${payload.conversation_id}`
+    : '';
+
+  if (status.includes('TIMEOUT')) {
+    die(
+      `agy timed out (status ${payload.status}) before finishing.` +
+        ` Retry with a larger --timeout, or narrow the task.${convNote}`
+    );
+  }
+
+  if ((status && status !== 'SUCCESS') || exit !== 0) {
+    let msg = `agy reported an error (status ${payload.status || 'unknown'}, exit ${exit}).`;
+    if (payload.error) msg += `\nagy error: ${payload.error}`;
+    if (response) msg += `\nagy response: ${response}`;
+    if (stderr) msg += `\nagy stderr: ${stderr}`;
+    msg +=
+      '\nLikely causes: invalid model id (agy needs effort-suffixed ids, e.g. gemini-3.7-flash-low — run `agy models`), ' +
+      'expired auth (run `agy` interactively once to re-login), or exhausted quota.';
+    die(msg + convNote);
+  }
+
   if (response) return response;
-  let msg =
-    'agy returned an empty response (status was ' +
-    `${payload.status || 'unknown'} but there is no content).`;
+
+  // status SUCCESS but nothing came back
+  if (mode === 'ask') {
+    die(
+      'unexpected: agy returned success with an empty answer, but ask uses no tools, so this cannot be a ' +
+        'permission denial. Please report it (include the agy stderr below if any).' +
+        (stderr ? `\n\nagy stderr:\n${stderr}` : '') +
+        convNote
+    );
+  }
+  let msg = 'agy returned an empty response (status SUCCESS but no content).';
   if (profile === 'strict') {
     msg +=
       '\nUnder the strict profile every unlisted tool call is auto-denied, which is the usual cause.' +
@@ -335,8 +421,7 @@ function checkEmptyResponse(payload, stderr, profile) {
       '\nNote: some agy tools ignore allow-rules in headless mode and only work with `--loose`.';
   }
   if (stderr) msg += `\n\nagy stderr:\n${stderr}`;
-  msg += `\n\nConversation id (you can still continue it): ${payload.conversation_id || 'unknown'}`;
-  die(msg);
+  die(msg + convNote);
 }
 
 // ---------------------------------------------------------------------------
@@ -345,19 +430,25 @@ function checkEmptyResponse(payload, stderr, profile) {
 
 function resolveRun(mode, opts) {
   // model / effort
-  let model = opts.model;
-  if (!model) {
-    if (opts.effort) {
-      if (!['low', 'medium', 'high'].includes(opts.effort)) die('--effort must be low|medium|high');
-      model = `gemini-3.7-flash-${opts.effort}`;
-    } else {
-      model = DEFAULTS.model[mode];
-    }
+  if (opts.effort && !['low', 'medium', 'high'].includes(opts.effort)) {
+    die('--effort must be low|medium|high');
+  }
+  let model;
+  if (opts.model) {
+    model = normalizeModel(opts.model, opts.effort);
+  } else if (opts.effort) {
+    model = `gemini-3.7-flash-${opts.effort}`;
+  } else {
+    model = DEFAULTS.model[mode];
   }
 
   // profile
   if (opts.strict && opts.loose) die('--strict and --loose are mutually exclusive');
-  const profile = opts.strict ? 'strict' : opts.loose ? 'loose' : DEFAULTS.profile[mode];
+  let profile = opts.strict ? 'strict' : opts.loose ? 'loose' : DEFAULTS.profile[mode];
+  if (mode === 'ask' && (opts.loose || opts.strict)) {
+    if (opts.loose) process.stderr.write('agy-staff: ask is tool-free; --loose ignored\n');
+    profile = 'strict';
+  }
 
   // execution style
   if (opts.background && opts.wait) die('--background and --wait are mutually exclusive');
@@ -433,10 +524,17 @@ function loosePostcondition() {
   return out;
 }
 
-function executeRun(resolved, prompt, opts) {
-  if (resolved.profile === 'loose') loosePrecondition();
+// The loose git preconditions (repo present, clean tree) exist to bound the
+// blast radius of file edits; they apply only to modes that edit or execute
+// in the workspace. ask never qualifies (forced strict in resolveRun).
+function looseGuardApplies(resolved) {
+  return resolved.profile === 'loose' && ['implement', 'review'].includes(resolved.mode);
+}
 
-  const { payload, stderr } = runAgy({
+function executeRun(resolved, prompt, opts) {
+  if (looseGuardApplies(resolved)) loosePrecondition();
+
+  const result = runAgy({
     prompt,
     model: resolved.model,
     timeout: resolved.timeout,
@@ -444,8 +542,9 @@ function executeRun(resolved, prompt, opts) {
     loose: resolved.profile === 'loose',
     jsonSchema: opts.json && resolved.mode === 'review' ? REVIEW_JSON_SCHEMA : null,
   });
+  const payload = result.payload;
 
-  const response = checkEmptyResponse(payload, stderr, resolved.profile);
+  const response = triageResult(result, resolved.mode, resolved.profile);
 
   // persist conversation id
   const state = loadState();
@@ -462,7 +561,7 @@ function executeRun(resolved, prompt, opts) {
     `duration=${payload.duration_seconds ?? '?'}s turns=${payload.num_turns ?? '?'} tokens(${fmtTokens(payload.usage)})\n` +
     `conversation: ${payload.conversation_id || 'unknown'} (follow up with --continue)`;
 
-  if (resolved.profile === 'loose') footer += loosePostcondition();
+  if (looseGuardApplies(resolved)) footer += loosePostcondition();
   return response + footer;
 }
 
@@ -480,7 +579,7 @@ function dispatch(resolved, prompt, opts) {
   }
 
   // fail fast in the foreground before detaching
-  if (resolved.profile === 'loose') loosePrecondition();
+  if (looseGuardApplies(resolved)) loosePrecondition();
 
   // background: write a job spec, spawn ourselves detached as _worker
   const jobId = `${mode}-${Date.now().toString(36)}${Math.floor(Math.random() * 36).toString(36)}`;

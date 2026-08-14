@@ -27,3 +27,9 @@ node "${CLAUDE_PLUGIN_ROOT}/companion/agy-companion.mjs" setup --apply
 Present the final output, including the backup path and the notes section (prefix matching, the unverified project-scoped settings path, and the headless caveat that some tools only work with `--loose`).
 
 If the dry run reports the agy CLI itself is missing, stop and relay its install guidance — do not attempt to install agy yourself.
+
+## Failure protocol
+
+- If the companion exits with an error, relay the error message to the user verbatim and stop.
+- Do not retry with different flags unless the error message itself suggests the exact flag.
+- Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.

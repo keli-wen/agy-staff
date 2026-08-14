@@ -32,3 +32,13 @@ Background result handling:
 Failure handling:
 - If the companion reports an empty response caused by denied permissions, relay its guidance: run `/agy:setup` once, or retry with `--loose`.
 - Follow-ups in the same investigation: rerun this command with `--continue`, or use `/agy:continue <text>`.
+
+## Failure protocol
+
+- If the companion exits with an error, relay the error message to the user verbatim and stop.
+- Do not retry with different flags unless the error message itself suggests the exact flag.
+- Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.
+
+## Model ids
+
+agy only accepts effort-suffixed model ids: `gemini-3.7-flash-low|medium|high`, `gemini-3.6-flash-*`, `gemini-3.5-flash-*`, `gemini-3.1-pro-low|high` (no medium for pro), plus `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gpt-oss-120b-medium`. The companion also accepts a bare family (e.g. `--model gemini-3.7-flash`, suffixed from `--effort`, default medium) and the aliases `flash` (gemini-3.7-flash) and `pro` (gemini-3.1-pro). Anything else fails pre-flight before agy is called; `agy models` lists valid ids.

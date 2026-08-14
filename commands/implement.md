@@ -33,3 +33,13 @@ Result handling:
 - Foreground: print agy's summary verbatim. Then show the user the actual diff (`git diff`, plus `git status --short` for new files) and ask whether to keep it. Rollback is `git checkout .` plus removing new untracked files.
 - Background: tell the user the job id; `/agy:status` tracks it. When they fetch `/agy:result` later, the diff-and-confirm step above still applies.
 - Never commit agy's changes yourself unless the user explicitly asks after seeing the diff.
+
+## Failure protocol
+
+- If the companion exits with an error, relay the error message to the user verbatim and stop.
+- Do not retry with different flags unless the error message itself suggests the exact flag.
+- Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.
+
+## Model ids
+
+agy only accepts effort-suffixed model ids: `gemini-3.7-flash-low|medium|high`, `gemini-3.6-flash-*`, `gemini-3.5-flash-*`, `gemini-3.1-pro-low|high` (no medium for pro), plus `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gpt-oss-120b-medium`. The companion also accepts a bare family (e.g. `--model gemini-3.7-flash`, suffixed from `--effort`, default medium) and the aliases `flash` (gemini-3.7-flash) and `pro` (gemini-3.1-pro). Anything else fails pre-flight before agy is called; `agy models` lists valid ids.

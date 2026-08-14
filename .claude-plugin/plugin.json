@@ -1,11 +1,17 @@
 {
   "name": "agy",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Delegate research, review, and implementation tasks to Google's Antigravity CLI (agy) with free-quota Gemini access.",
   "author": {
     "name": "Keli Wen",
     "url": "https://github.com/keli-wen"
   },
   "license": "MIT",
-  "keywords": ["antigravity", "gemini", "delegation", "review", "research"]
+  "keywords": [
+    "antigravity",
+    "gemini",
+    "delegation",
+    "review",
+    "research"
+  ]
 }

@@ -36,6 +36,10 @@ agy-staff 是一个轻量的双平台插件，让你的主力编程 Agent 把工
 
 仓库带有 `.codex-plugin/plugin.json` manifest，暴露 `skills/` 下的五个 skill，另有 Codex marketplace manifest 位于 `.agents/plugins/marketplace.json`。安装方式：把本仓库作为插件源加入你的 Codex marketplace 配置——例如在你已有的个人 marketplace（如 `dev-skills`/`devai`）里加一条指向本仓库的条目，或用 Codex 的插件管理界面/命令直接安装。skills 会在 `/agy:*` 或「让 agy review 一下」这类自然表达时触发。
 
+### 升级
+
+Codex 按版本目录缓存插件（如 `plugins/cache/agy-staff/agy/0.1.0`），因此修复必须先提升插件版本号，**并且**运行 `codex plugin marketplace upgrade`（或移除后重新添加 marketplace 条目），再重启应用才会生效。Claude Code 则先更新 marketplace 再重装（`/plugin marketplace update agy-staff`，然后 `/plugin install agy@agy-staff`）。
+
 ### 装后冒烟测试
 
 装好后第一件事运行 `/agy:ask "reply with OK"`。它零工具、无需任何 setup，几秒内返回 "OK"（外加 `[agy-staff]` footer）即可证明插件、companion 脚本和 `agy` 二进制已全链路打通。
@@ -79,7 +83,7 @@ agy-staff 是一个轻量的双平台插件，让你的主力编程 Agent 把工
 |---|---|
 | `--conversation <id>` | 续接指定的 agy 会话 |
 | `--continue` | 复用 state 中该模式最近一次会话 id |
-| `--model <id>` | 显式指定 agy 模型（见 `agy models`）；优先于 `--effort` |
+| `--model <id>` | 显式指定 agy 模型（见 `agy models`）。id 必须带 effort 后缀（如 `gemini-3.7-flash-low`）；companion 会自动补全裸 family（`gemini-3.7-flash` + `--effort`）和别名 `flash`/`pro`，未知 id 在调用 agy 前直接报错 |
 | `--effort low\|medium\|high` | `gemini-3.7-flash-<effort>` 的简写 |
 | `--strict` / `--loose` | 覆盖权限档 |
 | `--background` / `--wait` | 覆盖执行方式（ask 固定前台，会拒绝 `--background`） |

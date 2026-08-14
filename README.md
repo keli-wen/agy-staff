@@ -36,6 +36,10 @@ Commands appear as `/agy:research`, `/agy:review`, `/agy:implement`, `/agy:ask`,
 
 The repo carries a `.codex-plugin/plugin.json` manifest exposing the five skills in `skills/`, plus a Codex marketplace manifest at `.agents/plugins/marketplace.json`. Install it by adding this repo as a plugin source in your Codex marketplace setup — e.g. add an entry pointing at this repo in the marketplace you already use (such as a personal `dev-skills`/`devai` marketplace), or install the repo directly with Codex's plugin management UI/command. The skills trigger on `/agy:*` phrasing and natural requests like "have agy review this".
 
+### Upgrading
+
+Codex caches plugins under a per-version directory (e.g. `plugins/cache/agy-staff/agy/0.1.0`), so a fix only reaches the app after the plugin version is bumped **and** you run `codex plugin marketplace upgrade` (or remove and re-add the marketplace entry), then restart the app. For Claude Code, update the marketplace and reinstall (`/plugin marketplace update agy-staff`, then `/plugin install agy@agy-staff`).
+
 ### Install smoke test
 
 Run `/agy:ask "reply with OK"` as the first thing after install. It is zero-tool and needs no setup, so a fast "OK" (plus the `[agy-staff]` footer) proves the plugin, the companion script, and the `agy` binary are wired up end to end.
@@ -79,7 +83,7 @@ Every mode runs under exactly one of two profiles. The mode picks the default; `
 |---|---|
 | `--conversation <id>` | resume a specific agy conversation |
 | `--continue` | reuse this mode's last conversation id from state |
-| `--model <id>` | explicit agy model (see `agy models`); overrides `--effort` |
+| `--model <id>` | explicit agy model (see `agy models`). Ids are effort-suffixed (`gemini-3.7-flash-low`); the companion normalizes bare families (`gemini-3.7-flash` + `--effort`) and the aliases `flash`/`pro`, and rejects unknown ids pre-flight |
 | `--effort low\|medium\|high` | shorthand for `gemini-3.7-flash-<effort>` |
 | `--strict` / `--loose` | permission profile override |
 | `--background` / `--wait` | execution style override (ask is always foreground and rejects `--background`) |

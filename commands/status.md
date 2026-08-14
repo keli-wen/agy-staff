@@ -12,3 +12,9 @@ If the user did not pass a job id:
 
 If the user did pass a job id:
 - Present the full output as-is, including the log tail for running jobs. Do not summarize.
+
+## Failure protocol
+
+- If the companion exits with an error, relay the error message to the user verbatim and stop.
+- Do not retry with different flags unless the error message itself suggests the exact flag.
+- Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.
