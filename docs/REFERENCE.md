@@ -78,6 +78,6 @@ commands/                     Claude Code slash commands (thin shells)
 .codex-plugin/plugin.json     Codex plugin manifest
 .agents/plugins/              Codex marketplace manifest
 skills/                       Codex skills (thin shells)
-assets/                       design diagrams (en / zh-CN)
-docs/                         this reference
+assets/                       design diagrams (en / zh-CN) + badges
+docs/                         this reference + INSTALL_FOR_AGENTS.md
 ```

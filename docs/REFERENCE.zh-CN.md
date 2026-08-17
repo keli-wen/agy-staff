@@ -78,6 +78,6 @@ commands/                     Claude Code 斜杠命令（薄壳）
 .codex-plugin/plugin.json     Codex 插件 manifest
 .agents/plugins/              Codex marketplace manifest
 skills/                       Codex skills（薄壳）
-assets/                       设计图（en / zh-CN）
-docs/                         本参考文档
+assets/                       设计图（en / zh-CN）+ 徽章
+docs/                         本参考文档 + INSTALL_FOR_AGENTS.md
 ```

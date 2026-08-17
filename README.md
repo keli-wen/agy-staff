@@ -1,3 +1,11 @@
+<p align="center">
+  <a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" alt="powered by: Antigravity"></a>
+  <img src="assets/badges/model-gemini-3-7-flash.svg" alt="model: Gemini 3.7 Flash">
+  <a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" alt="Claude Code plugin"></a>
+  <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" alt="Codex plugin"></a>
+  <a href="LICENSE"><img src="assets/badges/license-mit.svg" alt="license: MIT"></a>
+</p>
+
 # agy-staff
 
 Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code** and **OpenAI Codex**.
@@ -6,9 +14,9 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code** and **Ope
 
 ## What & Why
 
-Your main agents are busy and expensive. agy-staff lets them delegate to `agy`, which ships fast, free-quota Gemini 3.7 Flash — perfect for quick second opinions, code reviews, deep surveys, and well-scoped implementation tasks. Four modes, one plugin name on both platforms: `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement` (plus `continue`/`status`/`result`/`cancel`/`setup`).
+agy-staff lets your senior agents delegate to `agy`, which ships fast, free-quota Gemini 3.7 Flash. Four modes, one plugin name on both platforms: `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement` (plus `continue`/`status`/`result`/`cancel`/`setup`).
 
-Why not the reverse-engineered Antigravity API proxies? They impersonate the IDE's private protocol, violate the Antigravity ToS, and Google bans accounts that use them. The official `agy` binary in headless mode reaches the same free-quota models through a supported surface.
+If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, read-only research and reviews at Flash speed, scoped implementation that burns none of your premium quota. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
 
 ## How
 
@@ -18,37 +26,50 @@ Why not the reverse-engineered Antigravity API proxies? They impersonate the IDE
 
 ### Install
 
-Prerequisites: `agy` on PATH (tested with v1.1.13) and Node.js.
+#### For humans
+
+Step 1 — install the Antigravity CLI ([official docs](https://antigravity.google/docs/cli/install)), then verify with `agy --version` (tested with v1.1.13; Node.js is also required):
+
+```bash
+curl -fsSL https://antigravity.google/cli/install.sh | bash
+```
+
+Step 2 — install the plugin into your harness:
 
 ```
-# Claude Code
-/plugin marketplace add /path/to/agy-staff        # or the GitHub slug once pushed
+/plugin marketplace add keli-wen/agy-staff
 /plugin install agy@agy-staff
 ```
 
-Codex: add this repo as a plugin source in your marketplace setup (manifest: `.agents/plugins/marketplace.json`), then restart the app. After any update: bump lands only via `codex plugin marketplace upgrade` + app restart.
+```bash
+codex plugin marketplace add https://github.com/keli-wen/agy-staff
+codex plugin add agy@agy-staff
+```
 
-First run: `/agy:ask "reply with OK"` (smoke test, no setup needed), then `/agy:setup` (installs the read-only allowlist for autonomous evidence gathering).
+First run: `/agy:ask "reply with OK"` (smoke test, zero setup), then `/agy:setup` (installs the read-only allowlist for autonomous evidence gathering).
 
-### For agents
+#### For agents
 
-- Modes → defaults: `ask` strict/flash-low/wait · `research` strict/flash-high/wait · `review` strict/flash-medium/wait · `implement` loose/flash-medium/background.
-- Model ids are effort-suffixed (`gemini-3.7-flash-low|medium|high`, `gemini-3.1-pro-low|high`); the companion normalizes bare families + `--effort` and the aliases `flash`/`pro`.
-- On a companion error: relay the message verbatim and stop — never improvise flags, change directories, or switch repos to satisfy a precondition.
-- `review` needs a subject: `--diff-file <path>` (you assemble the diff; never stdin) or `--pr <num>`/`--target <ref>` (agy gathers evidence itself; needs `/agy:setup` once).
-- `implement` requires a clean git tree; afterwards show the user the diff — rollback is `git checkout .`.
-- Follow-ups: `--continue` (same mode) or `/agy:continue "<text>"` (last conversation; cache-served and cheap).
+Paste this into any coding agent:
+
+```
+Read docs/INSTALL_FOR_AGENTS.md in https://github.com/keli-wen/agy-staff (or in your
+local checkout of agy-staff) and follow it to install and verify the agy-staff plugin
+for the harness you are running in. Respond in the user's language.
+```
 
 ### CUJs
 
-| You say | Command that runs | What happens |
+Invocation is always explicit — you type the command; the plugin never triggers itself on natural language.
+
+| Use case | Claude Code | Codex |
 |---|---|---|
-| "quick sanity check: is X true?" | `/agy:ask "is X true?"` | ~3s zero-tool answer from Gemini |
-| "review my diff" | `/agy:review` | outer agent assembles your diff; severity-ranked findings with `file:line` refs |
-| "review PR `#123`" | `/agy:review --pr 123` | agy fetches the PR via `gh` and reviews autonomously |
-| "survey how X works" | `/agy:research "survey X"` | cited deep report with an explicit unverified-claims section |
-| "fix that failing test" | `/agy:implement "fix ..."` | agy edits the working tree in the background; you confirm the diff |
-| "also check the error path" | `/agy:continue "check the error path"` | continues the last conversation from cache |
+| Quick second opinion | `/agy:ask "what does this error mean"` | `$agy:agy-ask what does this error mean` |
+| Review my working diff | `/agy:review` | `$agy:agy-review` |
+| Review PR #123 | `/agy:review --pr 123` | `$agy:agy-review --pr 123` |
+| Survey a topic | `/agy:research "how does X work"` | `$agy:agy-research how does X work` |
+| Implement a scoped fix | `/agy:implement "fix the flaky test"` | `$agy:agy-implement fix the flaky test` |
+| Continue last conversation | `/agy:continue "also check the error path"` | `$agy:agy-jobs continue also check the error path` |
 
 **Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading).
 
