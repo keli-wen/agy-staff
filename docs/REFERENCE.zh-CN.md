@@ -11,7 +11,7 @@
 | `review` | 第二意见验证者：按严重度排序的 findings，带 `file:line` 引用 | `gemini-3.7-flash-medium` | strict | 前台等待 |
 | `implement` | 边界清晰的编码任务；agy 直接修改工作区，由你审阅 diff | `gemini-3.7-flash-medium` | loose | 后台运行 |
 
-两个平台使用同一个插件名 `agy`（命令均为 `/agy:*`），共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。
+两个平台使用同一个插件名 `agy`，共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。调用写法：skill 形式在 Claude Code 下是 `/agy:agy-<mode>`，在 Codex 下是 `$agy:agy-<mode>`；Claude Code 另附短命令 `/agy:ask`、`/agy:research`、`/agy:review`、`/agy:implement`、`/agy:continue`、`/agy:status`、`/agy:result`、`/agy:cancel`、`/agy:setup` 作为快捷方式。
 
 ## 双权限档模型
 

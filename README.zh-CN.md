@@ -62,12 +62,12 @@ for the harness you are running in. Respond in the user's language.
 
 | 使用场景 | Claude Code | Codex |
 |---|---|---|
-| 快速第二意见 | `/agy:ask "这个报错是什么意思？"` | `$agy:agy-ask 这个报错是什么意思？` |
-| 审查我的工作区 diff | `/agy:review` | `$agy:agy-review` |
-| 审查 PR `#123` | `/agy:review --pr 123` | `$agy:agy-review --pr 123` |
-| 调研一个主题 | `/agy:research "这个仓库的鉴权是怎么做的？"` | `$agy:agy-research 这个仓库的鉴权是怎么做的？` |
-| 实现一个边界清晰的修复 | `/agy:implement "修复那个不稳定的重试测试"` | `$agy:agy-implement 修复那个不稳定的重试测试` |
-| 续接最近的会话 | `/agy:continue "再看看错误路径"` | `$agy:agy-jobs continue 再看看错误路径` |
+| 快速第二意见 | `/agy:agy-ask 你的后端模型是什么` | `$agy:agy-ask 你的后端模型是什么` |
+| 审查我的工作区 diff | `/agy:agy-review 审查我的工作区 diff` | `$agy:agy-review 审查我的工作区 diff` |
+| 审查 PR `#123` | `/agy:agy-review review pr #123` | `$agy:agy-review review pr #123` |
+| 调研一个主题 | `/agy:agy-research 这个仓库的鉴权是怎么做的` | `$agy:agy-research 这个仓库的鉴权是怎么做的` |
+| 实现一个边界清晰的修复 | `/agy:agy-implement 修复那个不稳定的重试测试` | `$agy:agy-implement 修复那个不稳定的重试测试` |
+| 续接最近的会话 | `/agy:continue 再看看错误路径` | `$agy:agy-jobs continue 再看看错误路径` |
 
 **完整参考 →** [docs/REFERENCE.zh-CN.md](docs/REFERENCE.zh-CN.md)（flags、权限模型、任务/状态、疑难排查、升级）。
 

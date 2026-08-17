@@ -11,7 +11,7 @@ Back to the [README](../README.md). 中文版见 [REFERENCE.zh-CN.md](REFERENCE.
 | `review` | Second-opinion verifier: severity-ranked findings with `file:line` refs | `gemini-3.7-flash-medium` | strict | wait |
 | `implement` | Well-scoped coding task; agy edits the working tree, you review the diff | `gemini-3.7-flash-medium` | loose | background |
 
-Both platforms surface the same commands under the `agy` plugin name (`/agy:*`), backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`).
+Both platforms surface the same modes under the `agy` plugin name, backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`). Invocation tokens: the skills are `/agy:agy-<mode>` on Claude Code and `$agy:agy-<mode>` on Codex; Claude Code additionally ships the short commands `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement`, `/agy:continue`, `/agy:status`, `/agy:result`, `/agy:cancel`, `/agy:setup` as shortcuts.
 
 ## The two-profile permission model
 

@@ -62,12 +62,12 @@ Invocation is always explicit — you type the command; the plugin never trigger
 
 | Use case | Claude Code | Codex |
 |---|---|---|
-| Quick second opinion | `/agy:ask "what does this error mean?"` | `$agy:agy-ask what does this error mean?` |
-| Review my working diff | `/agy:review` | `$agy:agy-review` |
-| Review PR #123 | `/agy:review --pr 123` | `$agy:agy-review --pr 123` |
-| Survey a topic | `/agy:research "how does auth work in this repo?"` | `$agy:agy-research how does auth work in this repo?` |
-| Implement a scoped fix | `/agy:implement "fix the flaky retry test"` | `$agy:agy-implement fix the flaky retry test` |
-| Continue last conversation | `/agy:continue "also check the error path"` | `$agy:agy-jobs continue also check the error path` |
+| Quick second opinion | `/agy:agy-ask what's your backend model` | `$agy:agy-ask what's your backend model` |
+| Review my working diff | `/agy:agy-review review my working diff` | `$agy:agy-review review my working diff` |
+| Review PR #123 | `/agy:agy-review review pr #123` | `$agy:agy-review review pr #123` |
+| Survey a topic | `/agy:agy-research how does auth work in this repo` | `$agy:agy-research how does auth work in this repo` |
+| Implement a scoped fix | `/agy:agy-implement fix the flaky retry test` | `$agy:agy-implement fix the flaky retry test` |
+| Continue last conversation | `/agy:continue also check the error path` | `$agy:agy-jobs continue also check the error path` |
 
 **Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading).
 
