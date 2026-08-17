@@ -10,6 +10,8 @@ corners, hard shadows) at logo scale:
   C arch-lockup.svg    ink stair tile with the Antigravity arch + wordmark
   D id-card.svg        a tiny pixel employee ID card (arch photo, name line,
                        barcode) playing on the "staff" concept
+  E bolt-gradient.svg  variant B with the Antigravity vertical gradient
+                       stepped through the AGY letters (warm apex, blue legs)
 
 Light/dark GitHub: ink and shadow colors flip via a prefers-color-scheme
 media query inside each SVG; fixed hues (Google blue/purple/yellow/red and
@@ -23,7 +25,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from gen_badges import (  # noqa: E402
     ARCH, ARCH_APEX, ARCH_LEGS, ARCH_SPLIT, BLUE, EDGE, INK, PAPER, PURPLE,
-    YELLOW, _pw, _prects, _rects_svg, _runs, _stair,
+    YELLOW, _glyph, _pw, _prects, _rects_svg, _runs, _stair,
 )
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / "assets" / "logo"
@@ -39,12 +41,13 @@ STYLE = ("<style>.ink{fill:%s}.sh{fill:#BDC1C6}"
          ".sh{fill:#3C4043}}</style>" % INK)
 
 
-def svg(w, h, aria, body):
+def svg(w, h, aria, body, extra_style=""):
+    style = STYLE.replace("</style>", extra_style + "</style>")
     return ('<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
             'viewBox="0 0 {w} {h}" role="img" aria-label="{aria}">'
             '<title>{aria}</title>{style}'
             '<g shape-rendering="crispEdges">{body}</g></svg>\n').format(
-                w=w, h=h, aria=aria, style=STYLE, body=body)
+                w=w, h=h, aria=aria, style=style, body=body)
 
 
 def group(cls_or_fill, markup, cls=False):
@@ -162,10 +165,65 @@ def variant_d():
     return svg(W, H, "AGY-STAFF pixel employee ID card", "".join(body))
 
 
+# Antigravity vertical gradient, stepped per glyph row (7 rows). Stops are
+# the sampled logo colors; dark mode brightens only the warm rows, which
+# otherwise lose punch on #0d1117.
+GRAD_ROWS = ("ga", "ga", "gb", "gc", "gc", "gd", "gd")
+GRAD_STYLE = (".ga{fill:#DB863D}.gb{fill:#E8975A}"
+              ".gc{fill:#4285F4}.gd{fill:#3289FC}"
+              "@media (prefers-color-scheme:dark){.ga{fill:#E8975A}"
+              ".gb{fill:#F2A96C}}")
+
+
+def banded_text(x, y, text, u, row_classes, dither_row=None):
+    """Bitmap text with one fill class per glyph row.
+
+    dither_row: optional row index rendered as a checkerboard of that row's
+    class and the next row's class."""
+    by_class = {}
+    cx = x
+    for ch in text:
+        g = _glyph(ch)
+        for r, row in enumerate(g):
+            for c, bit in enumerate(row):
+                if bit != "X":
+                    continue
+                cls = row_classes[r]
+                if dither_row is not None and r == dither_row:
+                    nxt = row_classes[min(r + 1, len(row_classes) - 1)]
+                    cls = cls if (c + r) % 2 == 0 else nxt
+                by_class.setdefault(cls, []).append(
+                    '<rect x="{}" y="{}" width="{}" height="{}"/>'.format(
+                        cx + c * u, y + r * u, u, u))
+        cx += (len(g[0]) + 1) * u
+    return "".join('<g class="{}">{}</g>'.format(cls, "".join(rects))
+                   for cls, rects in sorted(by_class.items()))
+
+
+def variant_e(dither=False):
+    u, sh, pad = 8, 3, 8
+    agy_w = _pw("AGY", u)
+    bolt_w = (len(BOLT[0]) + 1) * u
+    total = agy_w + u + bolt_w + u + _pw("STAFF", u)
+    sx = pad + agy_w + u + bolt_w + u
+    body = '<g class="sh" transform="translate({0},{0})">{1}</g>'.format(
+        sh, _rects_svg(_prects(pad, pad, "AGY", u)
+                       + _prects(sx, pad, "STAFF", u)))
+    body += banded_text(pad, pad, "AGY", u, GRAD_ROWS,
+                        dither_row=2 if dither else None)
+    body += group(YELLOW, _rects_svg(_runs(BOLT, pad + agy_w + u, pad, u)))
+    body += group("ink", _rects_svg(_prects(sx, pad, "STAFF", u)), cls=True)
+    W, H = pad * 2 + total + sh, pad * 2 + 7 * u + sh
+    return svg(W, H,
+               "AGY-STAFF pixel wordmark, Antigravity gradient with bolt",
+               body, extra_style=GRAD_STYLE)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in (("pure-wordmark", variant_a), ("bolt", variant_b),
-                     ("arch-lockup", variant_c), ("id-card", variant_d)):
+                     ("arch-lockup", variant_c), ("id-card", variant_d),
+                     ("bolt-gradient", variant_e)):
         path = OUT / (name + ".svg")
         path.write_text(fn())
         print("wrote", path)
