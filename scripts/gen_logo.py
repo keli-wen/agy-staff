@@ -16,6 +16,8 @@ corners, hard shadows) at logo scale:
   G gemini-gradient.svg  variant B with the Gemini wordmark's horizontal
                        sweep (blue -> periwinkle -> violet -> mauve -> rose)
                        across the whole line, violet sparkle over the last F
+  H gemini-agy.svg     the full Gemini sweep compressed into AGY only,
+                       STAFF back to theme-flipping ink, sparkle over the Y
 
 arch-rainbow-sprite.svg is a standalone preview of the corrected pixel
 arch, reconstructed cell-by-cell from the Antigravity CLI welcome screen
@@ -336,6 +338,53 @@ def variant_g():
                body)
 
 
+# Variant H: the six Gemini stops compressed into AGY's 17 glyph columns,
+# hand-banded so the rose actually lands on the Y (stem and right arm)
+# instead of the sweep stalling at violet.
+GEM_AGY_BANDS = (0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5)
+
+
+def variant_h(sparkle=True):
+    u, sh, pad = 8, 3, 8
+    head = 17 if sparkle else 0
+    y = pad + head
+    agy_w = _pw("AGY", u)
+    bolt_w = (len(BOLT[0]) + 1) * u
+    total = agy_w + u + bolt_w + u + _pw("STAFF", u)
+    sx = pad + agy_w + u + bolt_w + u
+    body = '<g class="sh" transform="translate({0},{0})">{1}</g>'.format(
+        sh, _rects_svg(_prects(pad, y, "AGY", u)
+                       + _prects(sx, y, "STAFF", u)))
+    by = {}
+    col = 0
+    cx = pad
+    for ch in "AGY":
+        g = _glyph(ch)
+        for r, row in enumerate(g):
+            for c, bit in enumerate(row):
+                if bit == "X":
+                    stop = GEM_STOPS[GEM_AGY_BANDS[col + c]]
+                    by.setdefault(stop, []).append(
+                        '<rect x="{}" y="{}" width="{}" height="{}"/>'.format(
+                            cx + c * u, y + r * u, u, u))
+        cx += (len(g[0]) + 1) * u
+        col += len(g[0]) + 1
+    body += "".join('<g fill="{}">{}</g>'.format(k, "".join(v))
+                    for k, v in sorted(by.items()))
+    body += group(YELLOW, _rects_svg(_runs(BOLT, pad + agy_w + u, y, u)))
+    body += group("ink", _rects_svg(_prects(sx, y, "STAFF", u)), cls=True)
+    if sparkle:
+        spark_u = 3
+        y_x = pad + 12 * u                     # Y glyph left edge
+        spark_x = y_x + (5 * u - 5 * spark_u) // 2
+        body += group(GEM_SPARKLE,
+                      _rects_svg(_runs(SPARK_MINI, spark_x, 0, spark_u)))
+    W, H = pad * 2 + total + sh, pad * 2 + head + 7 * u + sh
+    return svg(W, H,
+               "AGY-STAFF pixel wordmark, Gemini gradient on AGY with bolt",
+               body)
+
+
 def variant_f():
     u, sh, pad = 8, 3, 8
     agy_w = _pw("AGY", u)
@@ -413,6 +462,7 @@ def main():
                      ("arch-lockup", variant_c), ("id-card", variant_d),
                      ("bolt-gradient", variant_e), ("bolt-rainbow", variant_f),
                      ("gemini-gradient", variant_g),
+                     ("gemini-agy", variant_h),
                      ("arch-rainbow-sprite", arch_sprite_preview)):
         path = OUT / (name + ".svg")
         path.write_text(fn())
