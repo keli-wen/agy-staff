@@ -1,5 +1,5 @@
 ---
-description: Ask agy (Gemini free quota) a cheap one-shot question; also the post-install smoke test
+description: Ask agy (fast Gemini) a cheap one-shot question; also the post-install smoke test
 argument-hint: '[--continue] [--model <id>|--effort low|medium|high] [--timeout <dur>] "question"'
 allowed-tools: Bash(node:*)
 ---

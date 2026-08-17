@@ -1,5 +1,5 @@
 ---
-description: Delegate a deep research/survey task to agy (Gemini free quota)
+description: Delegate a deep research/survey task to agy (fast Gemini)
 argument-hint: '[--wait|--background] [--continue] [--model <id>|--effort low|medium|high] [--loose] "what to research"'
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), Bash(gh:*)
 ---

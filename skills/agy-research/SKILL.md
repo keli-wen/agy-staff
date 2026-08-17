@@ -1,6 +1,6 @@
 ---
 name: agy-research
-description: Delegate a deep research or survey task to Google's Antigravity CLI (agy staffer, free-quota Gemini). Use when the user says /agy:research, "ask agy to research", "have the agy staffer survey X", or wants a second, independent deep-dive on a topic or codebase without spending Codex quota.
+description: Delegate a deep research or survey task to Google's Antigravity CLI (agy staffer, fast Gemini). Use when the user says /agy:research, "ask agy to research", "have the agy staffer survey X", or wants a second, independent deep-dive on a topic or codebase without spending Codex quota.
 ---
 
 # agy research

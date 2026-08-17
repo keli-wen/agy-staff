@@ -1,6 +1,6 @@
 ---
 name: agy-implement
-description: Delegate a coding task to Google's Antigravity CLI (agy staffer, free-quota Gemini), which edits the working tree directly for later human review. Use when the user says /agy:implement, "have agy fix/build X", or wants to hand a well-scoped coding task to the agy staffer instead of doing it in Codex.
+description: Delegate a coding task to Google's Antigravity CLI (agy staffer, fast Gemini), which edits the working tree directly for later human review. Use when the user says /agy:implement, "have agy fix/build X", or wants to hand a well-scoped coding task to the agy staffer instead of doing it in Codex.
 ---
 
 # agy implement

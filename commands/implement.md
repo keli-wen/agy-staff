@@ -1,5 +1,5 @@
 ---
-description: Delegate a coding task to agy (Gemini free quota); it edits the working tree for your review
+description: Delegate a coding task to agy (fast Gemini); it edits the working tree for your review
 argument-hint: '[--wait|--background] [--continue] [--strict] [--model <id>|--effort low|medium|high] "task description"'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), Bash(gh:*), AskUserQuestion

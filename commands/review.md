@@ -1,5 +1,5 @@
 ---
-description: Get a second-opinion code review from agy (Gemini free quota)
+description: Get a second-opinion code review from agy (fast Gemini)
 argument-hint: '[--wait|--background] [--pr <num>|--target <ref>] [--loose] [--json] [focus text]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), Bash(gh:*), AskUserQuestion

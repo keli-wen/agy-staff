@@ -1,6 +1,6 @@
 ---
 name: agy-review
-description: Get a second-opinion code review from Google's Antigravity CLI (agy staffer, free-quota Gemini). Use when the user says /agy:review, "have agy review this", "second opinion on my diff/PR", or after finishing a feature and wanting an independent verifier that does not share Codex's blind spots.
+description: Get a second-opinion code review from Google's Antigravity CLI (agy staffer, fast Gemini). Use when the user says /agy:review, "have agy review this", "second opinion on my diff/PR", or after finishing a feature and wanting an independent verifier that does not share Codex's blind spots.
 ---
 
 # agy review
