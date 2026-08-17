@@ -13,6 +13,9 @@ corners, hard shadows) at logo scale:
   E bolt-gradient.svg  variant B with a simple warm-to-blue vertical step
   F bolt-rainbow.svg   variant B with the TRUE Antigravity 2D gradient
                        (spectral wheel sampled from the CLI's own pixel arch)
+  G gemini-gradient.svg  variant B with the Gemini wordmark's horizontal
+                       sweep (blue -> periwinkle -> violet -> mauve -> rose)
+                       across the whole line, violet sparkle over the last F
 
 arch-rainbow-sprite.svg is a standalone preview of the corrected pixel
 arch, reconstructed cell-by-cell from the Antigravity CLI welcome screen
@@ -260,6 +263,79 @@ def rainbow_text(x, y, text, u):
                    for k, v in sorted(by.items()))
 
 
+# ---- the Gemini wordmark sweep ---------------------------------------------
+# Six stops sampled from vertical slices of the Gemini wordmark reference
+# (body pixels only, sparkle excluded); the rose tip comes from the saturated
+# pixels of the final letter. Applied per pixel column across the whole line.
+GEM_STOPS = ("#609CE4", "#6495E7", "#6F8CDF", "#8782CE", "#9E7FBE", "#C36D82")
+GEM_SPARKLE = "#888DD1"  # sampled from the sparkle above the Gemini "i"
+
+SPARK_MINI = (  # 5x5 four-point star for masthead scale
+    "..X..",
+    ".XXX.",
+    "XXXXX",
+    ".XXX.",
+    "..X..",
+)
+
+
+def gemini_line(x, y, u, bolt_after):
+    """AGY + bolt + STAFF with the Gemini sweep per pixel column.
+
+    bolt_after: index in the glyph sequence after which the bolt sits."""
+    seq = "AGYSTAFF"
+    widths = [len(_glyph(ch)[0]) for ch in seq]
+    bolt_cols = len(BOLT[0])
+    total_cols = sum(w + 1 for w in widths) + bolt_cols + 1 - 1
+    by = {}
+    def put(col, row, cx, cy):
+        stop = GEM_STOPS[min(int(col * len(GEM_STOPS) / total_cols),
+                             len(GEM_STOPS) - 1)]
+        by.setdefault(stop, []).append(
+            '<rect x="{}" y="{}" width="{}" height="{}"/>'.format(
+                cx, cy, u, u))
+    col = 0
+    cx = x
+    for idx, ch in enumerate(seq):
+        g = _glyph(ch)
+        for r, row in enumerate(g):
+            for c, bit in enumerate(row):
+                if bit == "X":
+                    put(col + c, r, cx + c * u, y + r * u)
+        cx += (len(g[0]) + 1) * u
+        col += len(g[0]) + 1
+        if idx == bolt_after:
+            by.setdefault("BOLT", []).append((cx, y))
+            cx += (bolt_cols + 1) * u
+            col += bolt_cols + 1
+    bolt_pos = by.pop("BOLT")[0]
+    body = "".join('<g fill="{}">{}</g>'.format(k, "".join(v))
+                   for k, v in sorted(by.items()))
+    return body, bolt_pos, total_cols * u
+
+
+def variant_g():
+    u, sh, pad, head = 8, 3, 8, 17
+    body_line, bolt_pos, line_w = gemini_line(pad, pad + head, u, bolt_after=2)
+    # hard shadow for the whole line (letters only; bolt drawn on top)
+    shadow = _prects(pad, pad + head, "AGY", u)
+    sx = bolt_pos[0] + (len(BOLT[0]) + 1) * u
+    shadow += _prects(sx, pad + head, "STAFF", u)
+    body = '<g class="sh" transform="translate({0},{0})">{1}</g>'.format(
+        sh, _rects_svg(shadow))
+    body += body_line
+    body += group(YELLOW, _rects_svg(_runs(BOLT, bolt_pos[0], pad + head, u)))
+    # violet sparkle centered over the final F, Gemini-style dotted-i gesture
+    spark_u = 3
+    spark_x = pad + line_w - (5 * u + 5 * spark_u) // 2
+    body += group(GEM_SPARKLE, _rects_svg(_runs(SPARK_MINI, spark_x, 0, spark_u)))
+    W = pad * 2 + line_w + sh
+    H = pad * 2 + head + 7 * u + sh
+    return svg(W, H,
+               "AGY-STAFF pixel wordmark, Gemini horizontal gradient sweep",
+               body)
+
+
 def variant_f():
     u, sh, pad = 8, 3, 8
     agy_w = _pw("AGY", u)
@@ -336,6 +412,7 @@ def main():
     for name, fn in (("pure-wordmark", variant_a), ("bolt", variant_b),
                      ("arch-lockup", variant_c), ("id-card", variant_d),
                      ("bolt-gradient", variant_e), ("bolt-rainbow", variant_f),
+                     ("gemini-gradient", variant_g),
                      ("arch-rainbow-sprite", arch_sprite_preview)):
         path = OUT / (name + ".svg")
         path.write_text(fn())
