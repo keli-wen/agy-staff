@@ -457,12 +457,13 @@ def variant_e(dither=False):
 
 
 def main():
+    """Emit the kept set (B, D, F, H + arch sprite).
+
+    variant_a/c/e/g remain callable for reproducibility of retired
+    candidates; they are just not written by default."""
     OUT.mkdir(parents=True, exist_ok=True)
-    for name, fn in (("pure-wordmark", variant_a), ("bolt", variant_b),
-                     ("arch-lockup", variant_c), ("id-card", variant_d),
-                     ("bolt-gradient", variant_e), ("bolt-rainbow", variant_f),
-                     ("gemini-gradient", variant_g),
-                     ("gemini-agy", variant_h),
+    for name, fn in (("bolt", variant_b), ("id-card", variant_d),
+                     ("bolt-rainbow", variant_f), ("gemini-agy", variant_h),
                      ("arch-rainbow-sprite", arch_sprite_preview)):
         path = OUT / (name + ".svg")
         path.write_text(fn())

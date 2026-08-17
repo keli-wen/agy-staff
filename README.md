@@ -1,4 +1,4 @@
-<h1 align="center">agy-staff</h1>
+<p align="center"><img src="assets/logo/gemini-agy.svg" width="440" alt="AGY-STAFF"></p>
 
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a></p>
 
