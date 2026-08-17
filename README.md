@@ -2,127 +2,56 @@
 
 Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code** and **OpenAI Codex**.
 
-agy-staff is a thin dual-platform plugin that lets your primary coding agent delegate work to `agy` — which ships free-quota access to Gemini 3.7 Flash — through four modes:
+![agy-staff design](assets/design.en.svg)
 
-| Mode | What it is | Default model | Default profile | Default execution |
-|---|---|---|---|---|
-| `research` | Deep survey with cited sources and explicit unverified-claims marking | `gemini-3.7-flash-high` | strict | wait |
-| `review` | Second-opinion verifier: severity-ranked findings with `file:line` refs | `gemini-3.7-flash-medium` | strict | wait |
-| `implement` | Well-scoped coding task; agy edits the working tree, you review the diff | `gemini-3.7-flash-medium` | loose | background |
-| `ask` | Cheap zero-tool one-shot Q&A (~3s); doubles as the post-install smoke test | `gemini-3.7-flash-low` | strict (prompt-only) | wait (always) |
+## What & Why
 
-Both platforms surface the same commands under the `agy` plugin name (`/agy:*`), backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`).
+Your main agents are busy and expensive. agy-staff lets them delegate to `agy`, which ships fast, free-quota Gemini 3.7 Flash — perfect for quick second opinions, code reviews, deep surveys, and well-scoped implementation tasks. Four modes, one plugin name on both platforms: `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement` (plus `continue`/`status`/`result`/`cancel`/`setup`).
 
-## Why wrap the official CLI instead of an Antigravity API proxy?
+Why not the reverse-engineered Antigravity API proxies? They impersonate the IDE's private protocol, violate the Antigravity ToS, and Google bans accounts that use them. The official `agy` binary in headless mode reaches the same free-quota models through a supported surface.
 
-Several community projects reverse-engineer the Antigravity/Gemini backend into an OpenAI-compatible proxy. agy-staff deliberately does not: those proxies impersonate the IDE's private protocol, violate the Antigravity Terms of Service, and Google can (and does) revoke accounts that use them — an unacceptable risk for a daily-driver Google account. The official `agy` binary in headless mode gives the same free-quota models through a supported surface, at the cost of a small per-session token overhead (~15k input tokens of system context, mostly cache-served on continuation).
+## How
 
-## Installation
+*(screenshots coming soon)*
+<!-- screenshot: claude-code -->
+<!-- screenshot: codex -->
 
-Prerequisite on the machine: `agy` on PATH (tested with v1.1.13 at `~/.local/bin/agy`) and Node.js.
+### Install
 
-### Claude Code
-
-The repo is its own single-plugin marketplace:
+Prerequisites: `agy` on PATH (tested with v1.1.13) and Node.js.
 
 ```
-/plugin marketplace add /path/to/agy-staff        # or a GitHub slug once pushed
+# Claude Code
+/plugin marketplace add /path/to/agy-staff        # or the GitHub slug once pushed
 /plugin install agy@agy-staff
 ```
 
-Commands appear as `/agy:research`, `/agy:review`, `/agy:implement`, `/agy:ask`, `/agy:continue`, `/agy:status`, `/agy:result`, `/agy:cancel`, `/agy:setup`.
+Codex: add this repo as a plugin source in your marketplace setup (manifest: `.agents/plugins/marketplace.json`), then restart the app. After any update: bump lands only via `codex plugin marketplace upgrade` + app restart.
 
-### Codex
+First run: `/agy:ask "reply with OK"` (smoke test, no setup needed), then `/agy:setup` (installs the read-only allowlist for autonomous evidence gathering).
 
-The repo carries a `.codex-plugin/plugin.json` manifest exposing the five skills in `skills/`, plus a Codex marketplace manifest at `.agents/plugins/marketplace.json`. Install it by adding this repo as a plugin source in your Codex marketplace setup — e.g. add an entry pointing at this repo in the marketplace you already use (such as a personal `dev-skills`/`devai` marketplace), or install the repo directly with Codex's plugin management UI/command. The skills trigger on `/agy:*` phrasing and natural requests like "have agy review this".
+### For agents
 
-### Upgrading
+- Modes → defaults: `ask` strict/flash-low/wait · `research` strict/flash-high/wait · `review` strict/flash-medium/wait · `implement` loose/flash-medium/background.
+- Model ids are effort-suffixed (`gemini-3.7-flash-low|medium|high`, `gemini-3.1-pro-low|high`); the companion normalizes bare families + `--effort` and the aliases `flash`/`pro`.
+- On a companion error: relay the message verbatim and stop — never improvise flags, change directories, or switch repos to satisfy a precondition.
+- `review` needs a subject: `--diff-file <path>` (you assemble the diff; never stdin) or `--pr <num>`/`--target <ref>` (agy gathers evidence itself; needs `/agy:setup` once).
+- `implement` requires a clean git tree; afterwards show the user the diff — rollback is `git checkout .`.
+- Follow-ups: `--continue` (same mode) or `/agy:continue "<text>"` (last conversation; cache-served and cheap).
 
-Codex caches plugins under a per-version directory (e.g. `plugins/cache/agy-staff/agy/0.1.0`), so a fix only reaches the app after the plugin version is bumped **and** you run `codex plugin marketplace upgrade` (or remove and re-add the marketplace entry), then restart the app. For Claude Code, update the marketplace and reinstall (`/plugin marketplace update agy-staff`, then `/plugin install agy@agy-staff`).
+### CUJs
 
-### Install smoke test
-
-Run `/agy:ask "reply with OK"` as the first thing after install. It is zero-tool and needs no setup, so a fast "OK" (plus the `[agy-staff]` footer) proves the plugin, the companion script, and the `agy` binary are wired up end to end.
-
-### First-time setup
-
-Run `/agy:setup` once. It checks the `agy` binary, then (after showing you exactly what it will write, and backing the file up) appends a read-only allowlist to `~/.gemini/antigravity-cli/settings.json` so strict-profile runs can gather evidence autonomously.
-
-## The two-profile permission model
-
-Every mode runs under exactly one of two profiles. The mode picks the default; `--strict`/`--loose` override per call.
-
-| | **strict** (default: research, review) | **loose** (default: implement) |
+| You say | Command that runs | What happens |
 |---|---|---|
-| agy invocation | no permission skipping — fail-closed, every unlisted tool call is auto-denied | `--dangerously-skip-permissions` |
-| What agy can do | read-only evidence gathering via the setup allowlist: `git gh cat head ls grep find rg wc` (prefix-matched commands) | anything, including editing files and running commands |
-| Safety net | agy physically cannot write | git: companion refuses to start on a dirty tree; prints `git diff --stat` after; rollback is `git checkout .` |
-| Typical use | surveys, code review | coding tasks; reviews that must run tests (`/agy:review --loose`) |
+| "quick sanity check: is X true?" | `/agy:ask "is X true?"` | ~3s zero-tool answer from Gemini |
+| "review my diff" | `/agy:review` | outer agent assembles your diff; severity-ranked findings with `file:line` refs |
+| "review PR `#123`" | `/agy:review --pr 123` | agy fetches the PR via `gh` and reviews autonomously |
+| "survey how X works" | `/agy:research "survey X"` | cited deep report with an explicit unverified-claims section |
+| "fix that failing test" | `/agy:implement "fix ..."` | agy edits the working tree in the background; you confirm the diff |
+| "also check the error path" | `/agy:continue "check the error path"` | continues the last conversation from cache |
 
-## Usage and CUJs
-
-```
-/agy:review                          # after finishing a feature: the outer agent
-                                     # assembles your diff and gets a second opinion
-/agy:review --pr 123                 # autonomous: agy fetches the PR itself via gh
-/agy:review --target main --loose    # review that may run the test suite
-/agy:research "survey how X works in this repo and upstream"
-/agy:implement "fix the failing test in foo_test.py"
-/agy:ask "reply with OK"             # install smoke test; also any quick question
-/agy:ask "is fsync needed after rename for crash safety on APFS?"
-/agy:continue "now check the error path too"
-/agy:status                          # background jobs table
-/agy:result <job-id>                 # stored output of a finished job
-/agy:cancel <job-id>
-/agy:setup                           # install the strict-profile allowlist (confirmed, backed up)
-```
-
-### Flags (uniform across modes)
-
-| Flag | Meaning |
-|---|---|
-| `--conversation <id>` | resume a specific agy conversation |
-| `--continue` | reuse this mode's last conversation id from state |
-| `--model <id>` | explicit agy model (see `agy models`). Ids are effort-suffixed (`gemini-3.7-flash-low`); the companion normalizes bare families (`gemini-3.7-flash` + `--effort`) and the aliases `flash`/`pro`, and rejects unknown ids pre-flight |
-| `--effort low\|medium\|high` | shorthand for `gemini-3.7-flash-<effort>` |
-| `--strict` / `--loose` | permission profile override |
-| `--background` / `--wait` | execution style override (ask is always foreground and rejects `--background`) |
-| `--json` | (review) schema-enforced JSON findings; default is free-form markdown |
-| `--timeout <dur>` | agy `--print-timeout` (defaults: 10m research/implement, 5m review, 2m ask) |
-| `--diff-file <path>` | (review) file whose content is inlined into the prompt |
-| `--pr <num>` / `--target <ref>` | (review) autonomous evidence gathering |
-
-## State and background jobs
-
-Per-repository state lives in `<repo>/.agy-staff/` (gitignore it in your projects; this repo's `.gitignore` shows the pattern):
-
-- `state.json` — last conversation id per mode + a jobs registry.
-- `jobs/<id>.log`, `jobs/<id>.spec.json`, `jobs/<id>.result.md` — one triple per background job.
-
-Background jobs are plain detached processes (the companion re-spawns itself as a worker; no daemon). `status` detects crashed workers by pid liveness; `cancel` kills the pid. Conversation continuation (`--continue`, `/agy:continue`) is cheap: agy serves prior context largely from cache (`cache_read_tokens`).
-
-## Troubleshooting
-
-- **Empty response, "status SUCCESS"** — agy reports success even when every tool call was denied; the content is then empty and stderr carries a permission note. The companion detects this and tells you the fix: run `/agy:setup`, or retry with `--loose`. Caveat baked into agy: some tools ignore allow-rules in headless mode entirely and only work with the skip flag — those always need `--loose`.
-- **"inline content over the 200KB limit"** — the whole prompt travels as one argv entry and macOS ARG_MAX is ~1MB; agy does not read stdin. Split the diff or switch to autonomous review (`--pr`/`--target`).
-- **Never use agy's `--sandbox` for these modes** — it redirects execution into agy's own scratch workspace (`~/.gemini/antigravity-cli/scratch`) and cannot see your real working directory. The companion never passes it.
-- **Dirty-tree refusal on implement** — intentional. Commit or stash so agy's edits are isolated and `git checkout .` is a complete rollback.
-- **Project-scoped agy permissions** — agy has project-level rules ("highest priority") tied to its `--project` system; the settings-file path for those is unverified, so setup only edits the global file. If a rule seems ignored, check agy interactively.
-- **Rules context** — agy auto-loads `AGENTS.md`/`GEMINI.md`/`.agents/rules/*.md` from the workspace; keep those files sane in repos where you delegate.
-
-## Repository layout
-
-```
-companion/agy-companion.mjs   the single brain (all modes, jobs, setup)
-templates/                    shared prompt templates (research/review/implement/ask)
-.claude-plugin/               Claude Code plugin + self-hosting marketplace manifests
-commands/                     Claude Code slash commands (thin shells)
-.codex-plugin/plugin.json     Codex plugin manifest
-skills/                       Codex skills (thin shells)
-```
+**Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
-*中文文档见 [README.zh-CN.md](README.zh-CN.md).*
+MIT — see [LICENSE](LICENSE). 中文文档见 [README.zh-CN.md](README.zh-CN.md).

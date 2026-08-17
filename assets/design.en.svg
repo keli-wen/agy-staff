@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 420" role="img" aria-label="agy-staff design: Claude Code and Codex delegate work via /agy:* to the agy staff powered by Antigravity CLI">
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: #1f2328; }
+    .muted { fill: #57606a; }
+    .accent { fill: #0969da; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+  <rect x="1" y="1" width="878" height="418" rx="16" fill="#f6f8fa" stroke="#d0d7de"/>
+
+  <text x="150" y="56" font-size="14" text-anchor="middle" class="muted">Senior agents — busy &amp; expensive</text>
+  <rect x="40" y="80" width="220" height="70" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <text x="150" y="122" font-size="18" font-weight="600" text-anchor="middle">Claude Code</text>
+  <rect x="40" y="180" width="220" height="70" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+  <text x="150" y="222" font-size="18" font-weight="600" text-anchor="middle">Codex</text>
+
+  <text x="325" y="146" font-size="13" text-anchor="middle" class="mono accent">delegate via /agy:*</text>
+  <line x1="268" y1="165" x2="376" y2="165" stroke="#0969da" stroke-width="2.5"/>
+  <path d="M 376 157 L 393 165 L 376 173 Z" fill="#0969da"/>
+
+  <rect x="400" y="40" width="440" height="300" rx="12" fill="#ffffff" stroke="#54aeff" stroke-width="1.5"/>
+  <text x="620" y="82" font-size="22" font-weight="700" text-anchor="middle">agy staff</text>
+  <text x="620" y="106" font-size="13" text-anchor="middle" class="muted">Antigravity CLI · Gemini 3.7 Flash</text>
+  <text x="620" y="128" font-size="13" font-style="italic" text-anchor="middle" class="accent">fast, free-quota worker</text>
+
+  <rect x="422" y="152" width="192" height="60" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="518" y="178" font-size="15" font-weight="600" text-anchor="middle">ask<tspan x="518" dy="20" font-size="12" font-weight="400" class="muted">strict · tool-free</tspan></text>
+  <rect x="626" y="152" width="192" height="60" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="722" y="178" font-size="15" font-weight="600" text-anchor="middle">research<tspan x="722" dy="20" font-size="12" font-weight="400" class="muted">strict · read-only</tspan></text>
+  <rect x="422" y="232" width="192" height="60" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="518" y="258" font-size="15" font-weight="600" text-anchor="middle">review<tspan x="518" dy="20" font-size="12" font-weight="400" class="muted">strict · read-only</tspan></text>
+  <rect x="626" y="232" width="192" height="60" rx="8" fill="#fff1e5" stroke="#f0883e"/>
+  <text x="722" y="258" font-size="15" font-weight="600" text-anchor="middle">implement<tspan x="722" dy="20" font-size="12" font-weight="400" class="muted">loose · git-guarded</tspan></text>
+
+  <rect x="40" y="362" width="800" height="38" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="440" y="386" font-size="13" text-anchor="middle"><tspan font-weight="600" class="accent">strict</tspan> = fail-closed, read-only allowlist&#160;&#160;&#160;|&#160;&#160;&#160;<tspan font-weight="600" fill="#bc4c00">loose</tspan> = write access, requires clean git tree + diff review</text>
+</svg>
