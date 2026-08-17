@@ -10,8 +10,13 @@ corners, hard shadows) at logo scale:
   C arch-lockup.svg    ink stair tile with the Antigravity arch + wordmark
   D id-card.svg        a tiny pixel employee ID card (arch photo, name line,
                        barcode) playing on the "staff" concept
-  E bolt-gradient.svg  variant B with the Antigravity vertical gradient
-                       stepped through the AGY letters (warm apex, blue legs)
+  E bolt-gradient.svg  variant B with a simple warm-to-blue vertical step
+  F bolt-rainbow.svg   variant B with the TRUE Antigravity 2D gradient
+                       (spectral wheel sampled from the CLI's own pixel arch)
+
+arch-rainbow-sprite.svg is a standalone preview of the corrected pixel
+arch, reconstructed cell-by-cell from the Antigravity CLI welcome screen
+(the official pixel-art rendering of the logo).
 
 Light/dark GitHub: ink and shadow colors flip via a prefers-color-scheme
 media query inside each SVG; fixed hues (Google blue/purple/yellow/red and
@@ -175,6 +180,113 @@ GRAD_STYLE = (".ga{fill:#DB863D}.gb{fill:#E8975A}"
               ".gb{fill:#F2A96C}}")
 
 
+# ---- the TRUE Antigravity gradient -----------------------------------------
+# Sampled from the CLI welcome screen's official pixel arch (cell centers of
+# the 12x11 grid): a spectral wheel, not a two-tone. Green left leg rising
+# through teal/aqua, a yellow-orange-red apex, and red falling through purple
+# and violet into Google blue on the right leg.
+RB = {
+    "G": "#85C64E",  # green (left flank)
+    "Y": "#D9B031",  # yellow (apex left)
+    "O": "#F6912E",  # orange (apex)
+    "R": "#EF5441",  # red / coral (apex right)
+    "g": "#43AEAA",  # teal (left transition)
+    "C": "#64B6F5",  # aqua (left leg bottom)
+    "P": "#955FA5",  # purple (right transition)
+    "V": "#6C73D8",  # violet-blue (right upper leg)
+    "B": "#3D85FC",  # Google blue (right leg bottom)
+}
+
+# 12x11 corrected arch, following the CLI sprite's silhouette and scheme.
+ARCH_RAINBOW = (
+    ".....OO.....",
+    "....YOOR....",
+    "...GYOORR...",
+    "...GGYORR...",
+    "..GGg..PPP..",
+    "..Ggg..VVP..",
+    "..GgC..BVP..",
+    "..gg....BV..",
+    ".gCC....BBV.",
+    ".gC......BB.",
+    "CC........BB",
+)
+
+
+def rainbow_arch(x, y, u):
+    """The corrected Antigravity pixel arch at cell size u."""
+    by = {}
+    for r, row in enumerate(ARCH_RAINBOW):
+        for c, key in enumerate(row):
+            if key != ".":
+                by.setdefault(key, []).append(
+                    '<rect x="{}" y="{}" width="{}" height="{}"/>'.format(
+                        x + c * u, y + r * u, u, u))
+    return "".join('<g fill="{}">{}</g>'.format(RB[k], "".join(v))
+                   for k, v in sorted(by.items()))
+
+
+# Per-letter row ramps mapping the same wheel onto AGY (7 glyph rows):
+# A = the left leg (green -> teal -> aqua), G = the apex (yellow/orange ->
+# blue), Y = the right leg (red -> purple -> violet -> blue).
+RAINBOW_LETTER_ROWS = {
+    "A": "GGGggCC",
+    "G": "YYOOBBB",
+    "Y": "RRRPPVB",
+}
+
+
+def rainbow_text(x, y, text, u):
+    by = {}
+    cx = x
+    for ch in text:
+        g = _glyph(ch)
+        ramp = RAINBOW_LETTER_ROWS[ch]
+        for r, row in enumerate(g):
+            for c, bit in enumerate(row):
+                if bit != "X":
+                    continue
+                key = ramp[r]
+                # apex continuity: G's top rows ramp yellow -> orange
+                # left-to-right, like the arch apex itself
+                if ch == "G" and r < 2:
+                    key = "Y" if c < 3 else "O"
+                if True:
+                    by.setdefault(key, []).append(
+                        '<rect x="{}" y="{}" width="{}" height="{}"/>'.format(
+                            cx + c * u, y + r * u, u, u))
+        cx += (len(g[0]) + 1) * u
+    return "".join('<g fill="{}">{}</g>'.format(RB[k], "".join(v))
+                   for k, v in sorted(by.items()))
+
+
+def variant_f():
+    u, sh, pad = 8, 3, 8
+    agy_w = _pw("AGY", u)
+    bolt_w = (len(BOLT[0]) + 1) * u
+    total = agy_w + u + bolt_w + u + _pw("STAFF", u)
+    sx = pad + agy_w + u + bolt_w + u
+    body = '<g class="sh" transform="translate({0},{0})">{1}</g>'.format(
+        sh, _rects_svg(_prects(pad, pad, "AGY", u)
+                       + _prects(sx, pad, "STAFF", u)))
+    body += rainbow_text(pad, pad, "AGY", u)
+    body += group(YELLOW, _rects_svg(_runs(BOLT, pad + agy_w + u, pad, u)))
+    body += group("ink", _rects_svg(_prects(sx, pad, "STAFF", u)), cls=True)
+    W, H = pad * 2 + total + sh, pad * 2 + 7 * u + sh
+    return svg(W, H,
+               "AGY-STAFF pixel wordmark, true Antigravity spectral gradient",
+               body)
+
+
+def arch_sprite_preview():
+    u, pad = 10, 10
+    body = rainbow_arch(pad, pad, u)
+    W = pad * 2 + 12 * u
+    H = pad * 2 + 11 * u
+    return svg(W, H, "Corrected Antigravity pixel arch (CLI welcome-screen "
+               "scheme)", body)
+
+
 def banded_text(x, y, text, u, row_classes, dither_row=None):
     """Bitmap text with one fill class per glyph row.
 
@@ -223,7 +335,8 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in (("pure-wordmark", variant_a), ("bolt", variant_b),
                      ("arch-lockup", variant_c), ("id-card", variant_d),
-                     ("bolt-gradient", variant_e)):
+                     ("bolt-gradient", variant_e), ("bolt-rainbow", variant_f),
+                     ("arch-rainbow-sprite", arch_sprite_preview)):
         path = OUT / (name + ".svg")
         path.write_text(fn())
         print("wrote", path)
