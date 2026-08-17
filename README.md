@@ -1,12 +1,8 @@
-<p align="center">
-  <a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" alt="powered by: Antigravity"></a>
-  <img src="assets/badges/model-gemini-3-7-flash.svg" alt="model: Gemini 3.7 Flash">
-  <a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" alt="Claude Code plugin"></a>
-  <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" alt="Codex plugin"></a>
-  <a href="LICENSE"><img src="assets/badges/license-mit.svg" alt="license: MIT"></a>
-</p>
+<h1 align="center">agy-staff</h1>
 
-# agy-staff
+<p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a></p>
+
+<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-7-flash.svg" alt="model: Gemini 3.7 Flash"> <a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" alt="license: MIT"></a></p>
 
 Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code** and **OpenAI Codex**.
 
@@ -14,9 +10,11 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code** and **Ope
 
 ## What & Why
 
-agy-staff lets your senior agents delegate to `agy`, which ships fast, free-quota Gemini 3.7 Flash. Four modes, one plugin name on both platforms: `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement` (plus `continue`/`status`/`result`/`cancel`/`setup`).
+agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.7 Flash. Four modes, one plugin name on both platforms: `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement` (plus `continue`/`status`/`result`/`cancel`/`setup`).
 
-If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, read-only research and reviews at Flash speed, scoped implementation that burns none of your premium quota. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
+If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, read-only research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
+
+![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
 ## How
 
@@ -64,15 +62,15 @@ Invocation is always explicit — you type the command; the plugin never trigger
 
 | Use case | Claude Code | Codex |
 |---|---|---|
-| Quick second opinion | `/agy:ask "what does this error mean"` | `$agy:agy-ask what does this error mean` |
+| Quick second opinion | `/agy:ask "what does this error mean?"` | `$agy:agy-ask what does this error mean?` |
 | Review my working diff | `/agy:review` | `$agy:agy-review` |
 | Review PR #123 | `/agy:review --pr 123` | `$agy:agy-review --pr 123` |
-| Survey a topic | `/agy:research "how does X work"` | `$agy:agy-research how does X work` |
-| Implement a scoped fix | `/agy:implement "fix the flaky test"` | `$agy:agy-implement fix the flaky test` |
+| Survey a topic | `/agy:research "how does auth work in this repo?"` | `$agy:agy-research how does auth work in this repo?` |
+| Implement a scoped fix | `/agy:implement "fix the flaky retry test"` | `$agy:agy-implement fix the flaky retry test` |
 | Continue last conversation | `/agy:continue "also check the error path"` | `$agy:agy-jobs continue also check the error path` |
 
 **Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading).
 
 ## License
 
-MIT — see [LICENSE](LICENSE). 中文文档见 [README.zh-CN.md](README.zh-CN.md).
+MIT — see [LICENSE](LICENSE).
