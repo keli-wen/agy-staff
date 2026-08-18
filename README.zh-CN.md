@@ -2,11 +2,13 @@
 
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a></p>
 
-<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-7-flash.svg" height="20" alt="model: Gemini 3.7 Flash"> <a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
+<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-7-flash.svg" height="20" alt="model: Gemini 3.7 Flash"></p>
+
+<p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
 把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code** 和 **OpenAI Codex** 的「agy 员工」。
 
-![agy-staff 设计图](assets/design.svg)
+![agy-staff 设计图](assets/design.png)
 
 ## What & Why
 
@@ -25,10 +27,6 @@ agy-staff 让主力 agent 把任务委托给 `agy`，后者运行速度很快的
 同一个插件在 Codex 里用 `$agy` 调用：
 
 ![Codex 里的 $agy 技能选择器](assets/codex-desktop-screenshot.png)
-
-委托出去是这样的——几秒钟就返回一个 job id，agy 在后台干活，你的主力 agent 继续往前走：
-
-![一次 /agy:agy-research 调用返回 job id，主力 agent 继续工作](assets/claude-code-agy-research-example.png)
 
 ### 安装
 
@@ -88,6 +86,18 @@ for the harness you are running in. Respond in the user's language.
 `ask` 在同一次调用里返回答案。`research`、`review`、`implement` 作为后台任务运行：调用立即返回一个 job id，之后用 `/agy:wait <id>` 阻塞等待并直接拿到结果（`/agy:status` 查看进度，`/agy:cancel <id>` 终止）。
 
 **完整参考 →** [docs/REFERENCE.zh-CN.md](docs/REFERENCE.zh-CN.md)（flags、权限模型、任务/状态、疑难排查、升级）。
+
+## 参与贡献
+
+欢迎贡献——提 issue、报 bug、发 PR 都可以。
+
+发 PR 之前有三件事需要知道：
+
+- **跑测试**：`node --test tests/*.test.mjs`。这些是黑盒测试，跑在一次性的仓库和 HOME 里，用假的 `agy`（`tests/fake-agy.mjs`）替代真实二进制，所以不会联网、也不会碰你真实的配置。请保持这个性质：测试永远不要调用真的 `agy`。
+- **文档是成对的**：`README.md` / `README.zh-CN.md`、`docs/REFERENCE.md` / `docs/REFERENCE.zh-CN.md` 保持同步。改了一份，就要改它的对应版本。
+- **行为都在一个文件里**：`companion/agy-companion.mjs` 承载全部逻辑，commands 和 skills 只是转发的薄壳，护栏写在 `templates/` 的 prompt 模板里。
+
+新增模式或 flag 会改变对外接口，请先开 issue 讨论形态，再动手。
 
 ## 许可证
 
