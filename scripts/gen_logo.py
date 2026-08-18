@@ -161,11 +161,11 @@ def variant_d():
         TINT, ox + 12, oy + 30))
     body.append(arch_sprite(ox + 12 + (52 - 9 * 4) // 2,
                             oy + 30 + (52 - 8 * 4) // 2, 4))
-    # name + role lines in bitmap type
-    body.append(group(INK, _rects_svg(_prects(ox + 76, oy + 34, "AGY-STAFF", 3))))
-    body.append(group(RED, _rects_svg(_prects(ox + 76, oy + 62, "WORKER", 2))))
+    # name + role lines in bitmap type (u=2 cleanly fits the card without clipping)
+    body.append(group(INK, _rects_svg(_prects(ox + 76, oy + 30, "AGY-STAFF", 2))))
+    body.append(group(RED, _rects_svg(_prects(ox + 76, oy + 50, "WORKER", 2))))
     # barcode: deterministic pixel bars from the letters of the name
-    bx, by = ox + 76, oy + 88
+    bx, by = ox + 76, oy + 76
     for i, ch2 in enumerate("AGYSTAFFAGYSTAFF"):
         wbar = 2 + (ord(ch2) % 3) * 2
         body.append('<rect fill="{}" x="{}" y="{}" width="{}" height="24"/>'
