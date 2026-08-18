@@ -44,6 +44,9 @@ codex plugin add agy@agy-staff
 
 Then the user must restart the app — Codex caches plugins per version. Upgrades reach the app only after the plugin version is bumped **and** `codex plugin marketplace upgrade` is run, followed by a restart.
 
+> [!IMPORTANT]
+> Codex's command sandbox cannot run agy. agy binds a localhost port for its internal language server and reads its OAuth token file; the workspace-write sandbox blocks the bind and hides the token (secret protection — no `writable_roots`/`network_access` config opens it). Every companion command must run **unsandboxed**: the workspace needs full access, or each companion command needs escalated approval. The failure signature is `operation not permitted` on `~/.gemini/antigravity-cli/...` followed by empty output or a bogus "authentication failed".
+
 ## 3. Smoke test
 
 Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
@@ -51,17 +54,43 @@ Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
 - Claude Code: `/agy:ask "reply with OK"`
 - Codex: `$agy:agy-ask reply with OK`
 
-Expect a short answer ending with an `[agy-staff]` footer. If it errors, relay the error verbatim; the usual causes are expired agy auth (user runs `agy` interactively once to re-login) or an invalid model id (`agy models` lists valid ids). Do not improvise flags to work around errors.
+Expect a short answer on stdout with no telemetry mixed in, plus an `[agy-staff]` telemetry line on stderr (mode, profile, model, duration, tokens, conversation id — for you, not for the user). If it errors, relay the error verbatim; the usual causes are expired agy auth (user runs `agy` interactively once to re-login) or an invalid model id (`agy models` lists valid ids). Do not improvise flags to work around errors.
 
-## 4. Setup — dry run first
+> [!IMPORTANT]
+> A passing `ask` smoke means the install is done. `research`, `review` and `implement` all default to the **unrestricted** profile, so they gather evidence and edit files without any allowlist — nothing else is required to use them. Section 4 (`setup`) is **optional hardening**: it only matters if the user wants to run with `--restricted`, where headless agy fail-closes on every tool call that is not on the allowlist. Do not run setup unprompted; offer it, and apply it only if the user asks for the hardened path.
 
-The strict permission profile (default for `research`/`review`) needs a read-only allowlist in agy's settings. Run the setup **dry run** first — never apply directly:
+## 4. Optional hardening — setup, dry run first
+
+Skip this section unless the user wants it. Every tool-using mode already works unrestricted; setup exists so that the opt-in `--restricted` profile is usable, because a restricted run needs an **evidence-gathering command allowlist** in agy's settings or it comes back empty. Mention it to security-sensitive users (shared machines, reviewing untrusted PRs) and let them decide. Setup can also record a per-repo policy (`setup --restrict review,research` makes those modes default to restricted in the current repository; `--restrict none` clears it) — offer that only in the same opt-in conversation.
+
+If they opt in, global install is the normal path. Run the setup **dry run** first — never apply directly:
 
 - Claude Code: `/agy:setup` (the command itself dry-runs first and asks before applying)
 - Codex: `node <plugin-root>/companion/agy-companion.mjs setup` (dry run; only add `--apply` after user confirmation)
 
-Show the user the full dry-run output: which read-only rules would be added, that the target file is `~/.gemini/antigravity-cli/settings.json`, and that it is backed up before writing. Apply only after the user explicitly agrees. If they decline, `ask` still works; autonomous `review --pr` / `research` evidence gathering will need setup later.
+Show the user the full dry-run output and state these four things plainly before asking for confirmation:
 
-## 5. Report back
+1. Which command rules would be added, and that they exist so `--restricted` runs can gather evidence unattended.
+2. The target file is the **global** `~/.gemini/antigravity-cli/settings.json`, so the rules apply to every `agy` run on this machine — not only to agy-staff jobs.
+3. The rules are **prefix-matched, so this is not a read-only allowlist**: `command(git)` also matches `git push`, `command(gh)` also matches `gh pr merge`.
+4. The existing file is backed up before writing.
 
-Tell the user, in **their** language: whether install succeeded, the smoke-test result, and whether the setup allowlist was applied or deferred.
+Apply only after the user explicitly agrees. If they decline, nothing is lost from the default experience — all four modes keep working; they simply cannot harden a run with `--restricted` until the allowlist exists.
+
+If the user is security-sensitive and the machine-wide scope is unacceptable, tell them agy also supports project-scoped permission rules (highest priority) tied to its `--project` system — but that **the project-settings file path is undocumented and unverified against the current agy release**. Do not guess a path and do not write one; point them at [REFERENCE.md → Advanced: project-scoped permissions](REFERENCE.md#advanced-project-scoped-permissions) and let them verify it interactively with `agy`.
+
+## 5. Before running jobs in a repo — keep `.agy-staff/` out of git
+
+The companion writes per-repo state to `<repo>/.agy-staff/` and does **not** manage ignore files. Keeping the user's `git status` clean is your responsibility as the calling agent. Once per repo, **before** the first call that creates a job (`research`, `review`, `implement`):
+
+```bash
+git check-ignore -q .agy-staff || echo '.agy-staff/' >> .git/info/exclude
+```
+
+Append to `.git/info/exclude` only — never edit the tracked `.gitignore`, which would commit your scratch directory into the user's shared repo.
+
+Note the execution model while you are at it: `ask` returns its answer synchronously, while `research`, `review` and `implement` return a job id. Report the id to the user and collect the outcome with `wait <id>` — it blocks up to 100s and prints the result; exit code 2 means still running, so run it again (`cancel <id>` stops the job). Do not leave a started job unreported.
+
+## 6. Report back
+
+Tell the user, in **their** language: whether install succeeded, the smoke-test result, and whether the optional setup allowlist was applied, declined, or never offered (the default unrestricted profile does not need it).

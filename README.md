@@ -2,25 +2,33 @@
 
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a></p>
 
-<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-7-flash.svg" alt="model: Gemini 3.7 Flash"> <a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" alt="license: MIT"></a></p>
+<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-7-flash.svg" height="20" alt="model: Gemini 3.7 Flash"> <a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
 Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code** and **OpenAI Codex**.
 
-![agy-staff design](assets/design.en.svg)
+![agy-staff design](assets/design.svg)
 
 ## What & Why
 
-agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.7 Flash. Four modes, one plugin name on both platforms: `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement` (plus `continue`/`status`/`result`/`cancel`/`setup`).
+agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.7 Flash. Four modes, one plugin name on both platforms: `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement` (plus `continue`/`wait`/`status`/`result`/`cancel`/`setup`).
 
-If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, read-only research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
+If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
 ## How
 
-*(screenshots coming soon)*
-<!-- screenshot: claude-code -->
-<!-- screenshot: codex -->
+Type `/agy:` in Claude Code and the four modes plus the job commands are right there:
+
+![the /agy: command menu in Claude Code](assets/claude-code-screenshot.png)
+
+Same plugin in Codex, invoked with `$agy`:
+
+![the $agy skill picker in Codex](assets/codex-desktop-screenshot.png)
+
+Delegating looks like this — the call returns a job id in seconds and your main agent keeps going while agy works:
+
+![a /agy:agy-research call returning a job id while the main agent continues](assets/claude-code-agy-research-example.png)
 
 ### Install
 
@@ -34,9 +42,9 @@ curl -fsSL https://antigravity.google/cli/install.sh | bash
 
 Step 2 — install the plugin into your harness:
 
-```
-/plugin marketplace add keli-wen/agy-staff
-/plugin install agy@agy-staff
+```bash
+claude plugin marketplace add keli-wen/agy-staff
+claude plugin install agy@agy-staff
 ```
 
 ```bash
@@ -44,7 +52,11 @@ codex plugin marketplace add https://github.com/keli-wen/agy-staff
 codex plugin add agy@agy-staff
 ```
 
-First run: `/agy:ask "reply with OK"` (smoke test, zero setup), then `/agy:setup` (installs the read-only allowlist for autonomous evidence gathering).
+First run: `/agy:ask "reply with OK"` — ask is tool-free and works with zero setup.
+
+> [!IMPORTANT]
+> **There is no mandatory setup step.** `research`, `review` and `implement` run **unrestricted** by default: agy gathers evidence and edits files on its own, guarded by the prompt templates (no commits/pushes, no costly side effects) plus a clean-git-tree check on `implement`.
+> `/agy:setup` + `--restricted` is **optional hardening** for untrusted input — per run (`--restricted`) or as a per-repo default (`setup --restrict review,research`). `setup` dry-runs and asks before writing anything; read the [permission notes](docs/REFERENCE.md#optional-hardening-setup) first — the allowlist is prefix-matched, applies machine-wide, and a restricted run can return less than an unrestricted one.
 
 #### For agents
 
@@ -63,11 +75,17 @@ Invocation is always explicit — you type the command; the plugin never trigger
 | Use case | Claude Code | Codex |
 |---|---|---|
 | Quick second opinion | `/agy:agy-ask what's your backend model` | `$agy:agy-ask what's your backend model` |
-| Review my working diff | `/agy:agy-review review my working diff` | `$agy:agy-review review my working diff` |
-| Review PR #123 | `/agy:agy-review review pr #123` | `$agy:agy-review review pr #123` |
+| Review the working tree | `/agy:agy-review Review the current working tree` | `$agy:agy-review Review the current working tree` |
+| Review a PR | `/agy:agy-review Review PR #730` | `$agy:agy-review Review PR #730` |
+| Review against a branch | `/agy:agy-review Review changes against master` | `$agy:agy-review Review changes against master` |
+| Review a patch file | `/agy:agy-review Review the patch at /tmp/change.patch` | `$agy:agy-review Review the patch at /tmp/change.patch` |
 | Survey a topic | `/agy:agy-research how does auth work in this repo` | `$agy:agy-research how does auth work in this repo` |
 | Implement a scoped fix | `/agy:agy-implement fix the flaky retry test` | `$agy:agy-implement fix the flaky retry test` |
 | Continue last conversation | `/agy:continue also check the error path` | `$agy:agy-jobs continue also check the error path` |
+
+`review` is fully prompt-based: you describe the subject and agy gathers the evidence itself (`gh pr view`, `git diff`, reading the file) — there is no flag for handing it a diff.
+
+`ask` answers in the same call. `research`, `review` and `implement` run as background jobs: the call returns a job id, and `/agy:wait <id>` blocks until the job finishes and prints the result (`/agy:status` peeks, `/agy:cancel <id>` stops it).
 
 **Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading).
 

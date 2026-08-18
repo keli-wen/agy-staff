@@ -1,6 +1,6 @@
 ---
 description: Send a follow-up message to the most recent agy conversation
-argument-hint: '[--conversation <id>] [--background] "follow-up text"'
+argument-hint: '[--conversation <id>] "follow-up text"'
 allowed-tools: Bash(node:*)
 ---
 
@@ -16,13 +16,15 @@ node "${CLAUDE_PLUGIN_ROOT}/companion/agy-companion.mjs" continue "$ARGUMENTS"
 ```
 
 Result handling:
-- Return the command stdout verbatim, including the `[agy-staff]` footer.
-- To target an older conversation instead of the most recent, the user can pass `--conversation <id>` (ids appear in every footer), or rerun a mode command with `--continue` to reuse that mode's last conversation.
+- The follow-up inherits the execution style of the conversation's mode: a continued ask answers synchronously, while a continued research, review, or implement returns a background job id. Nothing overrides that.
+- Return the command stdout verbatim. The `[agy-staff]` telemetry line goes to stderr and is metadata for you, the calling agent — do not show it to the user.
+- If the output is a job id, the deliverable is still agy's result, not the id: block on it with `node "${CLAUDE_PLUGIN_ROOT}/companion/agy-companion.mjs" wait <id>` (up to 100s per call; exit 0 = result printed, exit 2 = still running — rerun the same `wait <id>`, through your harness's background command facility if you have other work in flight) and deliver the printed result verbatim. `/agy:cancel <id>` stops it. Report just the job id and stop only when the user explicitly said not to wait.
+- To target an older conversation instead of the most recent, the user can pass `--conversation <id>` (ids are recorded in `.agy-staff/state.json`, and the telemetry line on stderr shows the one just used), or rerun a mode command with `--continue` to reuse that mode's last conversation.
 - If it reports no recorded conversation, tell the user to start one with `/agy:research`, `/agy:review`, or `/agy:implement` first.
 
 ## Failure protocol
 
-- If the companion exits with an error, relay the error message to the user verbatim and stop.
+- If the companion exits with an error, quote its error message verbatim, add one line of your own diagnosis and the suggested next step, then stop — do not retry with different flags unless the error itself names one.
 - Do not retry with different flags unless the error message itself suggests the exact flag.
 - Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.
 

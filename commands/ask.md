@@ -17,13 +17,14 @@ node "${CLAUDE_PLUGIN_ROOT}/companion/agy-companion.mjs" ask "$ARGUMENTS"
 
 Rules:
 - Pass the user's question through verbatim; do not rephrase or enrich it.
-- Return the answer verbatim, including the `[agy-staff]` footer (it carries the conversation id; follow up with `--continue` or `/agy:continue`).
-- ask is always foreground; the companion rejects `--background` with an explanation — relay it if that happens.
+- Return the answer verbatim. The `[agy-staff]` telemetry line arrives on stderr, not stdout: it is metadata for you, the calling agent — do not show it to the user. Mention the follow-up ability in natural language when it is relevant ("I can ask a follow-up in the same conversation", via `--continue` or `/agy:continue`), and surface the model, duration, or token numbers only if the user asks.
+- ask is the one mode that answers synchronously: the call blocks and returns the answer. research, review, and implement instead return a background job id. Execution style is fixed per mode; no flag changes it.
+- ask is tool-free, so it always runs restricted; `--unrestricted` is ignored with a note on stderr. That is specific to ask — research, review, and implement default to unrestricted, where `--restricted` is an opt-in hardening flag.
 - If the answer says "not sure", relay that as-is; do not fill the gap with your own guess without telling the user it is yours.
 
 ## Failure protocol
 
-- If the companion exits with an error, relay the error message to the user verbatim and stop.
+- If the companion exits with an error, quote its error message verbatim, add one line of your own diagnosis and the suggested next step, then stop — do not retry with different flags unless the error itself names one.
 - Do not retry with different flags unless the error message itself suggests the exact flag.
 - Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.
 
