@@ -66,6 +66,20 @@ local checkout of agy-staff) and follow it to install and verify the agy-staff p
 for the harness you are running in. Respond in the user's language.
 ```
 
+#### Upgrade
+
+Both harnesses install a *copy*, so a new version only reaches you after you re-run the install:
+
+```bash
+claude plugin marketplace update agy-staff && claude plugin install agy@agy-staff
+```
+
+```bash
+codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then restart Codex
+```
+
+Codex caches plugins per version directory, so an upgrade lands only if the plugin version changed — see [upgrading](docs/REFERENCE.md#upgrading) if a fix does not show up.
+
 ### CUJs
 
 Invocation is always explicit — you type the command; the plugin never triggers itself on natural language.

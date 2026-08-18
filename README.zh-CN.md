@@ -66,6 +66,20 @@ local checkout of agy-staff) and follow it to install and verify the agy-staff p
 for the harness you are running in. Respond in the user's language.
 ```
 
+#### 升级
+
+两个 harness 装的都是**拷贝**，所以新版本要重新执行一次安装才会生效：
+
+```bash
+claude plugin marketplace update agy-staff && claude plugin install agy@agy-staff
+```
+
+```bash
+codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then restart Codex
+```
+
+Codex 按版本号目录缓存插件，只有插件版本号变了升级才会落地——改动没出现时见[升级](docs/REFERENCE.zh-CN.md#升级)。
+
 ### 典型场景（CUJ）
 
 调用永远是显式的：命令由你亲手输入，插件不会因为对话里出现某些词就自行触发。
