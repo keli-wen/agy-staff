@@ -104,6 +104,10 @@ codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then resta
 
 **完整参考 →** [docs/REFERENCE.zh-CN.md](docs/REFERENCE.zh-CN.md)（flags、权限模型、任务/状态、疑难排查、升级）。**Release notes →** [docs/releases/](docs/releases/)。
 
+## 社区
+
+- [LINUX DO](https://linux.do/) — 新一代的 Linux 社区。
+
 ## 参与贡献
 
 欢迎贡献——提 issue、报 bug、发 PR 都可以。

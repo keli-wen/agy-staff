@@ -104,6 +104,10 @@ Invocation is always explicit — you type the command; the plugin never trigger
 
 **Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading). **Release notes →** [docs/releases/](docs/releases/).
 
+## Community
+
+- [LINUX DO](https://linux.do/) — A next-generation Linux community.
+
 ## Contributing
 
 Contributions are welcome — issues, bug reports and pull requests all help.
