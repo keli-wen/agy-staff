@@ -69,10 +69,11 @@ Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
 If you cannot restart the session, call the companion of the freshly installed copy directly from the shell. It is the same code path the skill takes, so a pass here means the install is sound:
 
 ```bash
-node ~/.claude/plugins/cache/agy-staff/agy/*/companion/agy-companion.mjs ask "reply with OK"
+AGY_ROOT=$(node -p 'require(process.env.HOME+"/.claude/plugins/installed_plugins.json").plugins["agy@agy-staff"][0].installPath')
+node "$AGY_ROOT/companion/agy-companion.mjs" ask "reply with OK"
 ```
 
-(The exact directory is the `installPath` recorded in `~/.claude/plugins/installed_plugins.json`; the glob resolves it as long as one version is installed. Codex's equivalent root is printed by `codex plugin list`.) A fallback pass still leaves the restart outstanding — report it as "installed and verified, restart Claude Code to use it".
+Resolve the root that way rather than globbing `cache/agy-staff/agy/*/`: superseded version directories are left behind after an upgrade, so the glob expands to several paths and the command fails with `unknown subcommand`. `installPath` is always the copy in use. (Codex's equivalent root is printed by `codex plugin list`.) A fallback pass still leaves the restart outstanding — report it as "installed and verified, restart Claude Code to use it".
 
 Expect a short answer on stdout with no telemetry mixed in, plus an `[agy-staff]` telemetry line on stderr (mode, profile, model, duration, tokens, conversation id — for you, not for the user). If it errors, relay the error verbatim; the usual causes are expired agy auth (user runs `agy` interactively once to re-login) or an invalid model id (`agy models` lists valid ids). Do not improvise flags to work around errors.
 
