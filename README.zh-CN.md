@@ -40,9 +40,9 @@ curl -fsSL https://antigravity.google/cli/install.sh | bash
 
 第二步——把插件装进你的 harness：
 
-```
-/plugin marketplace add keli-wen/agy-staff
-/plugin install agy@agy-staff
+```bash
+claude plugin marketplace add keli-wen/agy-staff
+claude plugin install agy@agy-staff
 ```
 
 ```bash
@@ -50,7 +50,7 @@ codex plugin marketplace add https://github.com/keli-wen/agy-staff
 codex plugin add agy@agy-staff
 ```
 
-首次运行：`/agy:ask "reply with OK"`——ask 不用任何工具、不需要 setup，装完就能用。
+装完**重启 harness**，技能才会加载。首次运行：`/agy:ask "reply with OK"`——ask 不用任何工具、不需要 setup，装完就能用。
 
 > [!IMPORTANT]
 > **没有必须先做的 setup 步骤。** `staffer`、`researcher`、`reviewer`、`implementer` 默认以 **unrestricted** 档运行：agy 自己收集证据、自己改文件。护栏有两层：prompt 模板（不 commit/push、不做花钱或不可逆的操作），加上 `implementer` 启动前的 git 工作区干净检查。
@@ -61,9 +61,9 @@ codex plugin add agy@agy-staff
 把下面这段话直接粘贴给任何 coding agent：
 
 ```
-Read docs/INSTALL_FOR_AGENTS.md in https://github.com/keli-wen/agy-staff (or in your
-local checkout of agy-staff) and follow it to install and verify the agy-staff plugin
-for the harness you are running in. Respond in the user's language.
+Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md
+(curl it — do not work from a summary), or the same file in your local checkout of agy-staff, and follow it to
+install and verify the agy-staff plugin for the harness you are running in. Respond in the user's language.
 ```
 
 #### 升级

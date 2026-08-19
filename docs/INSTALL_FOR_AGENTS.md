@@ -2,6 +2,9 @@
 
 You are a coding agent that has been asked to install and verify the **agy-staff** plugin. Follow this file top to bottom. When you finish (or get blocked), report the outcome to the user **in the user's own language** — the language they have been using with you, not necessarily English.
 
+> [!IMPORTANT]
+> If you reached this file through a URL, read its **raw** text — `curl -fsSL https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md` — or clone the repo. Fetching the rendered page through a web tool that summarises before handing you the content can return a paraphrase, and a paraphrased install command is a broken install command. If all you have is a summary, stop and fetch the raw file.
+
 ## 0. Prerequisites
 
 1. **`agy` binary** — run `agy --version`. Any recent version works (tested with v1.1.15). If it is missing, do **not** install it yourself: give the user the official install page <https://antigravity.google/docs/cli/install> (macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh | bash`) and wait for them to install and authenticate (`agy` run interactively once handles login).
@@ -19,19 +22,25 @@ Follow exactly one of the two sections below.
 
 ## 2a. Claude Code — install / upgrade
 
+Use the `claude` CLI. The `/plugin …` forms you may have seen are TUI slash commands typed by a human — you cannot execute them from your Bash tool, and there is no shell equivalent of "typing a slash command".
+
 Install (use the local checkout path instead of the slug if the user gave you one):
 
-```
-/plugin marketplace add keli-wen/agy-staff
-/plugin install agy@agy-staff
+```bash
+claude plugin marketplace add keli-wen/agy-staff   # human types: /plugin marketplace add keli-wen/agy-staff
+claude plugin install agy@agy-staff                # human types: /plugin install agy@agy-staff
 ```
 
 Upgrade an existing install:
 
+```bash
+claude plugin marketplace update agy-staff
+claude plugin install agy@agy-staff
 ```
-/plugin marketplace update agy-staff
-/plugin install agy@agy-staff
-```
+
+Then verify what actually landed: `claude plugin list` should show `agy@agy-staff` enabled, at the version you expected. If the user is a contributor, watch for an install whose marketplace source is a **local directory** rather than the GitHub slug — that install tracks their working tree, not a release, which is fine for development but is not what "install the plugin" usually means. Say so, and offer the clean path: `claude plugin uninstall agy@agy-staff`, `claude plugin marketplace remove agy-staff`, then add the slug again.
+
+**A restart is required before the plugin is usable.** A freshly installed plugin is not in the current session's skill registry, so `/agy:…` either does not resolve or — if an older copy was loaded when the session started — silently resolves to that stale copy. Tell the user to restart Claude Code, or verify without a restart using the shell fallback in section 3.
 
 ## 2b. Codex — install / upgrade
 
@@ -51,8 +60,16 @@ Then the user must restart the app — Codex caches plugins per version. Upgrade
 
 Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
 
-- Claude Code: `/agy:ask "reply with OK"`
+- Claude Code: `/agy:ask "reply with OK"` — **after the restart**, otherwise you are testing the old copy or nothing at all
 - Codex: `$agy:ask reply with OK`
+
+If you cannot restart the session, call the companion of the freshly installed copy directly from the shell. It is the same code path the skill takes, so a pass here means the install is sound:
+
+```bash
+node ~/.claude/plugins/cache/agy-staff/agy/*/companion/agy-companion.mjs ask "reply with OK"
+```
+
+(The exact directory is the `installPath` recorded in `~/.claude/plugins/installed_plugins.json`; the glob resolves it as long as one version is installed. Codex's equivalent root is printed by `codex plugin list`.) A fallback pass still leaves the restart outstanding — report it as "installed and verified, restart Claude Code to use it".
 
 Expect a short answer on stdout with no telemetry mixed in, plus an `[agy-staff]` telemetry line on stderr (mode, profile, model, duration, tokens, conversation id — for you, not for the user). If it errors, relay the error verbatim; the usual causes are expired agy auth (user runs `agy` interactively once to re-login) or an invalid model id (`agy models` lists valid ids). Do not improvise flags to work around errors.
 
@@ -90,4 +107,4 @@ Per-repo state lives in `<repo>/.agy-staff/`; the companion git-ignores it autom
 
 ## 6. Report back
 
-Tell the user, in **their** language: whether install succeeded, the smoke-test result, and whether the optional setup allowlist was applied, declined, or never offered (the default unrestricted profile does not need it).
+Tell the user, in **their** language: whether install succeeded (name the version and whether it came from the GitHub slug or a local checkout), the smoke-test result, whether a restart is still needed before the skills load, and whether the optional setup allowlist was applied, declined, or never offered (the default unrestricted profile does not need it).

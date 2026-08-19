@@ -50,7 +50,7 @@ codex plugin marketplace add https://github.com/keli-wen/agy-staff
 codex plugin add agy@agy-staff
 ```
 
-First run: `/agy:ask "reply with OK"` — ask is tool-free and works with zero setup.
+Restart the harness afterwards so the skills load, then first run: `/agy:ask "reply with OK"` — ask is tool-free and works with zero setup.
 
 > [!IMPORTANT]
 > **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy gathers evidence and edits files on its own, guarded by the prompt templates (no commits/pushes, no costly side effects) plus a clean-git-tree check on `implementer`.
@@ -61,8 +61,9 @@ First run: `/agy:ask "reply with OK"` — ask is tool-free and works with zero s
 Paste this into any coding agent:
 
 ```
-Read docs/INSTALL_FOR_AGENTS.md in https://github.com/keli-wen/agy-staff and follow it to install and verify the agy-staff plugin
-for the harness you are running in. Respond in the user's language.
+Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md (curl it — do not
+work from a summary) and follow it to install and verify the agy-staff plugin for the harness you are running in.
+Respond in the user's language.
 ```
 
 #### Upgrade
