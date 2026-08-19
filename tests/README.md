@@ -1,6 +1,6 @@
 # Companion regression tests
 
-Black-box tests for `companion/agy-companion.mjs` against the 0.3.0 interface.
+Black-box tests for `companion/agy-companion.mjs` against the 0.3.1 interface.
 Zero dependencies (`node:test` + `node:assert`), no `package.json`, no network.
 
 ## Run
