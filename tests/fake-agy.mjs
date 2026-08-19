@@ -18,6 +18,9 @@
  *   FAKE_AGY_TOUCH_FILE      create this file mid-"run" (default: touch nothing)
  *                            — simulates agy dirtying the working tree, which
  *                            the review/research delta report must catch
+ *   FAKE_AGY_STDERR          text written to stderr alongside the payload
+ *                            (or before dying under FAKE_AGY_NO_JSON)
+ *   FAKE_AGY_ERROR           payload `error` field (default: absent)
  *   FAKE_AGY_NO_JSON         die before printing any payload (default exit 1),
  *                            with FAKE_AGY_STDERR on stderr — simulates agy
  *                            being killed by a harness sandbox pre-JSON
@@ -70,6 +73,8 @@ const payload = {
   num_turns: 1,
   usage: { input_tokens: 1, output_tokens: 1 },
 };
+if (process.env.FAKE_AGY_ERROR) payload.error = process.env.FAKE_AGY_ERROR;
 
+if (process.env.FAKE_AGY_STDERR) process.stderr.write(process.env.FAKE_AGY_STDERR + '\n');
 process.stdout.write(JSON.stringify(payload) + '\n');
 process.exit(Number(process.env.FAKE_AGY_EXIT || 0));

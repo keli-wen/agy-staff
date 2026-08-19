@@ -28,7 +28,9 @@ describe('status <id> exit codes', () => {
 
   test('error → 3, unknown id → 1, list form stays 0', async () => {
     const sb = sandbox('waitc-status-err');
-    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_STATUS: 'ERROR' });
+    // an ERROR with a response would be delivered (done_with_warnings); a real
+    // failure has no response
+    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '' });
     const id = jobIdOf(started.stdout);
     await waitForJob(sb, id);
 
@@ -83,7 +85,7 @@ describe('wait', () => {
 
   test('failed job → exit 3 with the stored error', async () => {
     const sb = sandbox('wait-error');
-    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_STATUS: 'ERROR' });
+    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '' });
     const id = jobIdOf(started.stdout);
 
     const r = run(sb, ['wait', id]);

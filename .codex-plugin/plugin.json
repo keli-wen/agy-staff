@@ -1,7 +1,7 @@
 {
   "name": "agy",
-  "version": "0.3.1",
-  "description": "Delegate research, review, and implementation tasks to Google's Antigravity CLI (agy) with fast Gemini access.",
+  "version": "0.4.0",
+  "description": "Delegate work to Google's Antigravity CLI (agy) with fast Gemini access - five personas: staffer (general), researcher, reviewer (code and plans), implementer, ask.",
   "author": {
     "name": "Keli Wen",
     "url": "https://github.com/keli-wen"
@@ -19,10 +19,12 @@
   "interface": {
     "displayName": "AGY Staff",
     "shortDescription": "Delegate tasks to Google Antigravity CLI (agy)",
-    "longDescription": "Delegate research, review, and implementation tasks to Google's Antigravity CLI (agy) with fast Gemini access.",
+    "longDescription": "Delegate work to Google's Antigravity CLI (agy) with fast Gemini access - five personas: staffer (general), researcher, reviewer (code and plans), implementer, ask.",
     "developerName": "Keli Wen",
     "category": "Engineering",
-    "capabilities": ["Instructions"],
+    "capabilities": [
+      "Instructions"
+    ],
     "defaultPrompt": [
       "Use agy to research, review, and implement tasks."
     ]

@@ -59,6 +59,7 @@ describe('execution style is fixed per mode', () => {
   });
 
   for (const [mode, task] of [
+    ['staffer', 'a task'],
     ['research', 'a topic'],
     ['review', 'Review PR #1'],
     ['implement', 'a task'],
@@ -70,7 +71,9 @@ describe('execution style is fixed per mode', () => {
       assert.match(r.stdout, new RegExp(`Started background ${mode} job\\.`));
       const id = jobIdOf(r.stdout);
       assert.match(id, new RegExp(`^${mode}-`));
-      assert.match(r.stdout, /Check progress: \/agy:status /);
+      // the collect contract is stated in the job-start output itself
+      assert.match(r.stdout, new RegExp('Collect: run `wait ' + id + ' --timeout \\d+m`'));
+      assert.match(r.stdout, /one background wait per job/);
       // the dispatch itself must not have blocked on agy — no telemetry on
       // either stream, the run has not happened yet
       assert.doesNotMatch(r.stdout, /\[agy-staff\] mode=/);
@@ -84,6 +87,7 @@ describe('permission profile wiring reaches the agy argv', () => {
   // default, so all three must carry --dangerously-skip-permissions with no
   // flags and no setup.
   for (const [mode, task] of [
+    ['staffer', 'a task'],
     ['research', 'a topic'],
     ['review', 'Review PR #1'],
     ['implement', 'a task'],
@@ -156,7 +160,7 @@ describe('permission profile wiring reaches the agy argv', () => {
     assert.match(res.stdout, /This run used `--restricted`/);
     assert.match(res.stdout, /every unlisted tool call is auto-denied/);
     // two ways out, setup OR dropping the flag — the second one is new
-    assert.match(res.stdout, /run `\/agy:setup` once/);
+    assert.match(res.stdout, /run `setup` once/);
     assert.match(res.stdout, /drop `--restricted`/);
     assert.match(res.stdout, /research runs unrestricted by default/);
     assert.match(res.stdout, /some agy tools ignore allow-rules in headless mode/);
@@ -171,7 +175,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
     const res = run(sb, ['result', id]);
     assert.match(res.stdout, /agy returned an empty response/);
-    assert.doesNotMatch(res.stdout, /agy:setup/);
+    assert.doesNotMatch(res.stdout, /run `setup` once/);
     assert.doesNotMatch(res.stdout, /--restricted/);
   });
 

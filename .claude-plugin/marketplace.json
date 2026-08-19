@@ -9,7 +9,7 @@
     {
       "name": "agy",
       "source": "./",
-      "description": "Research, review, and implement via agy (fast Gemini), with a two-profile permission model and background jobs.",
+      "description": "Five personas over agy (fast Gemini) - staffer, researcher, reviewer, implementer, ask - with a two-profile permission model and background jobs.",
       "tags": ["antigravity", "gemini", "delegation", "code-review"]
     }
   ]

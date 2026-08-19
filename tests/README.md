@@ -20,10 +20,12 @@ Everything is exercised through the CLI, because the companion calls `main()` on
 import. Each test builds its own sandbox (`tests/helpers.mjs`):
 
 - a throwaway git repo under `os.tmpdir()` (so `.agy-staff/` state never lands in
-  the real repo), with `.agy-staff/` added to `.git/info/exclude` — the
-  calling-agent hygiene step the spec assigns to the caller, a precondition for
-  `implement`'s clean-tree check to pass on the second call, and what keeps the
-  companion's own state out of the review/research delta report.
+  the real repo), with `.agy-staff/` added to `.git/info/exclude` — since 0.4 the
+  companion does this itself on first use (`ensureStateDir`), the sandbox just
+  pre-applies it; it is a precondition for `implement`'s clean-tree check to pass
+  on the second call, and what keeps the companion's own state out of the
+  review/research delta report. The auto-exclude path itself is pinned in
+  `dx.test.mjs`.
   `sandbox(label, { git: false })` skips the `git init` for the cases that must
   run outside a repository;
 - a throwaway `HOME` (so `setup` can never touch the real `~/.gemini`);

@@ -46,10 +46,12 @@ export function sandbox(label = 'case', { git = true } = {}) {
   return { root, repo, home, git, argvFile: path.join(root, 'agy-argv.jsonl') };
 }
 
-/** Run the companion CLI in a sandbox. Returns {code, stdout, stderr}. */
-export function run(sb, args, extraEnv = {}) {
+/** Run the companion CLI in a sandbox. Returns {code, stdout, stderr}.
+ *  `input` feeds the child's stdin (for --stdin). */
+export function run(sb, args, extraEnv = {}, { input } = {}) {
   const r = spawnSync(process.execPath, [COMPANION, ...args], {
     cwd: sb.repo,
+    input,
     encoding: 'utf8',
     env: {
       ...process.env,

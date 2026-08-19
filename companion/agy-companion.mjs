@@ -3,10 +3,14 @@
  * agy-companion — the single brain of the agy-staff plugin.
  *
  * Wraps Google's Antigravity CLI (`agy`) so Claude Code and OpenAI Codex can
- * delegate work to Gemini via four modes: research, review, implement, ask.
+ * delegate work to Gemini via five modes: staffer (general-purpose), research,
+ * review, implement, ask.
  *
  * Subcommands:
- *   research | review | implement   run a task as a background job
+ *   staffer | research | review | implement
+ *                                   run a task as a background job (staffer is
+ *                                   the general-purpose mode: a minimal prompt
+ *                                   with no role or output-format framing)
  *   ask <question>                  cheap zero-tool one-shot Q&A (foreground)
  *   continue <text>                 continue the most recent conversation (any mode)
  *   status [job-id]                 list background jobs / show one job
@@ -33,8 +37,10 @@
  *                         default for research/review/implement)
  *   --json                (review) ask agy for schema-enforced JSON findings
  *   --timeout <dur>       agy --print-timeout, e.g. 5m, 90s
+ *   --prompt-file <path>  read the task text from a file (long prompts)
+ *   --stdin               read the task text from stdin
  *
- * Permissions: all tool-using modes (research/review/implement) run
+ * Permissions: all tool-using modes (staffer/research/review/implement) run
  * unrestricted by default, so they work out of the box with no setup;
  * --restricted is the hardening opt-in that relies on the evidence-gathering
  * allowlist installed by `setup`. ask is tool-free and always restricted.
@@ -44,8 +50,8 @@
  * The guardrails against irreversible side effects live in the prompt
  * templates, backed by two tiered checks here: implement needs a clean git
  * tree inside a repository (outside one it warns and proceeds), while
- * review/research snapshot `git status --porcelain` around the run and report
- * any delta with the result without ever blocking.
+ * staffer/review/research snapshot `git status --porcelain` around the run and
+ * report any delta with the result without ever blocking.
  *
  * Output split: stdout carries the deliverable — agy's response plus any guard
  * warning about the working tree. The `[agy-staff]` telemetry line (mode,
@@ -54,8 +60,8 @@
  * never something to show the user.
  *
  * Execution style is fixed per mode and cannot be overridden: ask runs in the
- * foreground; research/review/implement run as detached background jobs whose
- * output is collected with wait/status/result/cancel.
+ * foreground; staffer/research/review/implement run as detached background
+ * jobs whose output is collected with wait/status/result/cancel.
  *
  * Job exit codes (`status <id>` and `wait`): 0 = done, 2 = running (for wait:
  * still running when its own timeout expired — call it again), 3 = error or
@@ -80,10 +86,11 @@ const TEMPLATES_DIR = path.join(path.dirname(SELF), '..', 'templates');
 const AGY_BIN = process.env.AGY_BIN || 'agy';
 const AGY_SETTINGS = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'settings.json');
 
-const MODES = ['research', 'review', 'implement', 'ask'];
+const MODES = ['staffer', 'research', 'review', 'implement', 'ask'];
 
 const DEFAULTS = {
   model: {
+    staffer: 'gemini-3.7-flash-medium',
     research: 'gemini-3.7-flash-high',
     review: 'gemini-3.7-flash-medium',
     implement: 'gemini-3.7-flash-medium',
@@ -94,15 +101,16 @@ const DEFAULTS = {
   // back empty until the user ran `setup`. --restricted is the opt-in.
   // ask is tool-free, so its profile is irrelevant and stays restricted.
   profile: {
+    staffer: 'unrestricted',
     research: 'unrestricted',
     review: 'unrestricted',
     implement: 'unrestricted',
     ask: 'restricted',
   },
-  timeout: { research: '10m', review: '5m', implement: '10m', ask: '2m' },
+  timeout: { staffer: '10m', research: '10m', review: '5m', implement: '10m', ask: '2m' },
   // Background-first: only ask (seconds-long, tool-free) stays in the foreground.
   // No flag overrides this; execution style is a property of the mode.
-  background: { research: true, review: true, implement: true, ask: false },
+  background: { staffer: true, research: true, review: true, implement: true, ask: false },
 };
 
 // agy only accepts effort-suffixed model ids; bare family names are rejected
@@ -226,7 +234,7 @@ function configPath() {
 
 // Modes whose default profile can be set per repo. ask is tool-free and
 // always restricted, so it is not configurable.
-const CONFIGURABLE_MODES = ['research', 'review', 'implement'];
+const CONFIGURABLE_MODES = ['staffer', 'research', 'review', 'implement'];
 
 /** Project policy (per-repo default profiles), written by `setup --restrict`.
  *  Missing file → null. Invalid file → die: a policy that is silently ignored
@@ -258,6 +266,25 @@ function loadProjectConfig() {
   return cfg;
 }
 
+/** Create .agy-staff/ on first use and keep it out of `git status`.
+ *  .git/info/exclude is repo-local and untracked — never the team's
+ *  .gitignore. Best-effort: a read-only .git must not block a run. */
+function ensureStateDir() {
+  const dir = stateDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    if (sh('git', ['check-ignore', '-q', dir]).code !== 0) {
+      const p = sh('git', ['rev-parse', '--git-path', 'info/exclude']);
+      if (p.code === 0 && p.out) {
+        try {
+          fs.appendFileSync(path.resolve(p.out), '.agy-staff/\n');
+        } catch {}
+      }
+    }
+  }
+  return dir;
+}
+
 function loadState() {
   let raw;
   try {
@@ -275,7 +302,7 @@ function loadState() {
 }
 
 function saveState(state) {
-  fs.mkdirSync(stateDir(), { recursive: true });
+  ensureStateDir();
   // Atomic replace: a detached worker and a status/result call can read this
   // file at any moment; a plain truncate-then-write leaves a torn window.
   const tmp = statePath() + `.tmp-${process.pid}`;
@@ -325,8 +352,8 @@ function tokenize(argv) {
   return tokens.filter((t) => t !== '');
 }
 
-const VALUE_FLAGS = new Set(['conversation', 'model', 'effort', 'timeout', 'restrict']);
-const BOOL_FLAGS = new Set(['continue', 'restricted', 'unrestricted', 'json', 'apply', 'dry-run']);
+const VALUE_FLAGS = new Set(['conversation', 'model', 'effort', 'timeout', 'restrict', 'prompt-file']);
+const BOOL_FLAGS = new Set(['continue', 'restricted', 'unrestricted', 'json', 'apply', 'dry-run', 'stdin']);
 
 // Flags dropped in 0.2. They get their own error instead of falling through to
 // "unknown flag", so a 0.1 caller learns what replaced them.
@@ -423,6 +450,13 @@ function durationToMs(d) {
   return Math.round(parseFloat(m[1]) * mult);
 }
 
+/** A `wait --timeout` that outlives the job itself: job timeout + agy's 60s
+ *  grace + scheduling slack, rounded up to whole minutes. */
+function collectTimeout(jobTimeout) {
+  const ms = (durationToMs(jobTimeout) ?? 600_000) + 120_000;
+  return `${Math.ceil(ms / 60_000)}m`;
+}
+
 function runAgy({ prompt, model, timeout, conversation, unrestricted, jsonSchema }) {
   const args = ['-p', prompt, '--model', model, '--output-format', 'json', '--print-timeout', timeout];
   if (conversation) args.push('--conversation', conversation);
@@ -476,12 +510,17 @@ function runAgy({ prompt, model, timeout, conversation, unrestricted, jsonSchema
   return { payload, stderr, exit: r.status ?? 0 };
 }
 
-/** Triage the agy result into three distinct failure classes with distinct
- *  guidance (never cross-suggested), or return the response text on success.
- *  1. status ERROR / nonzero exit  → agy's own error verbatim; NEVER suggest
- *                                    --unrestricted.
- *  2. timeout                      → say so plainly.
- *  3. status SUCCESS, empty body   → permission fail-closed signature; only a
+/** Triage the agy result into distinct classes with distinct guidance
+ *  (never cross-suggested), or return the response text on success.
+ *  1. status ERROR / nonzero exit, but a complete response came back
+ *     → done_with_warnings: the deliverable exists, so return it (exit 0)
+ *       and put the error on stderr. Discarding a finished answer because
+ *       a late tool call failed loses data.
+ *  2. status ERROR / nonzero exit, no response
+ *     → agy's own error verbatim; NEVER suggest --unrestricted. Cause
+ *       hints are appended only when the error text actually matches them.
+ *  3. timeout                      → say so plainly.
+ *  4. status SUCCESS, empty body   → permission fail-closed signature; only a
  *                                    --restricted run gets the setup hint
  *                                    (unrestricted runs have no rules to fix).
  */
@@ -500,13 +539,32 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource) {
   }
 
   if ((status && status !== 'SUCCESS') || exit !== 0) {
+    if (response) {
+      // done_with_warnings: the answer was produced before whatever failed
+      // (e.g. one tool call timing out during wrap-up). Deliver it.
+      process.stderr.write(
+        `agy-staff warning: agy reported status ${payload.status || 'unknown'} (exit ${exit}) ` +
+          'but returned a complete response — delivering it anyway.\n' +
+          (payload.error ? `agy error: ${payload.error}\n` : '') +
+          (stderr ? `agy stderr: ${stderr}\n` : '')
+      );
+      return response;
+    }
     let msg = `agy reported an error (status ${payload.status || 'unknown'}, exit ${exit}).`;
     if (payload.error) msg += `\nagy error: ${payload.error}`;
-    if (response) msg += `\nagy response: ${response}`;
     if (stderr) msg += `\nagy stderr: ${stderr}`;
-    msg +=
-      '\nLikely causes: invalid model id (agy needs effort-suffixed ids, e.g. gemini-3.7-flash-low — run `agy models`), ' +
-      'expired auth (run `agy` interactively once to re-login), or exhausted quota.';
+    const errText = `${payload.error || ''}\n${stderr}`;
+    const hints = [];
+    if (/model|effort/i.test(errText)) {
+      hints.push('invalid model id (agy needs effort-suffixed ids, e.g. gemini-3.7-flash-low — run `agy models`)');
+    }
+    if (/auth|login|credential|unauthorized|401|403/i.test(errText)) {
+      hints.push('expired auth (run `agy` interactively once to re-login)');
+    }
+    if (/quota|rate.?limit|resource.?exhausted|429/i.test(errText)) {
+      hints.push('exhausted quota');
+    }
+    if (hints.length) msg += `\nLikely cause: ${hints.join('; ')}.`;
     die(msg + convNote);
   }
 
@@ -534,7 +592,7 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource) {
     msg +=
       `\n${cause}, so agy kept its permission enforcement on: in headless mode every` +
       ' unlisted tool call is auto-denied, which is the usual cause of an empty response.' +
-      `\nFix: run \`/agy:setup\` once to install the evidence-gathering command allowlist, or ${relax}.` +
+      `\nFix: run \`setup\` once to install the evidence-gathering command allowlist, or ${relax}.` +
       '\nNote: some agy tools ignore allow-rules in headless mode entirely, so even a complete allowlist cannot' +
       ' make them work; those need an unrestricted run.';
   }
@@ -602,8 +660,35 @@ function resolveRun(mode, opts) {
   return { mode, model, profile, profileSource, background, timeout, conversation };
 }
 
+/** Task text comes from exactly one source: inline argv, --prompt-file, or
+ *  --stdin. Long prompts should use the latter two instead of shell quoting. */
+function taskText(opts) {
+  const inline = opts._.join(' ').trim();
+  const sources = [
+    inline && 'inline text',
+    opts['prompt-file'] && '--prompt-file',
+    opts.stdin && '--stdin',
+  ].filter(Boolean);
+  if (sources.length > 1) die(`task text given more than one way (${sources.join(', ')}) — use exactly one`);
+  if (opts['prompt-file']) {
+    try {
+      return fs.readFileSync(opts['prompt-file'], 'utf8').trim();
+    } catch (e) {
+      die(`cannot read --prompt-file ${opts['prompt-file']}: ${e.message}`);
+    }
+  }
+  if (opts.stdin) {
+    try {
+      return fs.readFileSync(0, 'utf8').trim();
+    } catch (e) {
+      die(`cannot read task text from stdin: ${e.message}`);
+    }
+  }
+  return inline;
+}
+
 function buildPrompt(mode, opts) {
-  const task = opts._.join(' ').trim();
+  const task = taskText(opts);
   const context = gatherContext();
 
   if (!task) {
@@ -633,6 +718,9 @@ function buildPrompt(mode, opts) {
 //   review /  → no gate at all, never blocked. They should not be touching
 //   research    files, so we snapshot `git status --porcelain` around the run
 //               and report any delta with the result.
+//   staffer   → same snapshot/report, but neutrally worded: a general task may
+//               legitimately edit files, so the delta is information for the
+//               caller, not an accusation.
 // ---------------------------------------------------------------------------
 
 function inGitRepo() {
@@ -660,7 +748,7 @@ function implementGuardApplies(resolved) {
 }
 
 function treeReportApplies(resolved) {
-  return resolved.profile === 'unrestricted' && ['review', 'research'].includes(resolved.mode);
+  return resolved.profile === 'unrestricted' && ['staffer', 'review', 'research'].includes(resolved.mode);
 }
 
 function implementPrecondition() {
@@ -700,13 +788,19 @@ function implementPostcondition() {
   return out;
 }
 
-/** Tree-delta warning for review/research: silent unless agy dirtied the tree. */
+/** Tree-delta warning for staffer/review/research: silent unless agy dirtied
+ *  the tree. review/research should never edit, so the report blames agy; a
+ *  staffer task may legitimately edit, so its wording is neutral. */
 function treeDeltaReport(mode, before, after) {
   if (!before || !after) return '';
   const delta = porcelainDelta(before, after);
   if (!delta.length) return '';
+  const blame =
+    mode === 'staffer'
+      ? `agy modified the working tree during this ${mode} run — verify the task asked for it. `
+      : `agy modified the working tree during this ${mode} — it should not have. `;
   return (
-    `\n[unrestricted] agy modified the working tree during this ${mode} — it should not have. ` +
+    `\n[unrestricted] ${blame}` +
     `Delta (\`git status --porcelain\` entries that appeared or changed during the run):\n` +
     delta.map((l) => `  ${l}`).join('\n') +
     `\nACTION FOR THE CALLING AGENT: inspect these changes (\`git diff\`) before trusting this ${mode}. ` +
@@ -776,7 +870,7 @@ function dispatch(resolved, prompt, opts) {
 
   // background: write a job spec, spawn ourselves detached as _worker
   const jobId = `${mode}-${Date.now().toString(36)}${Math.floor(Math.random() * 36).toString(36)}`;
-  const jobsDir = path.join(stateDir(), 'jobs');
+  const jobsDir = path.join(ensureStateDir(), 'jobs');
   fs.mkdirSync(jobsDir, { recursive: true });
   const logFile = path.join(jobsDir, `${jobId}.log`);
   const specFile = path.join(jobsDir, `${jobId}.spec.json`);
@@ -816,12 +910,17 @@ function dispatch(resolved, prompt, opts) {
     saveState(after);
   }
 
+  // The collect hint is the canonical contract, stated where the caller needs
+  // it: one background `wait` per job, bounded by the job's own timeout plus
+  // the companion's grace.
   process.stdout.write(
     `Started background ${mode} job.\n` +
       `job id: ${jobId} (pid ${child.pid})\n` +
       `model: ${resolved.model}  profile: ${resolved.profile}  timeout: ${resolved.timeout}\n` +
       `result file (written when the job finishes): ${resultFile}\n` +
-      `Check progress: /agy:status ${jobId}   Fetch output: /agy:result ${jobId}\n`
+      `Collect: run \`wait ${jobId} --timeout ${collectTimeout(resolved.timeout)}\` as a background command ` +
+      `(one background wait per job; exit 0 = result printed, 2 = still running — wait again).\n` +
+      `Peek: \`status ${jobId}\`   Stop: \`cancel ${jobId}\`\n`
   );
 }
 
@@ -934,7 +1033,7 @@ function cmdStatus(opts) {
   for (const j of jobs.slice(-20)) {
     process.stdout.write(`${j.id} | ${j.mode} | ${j.status} | ${j.started_at} | ${j.finished_at || '-'}\n`);
   }
-  process.stdout.write('\nDetails: /agy:status <id>   Output: /agy:result <id>\n');
+  process.stdout.write('\nDetails: `status <id>`   Output: `result <id>`\n');
 }
 
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -960,13 +1059,22 @@ async function cmdWait(opts) {
   if (!job) die(id ? `no job ${id} in this repository` : 'no agy-staff jobs recorded in this repository');
 
   const POLL_MS = 2000;
+  const HEARTBEAT_MS = 15_000;
   const start = Date.now();
+  let lastBeat = start;
   let status = liveJobStatus(job);
   while (status === 'running' && Date.now() - start < budget) {
     await sleepMs(Math.min(POLL_MS, budget - (Date.now() - start)));
     job = findJob();
     if (!job) die(`job record disappeared from state.json`);
     status = liveJobStatus(job);
+    // Liveness on stderr so a long background wait stays observable without
+    // ever mixing into the result on stdout.
+    if (status === 'running' && Date.now() - lastBeat >= HEARTBEAT_MS) {
+      lastBeat = Date.now();
+      const elapsed = Math.round((Date.now() - start) / 1000);
+      process.stderr.write(`agy-staff: still waiting on ${job.id} (${elapsed}s elapsed, budget ${timeout})\n`);
+    }
   }
 
   if (status === 'running') {
@@ -1007,7 +1115,7 @@ function cmdResult(opts) {
     if (!job) die('no finished jobs in this repository');
   }
   if (job.status === 'running') {
-    die(`job ${job.id} is still running — check /agy:status ${job.id}`);
+    die(`job ${job.id} is still running — collect it with \`wait ${job.id}\` or peek with \`status ${job.id}\``);
   }
   if (!fs.existsSync(job.result_file)) {
     die(`job ${job.id} (${job.status}) has no stored result. Log: ${job.log_file}`);
@@ -1018,7 +1126,7 @@ function cmdResult(opts) {
 
 function cmdCancel(opts) {
   const id = opts._[0];
-  if (!id) die('cancel needs a job id (see /agy:status)');
+  if (!id) die('cancel needs a job id (see `status`)');
   const state = loadState();
   const job = (state.jobs || []).find((j) => j.id === id);
   if (!job) die(`no job ${id} in this repository`);
@@ -1045,7 +1153,7 @@ function cmdContinue(opts) {
   if (!last?.id) die('no previous agy-staff conversation recorded in this repository');
   const mode = MODES.includes(last.mode) ? last.mode : 'research';
 
-  const task = opts._.join(' ').trim();
+  const task = taskText(opts);
   if (!task) die('continue needs follow-up text');
 
   // execution style follows the resumed mode's default (ask → foreground,
@@ -1089,7 +1197,7 @@ function applyProjectPolicy(value) {
   }
   cfg.profiles = {};
   for (const m of modes) cfg.profiles[m] = 'restricted';
-  fs.mkdirSync(stateDir(), { recursive: true });
+  ensureStateDir();
   fs.writeFileSync(configPath(), JSON.stringify(cfg, null, 2) + '\n');
 
   process.stdout.write(`Project policy written: ${configPath()}\n`);
@@ -1217,10 +1325,11 @@ function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd) {
     die(
-      'usage: agy-companion.mjs <research|review|implement|ask|continue|status|wait|result|cancel|setup> [flags] [task]\n' +
+      'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|status|wait|result|cancel|setup> [flags] [task]\n' +
         'flags: --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
-        '--conversation <id> --continue --json (review) --apply --restrict <modes|none> (setup)\n' +
-        'research/review/implement run unrestricted by default (no setup needed); --restricted is the ' +
+        '--prompt-file <path> --stdin --conversation <id> --continue --json (review) ' +
+        '--apply --restrict <modes|none> (setup)\n' +
+        'staffer/research/review/implement run unrestricted by default (no setup needed); --restricted is the ' +
         'hardening opt-in that uses the evidence-gathering allowlist from `setup`. ask is always tool-free. ' +
         'Per-repo policy: `setup --restrict review,research` makes those modes restricted by default here.'
     );
