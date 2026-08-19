@@ -68,10 +68,10 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 #### 升级
 
-两个 harness 装的都是**拷贝**，所以新版本要重新执行一次安装才会生效：
+两个 harness 装的都是**拷贝**，所以新版本要你主动拉一次才会生效：
 
 ```bash
-claude plugin marketplace update agy-staff && claude plugin install agy@agy-staff
+claude plugin marketplace update agy-staff && claude plugin update agy@agy-staff
 ```
 
 ```bash

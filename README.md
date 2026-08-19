@@ -68,10 +68,10 @@ Respond in the user's language.
 
 #### Upgrade
 
-Both harnesses install a *copy*, so a new version only reaches you after you re-run the install:
+Both harnesses install a *copy*, so a new version only reaches you when you pull it in yourself:
 
 ```bash
-claude plugin marketplace update agy-staff && claude plugin install agy@agy-staff
+claude plugin marketplace update agy-staff && claude plugin update agy@agy-staff
 ```
 
 ```bash

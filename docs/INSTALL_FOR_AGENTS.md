@@ -31,15 +31,15 @@ claude plugin marketplace add keli-wen/agy-staff   # human types: /plugin market
 claude plugin install agy@agy-staff                # human types: /plugin install agy@agy-staff
 ```
 
-Upgrade an existing install:
+Upgrade an existing install — note this is `update`, not `install`:
 
 ```bash
 claude plugin marketplace update agy-staff
-claude plugin install agy@agy-staff
+claude plugin update agy@agy-staff
 ```
 
 > [!IMPORTANT]
-> That upgrade is keyed on the **version string**, not the commit. If the published version is unchanged, `install` answers "already installed" and `claude plugin update agy@agy-staff` answers "already at the latest version" — neither re-copies, so the user keeps running the old commit while the marketplace clone has moved on. Compare `gitCommitSha` in `~/.claude/plugins/installed_plugins.json` against `git -C ~/.claude/plugins/marketplaces/agy-staff log -1`. To force the current commit in: `claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff`.
+> `install` never upgrades: on an already-installed plugin it answers "already installed" and does nothing, whatever the version. And `update` is keyed on the **version string**, not the commit — if the published version is unchanged it answers "already at the latest version", so the user keeps running the old commit while the marketplace clone has moved on. Check by comparing `gitCommitSha` in `~/.claude/plugins/installed_plugins.json` against `git -C ~/.claude/plugins/marketplaces/agy-staff log -1`. When they differ but the version does not, force the current commit in: `claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff`.
 
 Then verify what actually landed: `claude plugin list` should show `agy@agy-staff` enabled, at the version you expected. If the user is a contributor, watch for an install whose marketplace source is a **local directory** rather than the GitHub slug — that install tracks their working tree, not a release, which is fine for development but is not what "install the plugin" usually means. Say so, and offer the clean path: `claude plugin uninstall agy@agy-staff`, `claude plugin marketplace remove agy-staff`, then add the slug again.
 
