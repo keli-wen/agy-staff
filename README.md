@@ -12,7 +12,7 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code** and **Ope
 
 ## What & Why
 
-agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.7 Flash. Four modes, one plugin name on both platforms: `/agy:ask`, `/agy:research`, `/agy:review`, `/agy:implement` (plus `continue`/`wait`/`status`/`result`/`cancel`/`setup`).
+agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.7 Flash. Five personas, one plugin name on both platforms: `/agy:staffer` (general-purpose), `/agy:researcher`, `/agy:reviewer` (code **and** plans/decisions), `/agy:implementer`, `/agy:ask` — plus a model-facing `jobs` skill that manages the background jobs (`wait`/`status`/`result`/`cancel`/`continue`/`setup`).
 
 If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
 
@@ -20,7 +20,7 @@ If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode o
 
 ## How
 
-Type `/agy:` in Claude Code and the four modes plus the job commands are right there:
+Type `/agy:` in Claude Code and the five personas are right there:
 
 ![the /agy: command menu in Claude Code](assets/claude-code-screenshot.png)
 
@@ -32,7 +32,7 @@ Same plugin in Codex, invoked with `$agy`:
 
 #### For humans
 
-Step 1 — install the Antigravity CLI ([official docs](https://antigravity.google/docs/cli/install)), then verify with `agy --version` (tested with v1.1.13; Node.js is also required):
+Step 1 — install the Antigravity CLI ([official docs](https://antigravity.google/docs/cli/install)), then verify with `agy --version` (tested with v1.1.15; Node.js is also required):
 
 ```bash
 curl -fsSL https://antigravity.google/cli/install.sh | bash
@@ -53,16 +53,15 @@ codex plugin add agy@agy-staff
 First run: `/agy:ask "reply with OK"` — ask is tool-free and works with zero setup.
 
 > [!IMPORTANT]
-> **There is no mandatory setup step.** `research`, `review` and `implement` run **unrestricted** by default: agy gathers evidence and edits files on its own, guarded by the prompt templates (no commits/pushes, no costly side effects) plus a clean-git-tree check on `implement`.
-> `/agy:setup` + `--restricted` is **optional hardening** for untrusted input — per run (`--restricted`) or as a per-repo default (`setup --restrict review,research`). `setup` dry-runs and asks before writing anything; read the [permission notes](docs/REFERENCE.md#optional-hardening-setup) first — the allowlist is prefix-matched, applies machine-wide, and a restricted run can return less than an unrestricted one.
+> **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy gathers evidence and edits files on its own, guarded by the prompt templates (no commits/pushes, no costly side effects) plus a clean-git-tree check on `implementer`.
+> `setup` + `--restricted` is **optional hardening** for untrusted input — per run (`--restricted`) or as a per-repo default (`setup --restrict review,research`). `setup` dry-runs and asks before writing anything ("set up agy" triggers it); read the [permission notes](docs/REFERENCE.md#optional-hardening-setup) first — the allowlist is prefix-matched, applies machine-wide, and a restricted run can return less than an unrestricted one.
 
 #### For agents
 
 Paste this into any coding agent:
 
 ```
-Read docs/INSTALL_FOR_AGENTS.md in https://github.com/keli-wen/agy-staff (or in your
-local checkout of agy-staff) and follow it to install and verify the agy-staff plugin
+Read docs/INSTALL_FOR_AGENTS.md in https://github.com/keli-wen/agy-staff and follow it to install and verify the agy-staff plugin
 for the harness you are running in. Respond in the user's language.
 ```
 
@@ -82,24 +81,27 @@ Codex caches plugins per version directory, so an upgrade lands only if the plug
 
 ### CUJs
 
-Invocation is always explicit — you type the command; the plugin never triggers itself on natural language.
+Invocation is always explicit — you type the command; the plugin never triggers itself on natural language. Examples use Claude Code's `/agy:…`; in Codex the same skills are `$agy:…`.
 
-| Use case | Claude Code | Codex |
-|---|---|---|
-| Quick second opinion | `/agy:agy-ask what's your backend model` | `$agy:agy-ask what's your backend model` |
-| Review the working tree | `/agy:agy-review Review the current working tree` | `$agy:agy-review Review the current working tree` |
-| Review a PR | `/agy:agy-review Review PR #730` | `$agy:agy-review Review PR #730` |
-| Review against a branch | `/agy:agy-review Review changes against master` | `$agy:agy-review Review changes against master` |
-| Review a patch file | `/agy:agy-review Review the patch at /tmp/change.patch` | `$agy:agy-review Review the patch at /tmp/change.patch` |
-| Survey a topic | `/agy:agy-research how does auth work in this repo` | `$agy:agy-research how does auth work in this repo` |
-| Implement a scoped fix | `/agy:agy-implement fix the flaky retry test` | `$agy:agy-implement fix the flaky retry test` |
-| Continue last conversation | `/agy:continue also check the error path` | `$agy:agy-jobs continue also check the error path` |
+| Use case | Invocation |
+|---|---|
+| Quick second opinion | `/agy:ask what's your backend model` |
+| A general task | `/agy:staffer summarize the open TODOs in this repo` |
+| Generate an image | `/agy:staffer generate a pixel-art robot mascot, save it as assets/mascot.png` |
+| Review the working tree | `/agy:reviewer Review the current working tree` |
+| Review a PR | `/agy:reviewer Review PR #730` |
+| Review a plan or decision | `/agy:reviewer Challenge the migration plan in docs/plan.md` |
+| Survey a topic | `/agy:researcher how does auth work in this repo` |
+| Implement a scoped fix | `/agy:implementer fix the flaky retry test` |
+| Job ops (wait/status/cancel/continue) | natural language: "is the agy job done?", "continue: also check the error path" |
 
-`review` is fully prompt-based: you describe the subject and agy gathers the evidence itself (`gh pr view`, `git diff`, reading the file) — there is no flag for handing it a diff.
+`reviewer` is fully prompt-based: you describe the subject and agy gathers the evidence itself (`gh pr view`, `git diff`, reading the file) — there is no flag for handing it a diff. It has two flavors, routed by subject: code review (severity-ranked findings) and general review (a multi-angle challenge of a plan, design, or decision).
 
-`ask` answers in the same call. `research`, `review` and `implement` run as background jobs: the call returns a job id, and `/agy:wait <id>` blocks until the job finishes and prints the result (`/agy:status` peeks, `/agy:cancel <id>` stops it).
+`staffer` also unlocks agy's native tools that no specialist persona covers — notably **image generation** (`generate_image`; verified on agy v1.1.15, a 1024×1024 PNG in ~30s).
 
-**Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading).
+`ask` answers in the same call. The other personas run as background jobs: the call returns a job id and prints the exact collect command (`wait <id> --timeout <n>m`); your agent runs that in the background — one wait per job — and delivers the result when it finishes.
+
+**Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading). **Release notes →** [docs/releases/](docs/releases/).
 
 ## Contributing
 
@@ -109,7 +111,7 @@ Three things worth knowing before you open a PR:
 
 - **Run the tests**: `node --test tests/*.test.mjs`. They are black-box tests against a fake `agy` (`tests/fake-agy.mjs`) in a throwaway repo and HOME, so they never hit the network or your real settings. Keep it that way — a test must never invoke the real binary.
 - **Docs come in pairs**: `README.md` / `README.zh-CN.md` and `docs/REFERENCE.md` / `docs/REFERENCE.zh-CN.md` are kept in sync. Change one, change its counterpart.
-- **Behaviour lives in one place**: `companion/agy-companion.mjs` holds all of it. The commands and skills are thin shells that call it, and the prompt templates in `templates/` carry the guardrails.
+- **Behaviour lives in one place**: `companion/agy-companion.mjs` holds all of it. The skills are thin shells that call it, and the prompt templates in `templates/` carry the guardrails.
 
 Adding a mode or a flag changes the public surface, so please open an issue first and we can agree on the shape.
 

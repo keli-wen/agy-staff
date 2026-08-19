@@ -4,16 +4,17 @@
 
 ## 模式与默认值
 
-| 模式 | 说明 | 默认模型 | 权限档 | 执行方式 |
-|---|---|---|---|---|
-| `ask` | 单轮问答，不用任何工具，成本低（约 3s）；兼作装后冒烟测试 | `gemini-3.7-flash-low` | restricted（仅 prompt） | 同步——同一次调用里直接拿到答案 |
-| `research` | 深度调研：要求引用来源、显式标注未验证的结论 | `gemini-3.7-flash-high` | unrestricted | 后台任务——返回一个 job id |
-| `review` | 第二意见式审查：输出按严重度排序的 findings，带 `file:line` 引用 | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
-| `implement` | 范围明确的编码任务；agy 直接修改工作区，由你审阅 diff | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
+| 人格（skill） | companion 模式 | 说明 | 默认模型 | 权限档 | 执行方式 |
+|---|---|---|---|---|---|
+| `ask` | `ask` | 单轮问答，不用任何工具，成本低（约 3s）；兼作装后冒烟测试 | `gemini-3.7-flash-low` | restricted（仅 prompt） | 同步——同一次调用里直接拿到答案 |
+| `staffer` | `staffer` | 通用委托，最小化 prompt：不设角色、不设规则、不设输出格式——任务文本自己决定输出形状 | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
+| `researcher` | `research` | 深度调研：要求引用来源、显式标注未验证的结论 | `gemini-3.7-flash-high` | unrestricted | 后台任务——返回一个 job id |
+| `reviewer` | `review` | 第二意见式审查，按对象路由两个 flavor：代码审查（severity 分级 findings，带 `file:line` 引用）与通用审查（对方案/设计/决策的多角度 challenge） | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
+| `implementer` | `implement` | 范围明确的编码任务；agy 直接修改工作区，由你审阅 diff | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
 
 执行方式按模式固定，没有任何 flag 可以覆盖。`continue` 沿用解析出的模式的执行方式（续接 `ask` 仍是同步；续接其余模式返回 job id）。
 
-两个平台使用同一个插件名 `agy`，共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。调用写法：skill 形式在 Claude Code 下是 `/agy:agy-<mode>`，在 Codex 下是 `$agy:agy-<mode>`；Claude Code 另附短命令 `/agy:ask`、`/agy:research`、`/agy:review`、`/agy:implement`、`/agy:continue`、`/agy:status`、`/agy:result`、`/agy:cancel`、`/agy:setup` 作为快捷方式。
+两个平台使用同一个插件名 `agy`，共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。调用写法：Claude Code 下是 `/agy:<persona>`，Codex 下是 `$agy:<persona>`。任务管理（`wait`/`status`/`result`/`cancel`/`continue`/`setup`）由面向模型的 `jobs` skill 加 companion CLI 承担——用自然语言即可（「agy 的 job 好了吗」）。
 
 ## 双权限档模型
 
@@ -21,7 +22,7 @@
 
 一次运行实际用哪个档，按这个顺序决定：命令行 flag > 仓库级 policy（[`setup --restrict`](#仓库级-policysetup---restrict)）> 内置默认。
 
-| | **unrestricted**（默认：research、review、implement） | **restricted**（可选加固；ask 强制如此） |
+| | **unrestricted**（默认：staffer、research、review、implement） | **restricted**（可选加固；ask 强制如此） |
 |---|---|---|
 | agy 调用方式 | `--dangerously-skip-permissions` | 不跳过权限——fail-closed，未列入 allowlist 的工具调用一律自动拒绝 |
 | agy 能做什么 | 任何事，包括改文件、跑命令 | 只能用 setup 写入的 allowlist 收集证据：`git gh cat head ls grep find rg wc`（命令按前缀匹配） |
@@ -38,12 +39,13 @@
 |---|---|---|
 | `implement` | **要求工作区干净**——工作区不干净时 companion 拒绝启动；结束后打印 `git diff --stat`，`git checkout .` 就是完整回滚 | 打印警告：agy 的修改无法通过 git 审阅或回滚，然后继续执行 |
 | `research`、`review` | 永不阻塞，也不检查工作区是否干净。worker 在运行前对 `git status --porcelain` 拍快照，运行后比对；若 agy 引入了改动，结果会带一条警告，列出 delta 并给出回滚提示 | 无可比对——静默 |
+| `staffer` | 与 research/review 相同的快照/比对，但措辞中性：通用任务可能本来就该改文件，delta 是给调用方的信息（「确认任务确实要求了这些改动」），不是指控 | 无可比对——静默 |
 
 对 `research`/`review` 来说，静默才是常态：只有在 agy 真的动了工作区（模板明确要求它不要动）时才会出现 delta 警告。
 
 ### prompt 层护栏：默认拒绝，按需开放
 
-`research`、`review`、`implement` 三个模板**默认拒绝**不可逆或有代价的副作用：
+`staffer`、`research`、`review`、`implement` 四个模板**默认拒绝**不可逆或有代价的副作用：
 
 - 不 commit、不 push、不改写历史；
 - 不删除工作区之外的文件；
@@ -107,10 +109,12 @@ policy 写入 `<repo>/.agy-staff/config.json`，之后自动生效（运行时�
 | `--continue` | 复用 state 中该模式最近一次会话 id |
 | `--model <id>` | 显式指定 agy 模型（见 `agy models`）。id 必须带 effort 后缀（如 `gemini-3.7-flash-low`）；companion 会自动补全裸 family（`gemini-3.7-flash` + `--effort`）和别名 `flash`/`pro`，未知 id 在调用 agy 前直接报错 |
 | `--effort low\|medium\|high` | `gemini-3.7-flash-<effort>` 的简写 |
-| `--restricted` / `--unrestricted` | 覆盖权限档（`ask` 会忽略）。`research`/`review`/`implement` 默认就是 unrestricted，所以实际会用到的是 `--restricted` |
+| `--restricted` / `--unrestricted` | 覆盖权限档（`ask` 会忽略）。`staffer`/`research`/`review`/`implement` 默认就是 unrestricted，所以实际会用到的是 `--restricted` |
 | `--restrict <modes\|none>` | （setup）仓库级 policy：列出的模式在本仓库默认 restricted；`none` 清除。见[仓库级 policy](#仓库级-policysetup---restrict) |
-| `--json` | （review）按 schema 强制输出 JSON findings；默认是自由格式 markdown |
-| `--timeout <dur>` | agy 的 `--print-timeout`（默认：research/implement 10m，review 5m，ask 2m） |
+| `--json` | （review）按 schema 强制输出 JSON findings；默认是自由格式 markdown。面向代码审查 flavor |
+| `--timeout <dur>` | agy 的 `--print-timeout`（默认：staffer/research/implement 10m，review 5m，ask 2m） |
+| `--prompt-file <path>` | 从文件读任务文本——长 prompt 用它，不用跟 shell 引号搏斗 |
+| `--stdin` | 从 stdin 读任务文本。每次调用只允许一个任务来源：内联文本、`--prompt-file` 或 `--stdin` |
 
 这张表就是全部对外接口。执行方式没有对应 flag——见上面的模式表。
 
@@ -127,18 +131,20 @@ review "Review the patch at /tmp/change.patch"
 
 任务描述为空是错误——`review` 必须有审查对象。若对象有歧义，模板要求 agy 报告这个歧义，而不是猜你想审什么。
 
+review 模板本身是中性骨架（审查者立场、证据纪律、护栏）。所有 flavor 特有的内容——代码审查的证据收集菜单、审查维度、severity 分级和输出格式；方案/决策审查的多角度 challenge 框架——都由 `reviewer` skill 依据 `skills/reviewer/references/{code-review,general-review}.md` 组装进任务文本。
+
 ## 状态与后台任务
 
 **输出分流。** stdout 承载结果本身，以及关于工作区的 guard 警告；`[agy-staff]` telemetry 行（mode、profile、model、duration、tokens、conversation id）走 stderr，后台任务则写进 `jobs/<id>.log`。telemetry 是给调用方 agent 看的元信息，不属于交付内容，也不会写进 `jobs/<id>.result.md`。
 
-`research`、`review`、`implement` 不阻塞，会立刻返回一个 job id。结果通过任务生命周期取回：
+`staffer`、`research`、`review`、`implement` 不阻塞，会立刻返回一个 job id，并且任务启动输出里就印着确切的收取命令——`wait <id> --timeout <n>m`，时长足以覆盖任务本身。结果通过任务生命周期取回：
 
-- `wait [id] [--timeout <dur>]` — 阻塞到任务（默认最近一个）进入终态，然后直接打印结果。这是首选的取结果方式：一条命令，替代手写轮询循环。
+- `wait [id] [--timeout <dur>]` — 阻塞到任务（默认最近一个）进入终态，然后直接打印结果。这是首选的取结果方式：一条命令，替代手写轮询循环。等待期间每约 15s 在 stderr 打一条心跳，长等待可观测。
 - `status` — 列出任务／查看某个任务的状态（`running`、`done`、`error`、`crashed`、`canceled`）。
 - `result <id>` — （再次）打印已完成任务的输出。
 - `cancel <id>` — 终止运行中的任务。
 
-`status <id>` 和 `wait` 用机器可读的退出码表达结果，调用方不需要解析任何输出：**0** done、**2** running、**3** error/crashed、**4** canceled（1 仍是通用错误，比如 job id 不存在）。`wait` 自己的 `--timeout` 默认 100s——刻意低于常见 harness 的单命令超时——到时**不算失败**：它以退出码 2 返回、任务继续跑，再执行一次同样的 `wait` 即可。发起任务的 agent 有责任在启动时告诉你 job id，并用 `wait` 把任务跟到结束，而不是丢着不管。
+`status <id>` 和 `wait` 用机器可读的退出码表达结果，调用方不需要解析任何输出：**0** done、**2** running、**3** error/crashed、**4** canceled（1 仍是通用错误，比如 job id 不存在）。`wait` 自己的 `--timeout` 默认 100s——刻意低于常见 harness 的单命令超时——但**没有上限**：标准姿势是把启动输出里印的那条长时长 `wait` 作为后台命令运行，**一个 job 一个后台 wait**（绝不要在一个 shell 里串行等多个 id——每个完成都会被最慢的前序挡住）。到时不算失败：退出码 2 表示任务还在跑，再执行一次同样的 `wait` 即可。发起任务的 agent 有责任在启动时告诉你 job id，并用 `wait` 把任务跟到结束，而不是丢着不管。
 
 按仓库存储的状态位于 `<repo>/.agy-staff/`：
 
@@ -146,24 +152,18 @@ review "Review the patch at /tmp/change.patch"
 - `config.json` — 仓库级权限档 policy（用 `setup --restrict` 设置过才存在）。
 - `jobs/<id>.log`、`jobs/<id>.spec.json`、`jobs/<id>.result.md` — 每个后台任务一组。
 
-后台任务就是普通的 detached 进程（companion 以 worker 身份重新拉起自己；没有 daemon）。`status` 通过 pid 存活探测识别崩溃的 worker；`cancel` 直接 kill pid。会话续接（`--continue`、`/agy:continue`）很省额度：agy 的历史上下文大部分由缓存承担（`cache_read_tokens`）。
+后台任务就是普通的 detached 进程（companion 以 worker 身份重新拉起自己；没有 daemon）。`status` 通过 pid 存活探测识别崩溃的 worker；`cancel` 直接 kill pid。会话续接（`--continue`、`continue`）很省额度：agy 的历史上下文大部分由缓存承担（`cache_read_tokens`）。
 
 ### 让 `.agy-staff/` 不进 git
 
-companion 不会碰你的 ignore 文件。保持调用方仓库 `git status` 干净是**调用方 agent 的责任**：在某个仓库里第一次发起会创建任务的调用**之前**，执行一次——
-
-```bash
-git check-ignore -q .agy-staff || echo '.agy-staff/' >> .git/info/exclude
-```
-
-要写 `.git/info/exclude`，绝不要写被 git 跟踪的 `.gitignore`——状态目录是本地临时产物，写进共享且被提交的文件会改变所有协作者的仓库。
+0.4 起自动完成：companion 在某个仓库里第一次创建 `.agy-staff/` 时，若该路径尚未被忽略，会把 `.agy-staff/` 追加进 `.git/info/exclude`（仓库本地、不被跟踪）。它绝不会碰被 git 跟踪的 `.gitignore`——状态目录是本地临时产物，写进共享且被提交的文件会改变所有协作者的仓库。
 
 ## 疑难排查
 
-- **"agy reported an error (status ERROR)"** — companion 会原样转述 agy 自己的报错。常见原因：模型 id 无效（agy 需要带 effort 后缀的 id——运行 `agy models`）、登录过期（交互式运行一次 `agy` 重新登录）、额度用尽。
+- **"agy reported an error (status ERROR)"** — companion 会原样转述 agy 自己的报错，且只在错误文本确实匹配时才追加原因提示（模型 id 无效 → 运行 `agy models`；登录过期 → 交互式运行一次 `agy` 重新登录；额度用尽）。如果 agy 报了错但完整的 response 已经产出（例如收尾时一次工具调用超时），companion 会照常交付：退出码 0，response 走 stdout，警告走 stderr（`done_with_warnings`）——只有没有 response 的运行才算失败。
 - **`~/.gemini/...` 上的 `operation not permitted` / `bind: operation not permitted` / 终端里 `agy` 明明正常却突然"authentication failed"** — agy 被放进了 harness 的命令沙箱里执行（典型是 Codex 的 workspace-write）。agy 无法在沙箱内运行：它要为内部 language server 绑定 localhost 端口、还要读自己的 OAuth token 文件，而沙箱的凭据保护会直接把 token 藏起来——无论开多少 `writable_roots`/`network_access` 都救不回来。companion 命令必须在沙箱外执行——Codex 里给该 workspace 授予 full access，或以 escalated 权限批准命令。
-- **空响应但 "status SUCCESS"** — 只会出现在 restricted 档的运行里（传了 `--restricted`，或项目 policy 把该模式设成了 restricted）：即使所有工具调用都被拒绝，agy 也会报 success；此时内容为空、stderr 带权限提示。companion 会检测到并给出修复方式：跑一次 `/agy:setup` 把 allowlist 装上，或者放宽权限档（去掉 `--restricted`；来自 policy 的话用 `setup --restrict none`）。另有一个 agy 自身的限制：部分工具在 headless 下完全无视 allow-rules，只在跳过权限时可用——这类操作永远需要 unrestricted 的运行。（`ask` 不可能触发此情况；若触发请报 bug。）
-- **"inline content over the 200KB limit"** — 整个 prompt 作为单个 argv 传递，macOS 的 ARG_MAX 约 1MB；agy 不读 stdin。请缩短任务描述：把材料的位置（PR 号、ref、文件路径）指给 agy，让它自己去取内容，而不是整段粘进来。
+- **空响应但 "status SUCCESS"** — 只会出现在 restricted 档的运行里（传了 `--restricted`，或项目 policy 把该模式设成了 restricted）：即使所有工具调用都被拒绝，agy 也会报 success；此时内容为空、stderr 带权限提示。companion 会检测到并给出修复方式：跑一次 `setup` 把 allowlist 装上，或者放宽权限档（去掉 `--restricted`；来自 policy 的话用 `setup --restrict none`）。另有一个 agy 自身的限制：部分工具在 headless 下完全无视 allow-rules，只在跳过权限时可用——这类操作永远需要 unrestricted 的运行。（`ask` 不可能触发此情况；若触发请报 bug。）
+- **"task text exceeds the 200KB inline limit"** — 整个 prompt 作为单个 argv 传给 agy，macOS 的 ARG_MAX 约 1MB（agy 自己不读 stdin，所以 `--prompt-file`/`--stdin` 只解决 shell 引号问题，解决不了这个上限）。请缩短任务描述：把材料的位置（PR 号、ref、文件路径）指给 agy，让它自己去取内容，而不是整段粘进来。
 - **这些模式绝不要用 agy 的 `--sandbox`** — 它会把执行重定向到 agy 自己的 scratch 工作区（`~/.gemini/antigravity-cli/scratch`），看不到你真实的工作目录。companion 从不传该参数。
 - **implement 因工作区不干净被拒** — 这是有意的，而且只针对 `implement`（`research`/`review` 永不被拦）。先 commit 或 stash，agy 的修改才是隔离的，`git checkout .` 才是完整回滚。不在 git 仓库里时，`implement` 只警告不拒绝——因为根本没有回滚路径。
 - **"agy modified the working tree during this review"** — 这是 unrestricted 的 `research`/`review` 的 delta 警告（随结果一起打印）：agy 动了本不该动的文件。按列出的路径检查并还原，警告里附带回滚提示。
@@ -187,6 +187,20 @@ git check-ignore -q .agy-staff || echo '.agy-staff/' >> .git/info/exclude
 
 已移除的 flag 会立即报错并在错误信息里给出替代写法；弃用的权限档别名在本版本内继续可用，下个版本删除。
 
+## 从 0.3 迁移
+
+0.4 把两层调用入口（commands + skills）合并成单一 skills 层并改用人格命名，新增了 `staffer` 模式，并让 `.agy-staff/` 的 git 忽略变为自动。
+
+| 0.3 | 0.4 | 说明 |
+|---|---|---|
+| `/agy:research`（command）+ `/agy:agy-research`（skill） | `/agy:researcher` | 每个人格一个 skill；command 层删除 |
+| `/agy:review` + `/agy:agy-review` | `/agy:reviewer` | 按对象路由两个 flavor：代码审查与通用（方案/决策）审查 |
+| `/agy:implement` + `/agy:agy-implement` | `/agy:implementer` | |
+| `/agy:ask` + `/agy:agy-ask` | `/agy:ask` | 名字不变，只剩单一入口 |
+| *（无）* | `/agy:staffer` | 新增的通用模式，最小化 prompt |
+| `/agy:status`、`/agy:wait`、`/agy:result`、`/agy:cancel`、`/agy:continue`、`/agy:setup` | `jobs` skill（面向模型） | 用自然语言（「agy 的 job 好了吗」）；companion 子命令本身不变 |
+| 手动写 `.git/info/exclude` | 首次运行自动完成 | |
+
 ## 升级
 
 Codex 按版本目录缓存插件（如 `plugins/cache/agy-staff/agy/0.1.0`），因此修复必须先提升插件版本号，**并且**运行 `codex plugin marketplace upgrade`（或移除后重新添加 marketplace 条目），再重启应用才会生效。Claude Code 则先更新 marketplace 再重装（`/plugin marketplace update agy-staff`，然后 `/plugin install agy@agy-staff`）。
@@ -195,12 +209,12 @@ Codex 按版本目录缓存插件（如 `plugins/cache/agy-staff/agy/0.1.0`）�
 
 ```
 companion/agy-companion.mjs   所有逻辑都在这里（各模式、任务、setup）
-templates/                    共享 prompt 模板（ask/research/review/implement）
+templates/                    共享 prompt 模板（staffer/ask/research/review/implement）
 .claude-plugin/               Claude Code 插件 + 自托管 marketplace manifest
-commands/                     Claude Code 斜杠命令（只做转发）
 .codex-plugin/plugin.json     Codex 插件 manifest
 .agents/plugins/              Codex marketplace manifest
-skills/                       Codex skills（只做转发）
+skills/                       人格 + jobs（只做转发，两个平台共用；
+                              reviewer/ 与 jobs/ 附带按需加载的 references/）
 assets/                       设计图 + logo + 徽章
 docs/                         本参考文档 + INSTALL_FOR_AGENTS.md
 ```
