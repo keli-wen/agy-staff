@@ -78,7 +78,7 @@ claude plugin marketplace update agy-staff && claude plugin install agy@agy-staf
 codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then restart Codex
 ```
 
-Codex caches plugins per version directory, so an upgrade lands only if the plugin version changed — see [upgrading](docs/REFERENCE.md#upgrading) if a fix does not show up.
+Both harnesses cache per version directory, so an upgrade lands only if the plugin version changed; restart the harness afterwards. If a fix does not show up, see [upgrading](docs/REFERENCE.md#upgrading) — it has the force-refresh command.
 
 ### CUJs
 

@@ -203,7 +203,12 @@ Removed flags fail fast with a message naming the replacement; the deprecated pr
 
 ## Upgrading
 
-Codex caches plugins under a per-version directory (e.g. `plugins/cache/agy-staff/agy/0.1.0`), so a fix only reaches the app after the plugin version is bumped **and** you run `codex plugin marketplace upgrade` (or remove and re-add the marketplace entry), then restart the app. For Claude Code, update the marketplace and reinstall (`/plugin marketplace update agy-staff`, then `/plugin install agy@agy-staff`).
+Both harnesses cache the plugin under a per-**version** directory (e.g. `cache/agy-staff/agy/0.4.0`) and key "is it current?" on that version string, not on the commit. A push that does not bump the version therefore never reaches an existing install, in either harness — which also makes this a rule for maintainers: **bump the version for every user-visible change**, or nobody gets it.
+
+- **Claude Code** — `claude plugin marketplace update agy-staff` refreshes the marketplace clone, then `claude plugin install agy@agy-staff` copies it in. If the version is unchanged, `install` answers "already installed" and `claude plugin update agy@agy-staff` answers "already at the latest version"; neither re-copies. To force the current commit in (testing an unreleased fix, or recovering from a same-version push): `claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff`. Restart Claude Code afterwards — skills are registered at session start.
+- **Codex** — bump the version, run `codex plugin marketplace upgrade` (or remove and re-add the marketplace entry), then restart the app.
+
+You can check which commit is actually installed: the `gitCommitSha` in `~/.claude/plugins/installed_plugins.json`, versus `git -C ~/.claude/plugins/marketplaces/agy-staff log -1` for what the marketplace clone has fetched.
 
 ## Repository layout
 

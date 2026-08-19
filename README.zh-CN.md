@@ -78,7 +78,7 @@ claude plugin marketplace update agy-staff && claude plugin install agy@agy-staf
 codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then restart Codex
 ```
 
-Codex 按版本号目录缓存插件，只有插件版本号变了升级才会落地——改动没出现时见[升级](docs/REFERENCE.zh-CN.md#升级)。
+两个 harness 都按版本号目录缓存插件，只有插件版本号变了升级才会落地，之后还要重启 harness。改动没出现时见[升级](docs/REFERENCE.zh-CN.md#升级)——那里有强制刷新的命令。
 
 ### 典型场景（CUJ）
 

@@ -203,7 +203,12 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 
 ## 升级
 
-Codex 按版本目录缓存插件（如 `plugins/cache/agy-staff/agy/0.1.0`），因此修复必须先提升插件版本号，**并且**运行 `codex plugin marketplace upgrade`（或移除后重新添加 marketplace 条目），再重启应用才会生效。Claude Code 则先更新 marketplace 再重装（`/plugin marketplace update agy-staff`，然后 `/plugin install agy@agy-staff`）。
+两个 harness 都按**版本号**目录缓存插件（如 `cache/agy-staff/agy/0.4.0`），并且只用版本号判断「是不是最新」，不看 commit。所以不改版本号的推送永远到不了已有安装——对维护者而言这也是一条规则：**任何用户可见的改动都要提升版本号**，否则没人拿得到。
+
+- **Claude Code**——`claude plugin marketplace update agy-staff` 更新 marketplace clone，再用 `claude plugin install agy@agy-staff` 拷贝进来。若版本号没变，`install` 会回答「已安装」、`claude plugin update agy@agy-staff` 会回答「已是最新版本」，两者都不会重新拷贝。要强制装入当前 commit（测未发布的修复，或补救一次同版本号推送）：`claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff`。之后重启 Claude Code——技能在会话启动时注册。
+- **Codex**——先提升版本号，运行 `codex plugin marketplace upgrade`（或移除后重新添加 marketplace 条目），再重启应用。
+
+想确认实际装的是哪个 commit：看 `~/.claude/plugins/installed_plugins.json` 里的 `gitCommitSha`，和 `git -C ~/.claude/plugins/marketplaces/agy-staff log -1` 拉到的 commit 对比。
 
 ## 仓库结构
 
