@@ -1,13 +1,13 @@
 ---
 name: implementer
-description: Delegate a coding task to Google's Antigravity CLI (agy staffer, fast Gemini), which edits the working tree directly for later human review. Use when the user says /agy:implementer, "have agy fix/build X", or wants to hand a well-scoped coding task to the agy staffer instead of doing it in the host model.
-argument-hint: '[--continue] [--restricted|--unrestricted] [--model <id>|--effort low|medium|high] [--prompt-file <path>|--stdin] "task description"'
-allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), Bash(gh:*)
+description: Delegate a coding task to Google's Antigravity CLI (agy staffer, fast Gemini), with explicit workspace handling and diff/commit/PR delivery. Use when the user says /agy:implementer, "have agy fix/build X", or wants to hand a well-scoped coding task to the agy staffer instead of doing it in the host model.
+argument-hint: '[--delivery diff|commit|pr] [--dirty continue] [--include-baseline] [--restricted|--unrestricted] [--model <id>|--effort low|medium|high] [--prompt-file <path>|--stdin] "task description"'
+allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), Bash(gh:*), AskUserQuestion
 ---
 
 # agy implementer
 
-Hand a coding task to the agy staffer. agy edits the real working tree under its unrestricted permission profile; the safety net is git. You are a thin shell: run the companion, then surface the diff for the user's decision.
+Hand a coding task to the agy staffer. agy edits and verifies the workspace; the companion owns workspace preflight, continuation state, and authorized Git/PR delivery.
 
 ## Locating the companion
 
@@ -18,32 +18,27 @@ node "<skill-dir>/../../companion/agy-companion.mjs" implement [flags] "task des
 ```
 
 > [!IMPORTANT]
-> Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`. (The companion passes `--dangerously-skip-permissions` to agy in this mode — that is the unrestricted profile working as designed.)
+> Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`. (The companion passes `--dangerously-skip-permissions` to agy by default in this mode.)
 
-## Preconditions and safety
+## Main flow
 
-- Inside a git repository the companion refuses to start unless `git status --porcelain` is clean. If it refuses, relay the message: commit or stash first. This keeps rollback trivial (`git checkout .` plus deleting new untracked files).
-- Outside a git repository the companion warns that agy's edits cannot be reviewed or rolled back via git, and proceeds. Relay that warning; there is no diff to fall back on.
-- After the run, the companion prints `git diff --stat` and an instruction to show the full diff. Follow it: show the user `git diff` and `git status --short`, ask whether to keep the changes, and never commit without an explicit request.
+1. Choose the delivery contract from the user's request: `diff` leaves a reviewable working-tree diff, `commit` commits locally, and `pr` commits, pushes, then creates or updates a draft PR. Prefer passing `--delivery` explicitly; the companion can infer obvious commit/PR requests from task text.
+2. Run the companion. If the workspace is dirty and the companion returns a workspace decision packet, ask the user how to handle the listed paths. Rerun with `--dirty continue` only when the user confirms those changes are part of this task.
+3. Collect the background job with the printed `wait <id> --timeout <n>m` command. One job gets one background wait.
+4. For `diff`, show the resulting status/diff as usual. For `commit` or `pr`, do not ask the user to approve the same commit/push/PR again unless the target, repo, scope, or side effects changed.
 
-## Execution style
+Read `references/workspace-delivery.md` when the workspace is dirty, the user requests `commit`/`pr`, a continuation mismatches, or agy pauses for a side-effect decision.
 
-implement always runs as a background job: the call returns a job id immediately. The job never calls back — collecting the result is your job.
+## Flags
 
-## Collecting the result
-
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job. When it exits 0 it has printed agy's summary: deliver it (verbatim if short; key points plus the result-file path if long), then run the diff-and-confirm step above. Everything else about job management is in the jobs skill: `../jobs/SKILL.md`.
-
-## Flags (all optional)
-
-- `--restricted` / `--unrestricted` — permission profile. implement defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it can usually only propose rather than edit, and it needs the setup flow's evidence-gathering allowlist to be useful.
-- `--continue` (or `--conversation <id>`), `--model <id>` / `--effort low|medium|high` (default `gemini-3.7-flash-medium`), `--timeout <dur>` (default 10m).
-- `--prompt-file <path>` / `--stdin` — task text from a file or stdin (long prompts).
+- `--delivery diff|commit|pr` — explicit delivery contract. `diff` is the default.
+- `--dirty continue` — start from the current dirty workspace after the user confirms the listed changes are in scope.
+- `--include-baseline` — allow a dirty baseline to be committed or included in a PR. Use only after confirming every baseline path belongs there.
+- `--commit-message <text>`, `--pr-title <text>`, `--pr-body <text>`, `--base <branch>` — optional Git delivery metadata.
+- `--restricted` / `--unrestricted`, `--continue` / `--conversation <id>`, `--model <id>` / `--effort low|medium|high`, `--timeout <dur>`, `--prompt-file <path>` / `--stdin`.
 
 ## Rules
 
-- Do not pre-implement, extend, or "clean up" agy's changes without user confirmation.
-- Return agy's summary verbatim before presenting the diff.
-- Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, commands that burn paid API quota); that default opens only when the request itself asks for the operation — so keep "run the e2e tests" or "call the staging API" in the prompt instead of trimming it.
-- Never commit agy's changes yourself unless the user explicitly asks after seeing the diff.
-- On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../jobs/SKILL.md`.
+- Pass the user's explicit authorizations through to the task string verbatim.
+- Do not silently stash, reset, discard, rebase, overwrite, or stage unrelated paths.
+- On any companion error: quote it verbatim, add one line of diagnosis, and stop unless the message asks for a specific user decision. Full failure protocol: `../jobs/SKILL.md`.

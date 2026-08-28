@@ -53,7 +53,7 @@ codex plugin add agy@agy-staff
 Restart the harness afterwards so the skills load, then first run: `/agy:ask "reply with OK"` — ask is tool-free and works with zero setup.
 
 > [!IMPORTANT]
-> **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy gathers evidence and edits files on its own, guarded by the prompt templates (no commits/pushes, no costly side effects) plus a clean-git-tree check on `implementer`.
+> **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy gathers evidence and edits files on its own, guarded by the prompt templates (no costly side effects) plus `implementer` workspace decisions and `diff` / `commit` / `pr` delivery contracts.
 > `setup` + `--restricted` is **optional hardening** for untrusted input — per run (`--restricted`) or as a per-repo default (`setup --restrict review,research`). `setup` dry-runs and asks before writing anything ("set up agy" triggers it); read the [permission notes](docs/REFERENCE.md#optional-hardening-setup) first — the allowlist is prefix-matched, applies machine-wide, and a restricted run can return less than an unrestricted one.
 
 #### For agents
@@ -94,6 +94,7 @@ Invocation is always explicit — you type the command; the plugin never trigger
 | Review a plan or decision | `/agy:reviewer Challenge the migration plan in docs/plan.md` |
 | Survey a topic | `/agy:researcher how does auth work in this repo` |
 | Implement a scoped fix | `/agy:implementer fix the flaky retry test` |
+| Implement and open a draft PR | `/agy:implementer --delivery pr fix the flaky retry test and open a PR` |
 | Job ops (wait/status/cancel/continue) | natural language: "is the agy job done?", "continue: also check the error path" |
 
 `reviewer` is fully prompt-based: you describe the subject and agy gathers the evidence itself (`gh pr view`, `git diff`, reading the file) — there is no flag for handing it a diff. It has two flavors, routed by subject: code review (severity-ranked findings) and general review (a multi-angle challenge of a plan, design, or decision).

@@ -22,8 +22,8 @@ import. Each test builds its own sandbox (`tests/helpers.mjs`):
 - a throwaway git repo under `os.tmpdir()` (so `.agy-staff/` state never lands in
   the real repo), with `.agy-staff/` added to `.git/info/exclude` — since 0.4 the
   companion does this itself on first use (`ensureStateDir`), the sandbox just
-  pre-applies it; it is a precondition for `implement`'s clean-tree check to pass
-  on the second call, and what keeps the companion's own state out of the
+  pre-applies it; it keeps the companion's own state out of implement workspace
+  snapshots and out of the
   review/research delta report. The auto-exclude path itself is pinned in
   `dx.test.mjs`.
   `sandbox(label, { git: false })` skips the `git init` for the cases that must
@@ -42,11 +42,13 @@ and permission-profile wiring asserted on the argv the fake `agy` received —
 round 2's equal-permissions default (`research`/`review`/`implement` all send
 `--dangerously-skip-permissions` with no flags and no setup, `--restricted` is
 the opt-in that removes it, `ask` never gets it). Also: the tiered git guards
-(`implement` still refuses a dirty tree, warns and proceeds outside a
-repository, and reports its edits with the result; `review`/`research` are never
-blocked and instead report a working-tree delta — present when the fake `agy`
-touches a file, silent when it does not, scoped to what appeared during the run,
-and skipped entirely for `--restricted` runs); the reworded `--restricted`
+(`implement` returns a workspace decision on a dirty first run, supports
+`--dirty continue`, records continuation snapshots, refuses continuation
+mismatches, and covers `diff` / `commit` / `pr` delivery; `review`/`research`
+are never blocked and instead report a working-tree delta — present when the
+fake `agy` touches a file, silent when it does not, scoped to what appeared
+during the run, and skipped entirely for `--restricted` runs); the reworded
+`--restricted`
 empty-response triage message (and the unrestricted case that must never suggest
 setup); the output split (the `[agy-staff]` telemetry line is asserted on stderr
 for foreground runs and in `jobs/<id>.log` for background ones, and asserted

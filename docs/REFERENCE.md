@@ -10,7 +10,7 @@ Back to the [README](../README.md). 中文版见 [REFERENCE.zh-CN.md](REFERENCE.
 | `staffer` | `staffer` | General-purpose delegation with a minimal prompt: no role, rules, or output format — the task text alone shapes the output | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
 | `researcher` | `research` | Deep survey with cited sources and explicit unverified-claims marking | `gemini-3.7-flash-high` | unrestricted | background job — returns a job id |
 | `reviewer` | `review` | Second-opinion verifier, two flavors routed by subject: code review (severity-ranked findings with `file:line` refs) and general review (multi-angle challenge of a plan, design, or decision) | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
-| `implementer` | `implement` | Well-scoped coding task; agy edits the working tree, you review the diff | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
+| `implementer` | `implement` | Well-scoped coding task; agy edits and verifies, while the companion manages workspace decisions and `diff` / `commit` / `pr` delivery | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
 
 Execution style is fixed per mode and cannot be overridden by a flag. `continue` inherits the resolved mode's style (continuing an `ask` stays synchronous; continuing the others returns a job id).
 
@@ -33,21 +33,33 @@ The profile for a run is resolved in this order: CLI flag > per-repo policy ([`s
 
 ### Tiered git guards
 
-The guards apply to **unrestricted runs only** and differ by mode:
+The guards differ by mode. The `implement` workspace contract applies to every implement run because `commit` / `pr` delivery is a companion-owned Git write:
 
 | Mode | Inside a git repo | Not a git repo |
 |---|---|---|
-| `implement` | clean tree **required** — the companion refuses to start on a dirty tree, prints `git diff --stat` afterwards, and `git checkout .` is a complete rollback | warns that agy's edits cannot be reviewed or rolled back via git, then proceeds |
+| `implement` | workspace decision **required** when dirty. A clean first run starts immediately; a dirty first run returns a decision packet unless the caller chose `--dirty continue`. Continuation compares the recorded task snapshot instead of requiring a clean tree | `diff` warns that agy's edits cannot be reviewed or rolled back via git, then proceeds; `commit` and `pr` require a git repository |
 | `research`, `review` | never blocked, no clean-tree check. The worker snapshots `git status --porcelain` before the run and compares afterwards; if agy introduced changes, the result carries a warning listing the delta plus a rollback hint | nothing to compare — silent |
 | `staffer` | same snapshot/report as research/review, but neutrally worded: a general task may legitimately edit files, so the delta is information for the caller ("verify the task asked for it"), not an accusation | nothing to compare — silent |
 
 Silence is the normal case for `research`/`review`: the delta warning shows up only when agy touched the working tree, which the templates tell it not to do.
 
+### Implement delivery contracts
+
+`implement` has one delivery contract per task:
+
+- `diff` — agy edits and verifies, then the companion leaves an uncommitted diff.
+- `commit` — agy edits and verifies, then the companion stages exact changed paths with `git add -- <paths>` and creates one local commit.
+- `pr` — agy edits and verifies, then the companion commits, pushes the current branch with `git push -u origin <branch>`, and creates or updates a draft PR with `gh pr`.
+
+Pass `--delivery diff|commit|pr` to make the contract explicit. If omitted, `diff` is the default, while obvious task text such as "commit this" or "open a PR" is inferred. Choosing `commit` or `pr` is authorization for that delivery; the caller should not ask for the same commit/push/PR confirmation again unless the target, repository, branch, scope, or side effects change.
+
+Dirty baselines are not committed or included in a PR by default. `--dirty continue` allows agy to build on existing changes, but `commit` and `pr` also require `--include-baseline` before those pre-existing changes can enter Git history.
+
 ### Prompt-level guardrails: default-deny, prompt-opens
 
 The `staffer`, `research`, `review` and `implement` templates deny irreversible or costly side effects **by default**:
 
-- no commits, pushes or history rewrites;
+- no commits, pushes, PR writes or history rewrites from inside the agy model run; authorized `commit` / `pr` delivery is performed by the companion after agy returns;
 - no deleting files outside the workspace;
 - no side-effectful network calls;
 - no commands that burn paid API quota or tokens (e.g. an e2e suite that bills a live API).
@@ -112,6 +124,10 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 | `--restricted` / `--unrestricted` | permission profile override (ignored by `ask`). `unrestricted` is the default for `staffer`/`research`/`review`/`implement`, so `--restricted` is the flag you actually reach for |
 | `--restrict <modes\|none>` | (setup) per-repo policy: the listed modes default to restricted in this repository; `none` clears it. See [Per-repo policy](#per-repo-policy-setup---restrict) |
 | `--json` | (review) schema-enforced JSON findings; default is free-form markdown. Meant for the code-review flavor |
+| `--delivery diff\|commit\|pr` | (implement) delivery contract. `diff` leaves a working-tree diff, `commit` creates a local commit, and `pr` commits, pushes, and creates or updates a draft PR |
+| `--dirty continue` | (implement) start from a dirty workspace after the user confirms the listed paths are in scope |
+| `--include-baseline` | (implement) allow a dirty baseline to be included in a `commit` or `pr`. Use only after confirming every baseline path belongs there |
+| `--commit-message <text>` / `--pr-title <text>` / `--pr-body <text>` / `--base <branch>` | (implement) optional Git delivery metadata |
 | `--timeout <dur>` | agy `--print-timeout` (defaults: 10m staffer/research/implement, 5m review, 2m ask) |
 | `--prompt-file <path>` | read the task text from a file — for long prompts, instead of shell quoting |
 | `--stdin` | read the task text from stdin. Exactly one task source per call: inline text, `--prompt-file`, or `--stdin` |
@@ -148,7 +164,7 @@ The review template itself is a neutral skeleton (reviewer stance, evidence disc
 
 Per-repository state lives in `<repo>/.agy-staff/`:
 
-- `state.json` — last conversation id per mode + a jobs registry.
+- `state.json` — last conversation id per mode, a jobs registry, and implement task manifests used for continuation snapshot checks.
 - `config.json` — the per-repo profile policy, if you set one with `setup --restrict`.
 - `jobs/<id>.log`, `jobs/<id>.spec.json`, `jobs/<id>.result.md` — one triple per background job.
 
@@ -165,7 +181,8 @@ Automatic since 0.4: when the companion creates `.agy-staff/` for the first time
 - **Empty response, "status SUCCESS"** — only happens on a restricted run (`--restricted`, or a project policy that restricts the mode): agy reports success even when every tool call was denied, so the content is empty and stderr carries a permission note. The companion detects this and tells you the fix: run `setup` once so the allowlist exists, or relax the profile (drop `--restricted`, or `setup --restrict none` if it came from the policy). Caveat baked into agy: some tools ignore allow-rules in headless mode entirely and only work with the skip flag — those always need an unrestricted run. (`ask` cannot hit this case; if it does, report a bug.)
 - **"task text exceeds the 200KB inline limit"** — the whole prompt travels to agy as one argv entry and macOS ARG_MAX is ~1MB (agy itself does not read stdin, so `--prompt-file`/`--stdin` only fix shell quoting, not this ceiling). Shorten the task text: point agy at the material (a PR number, a ref, a file path) and let it fetch the content itself instead of pasting it in.
 - **Never use agy's `--sandbox` for these modes** — it redirects execution into agy's own scratch workspace (`~/.gemini/antigravity-cli/scratch`) and cannot see your real working directory. The companion never passes it.
-- **Dirty-tree refusal on implement** — intentional, and specific to `implement` (`research`/`review` are never blocked). Commit or stash so agy's edits are isolated and `git checkout .` is a complete rollback. Outside a git repo `implement` warns instead of refusing — there is simply no rollback path.
+- **"implement needs a workspace decision"** — `implement` found a dirty workspace before starting. Confirm whether the listed paths are part of the task (`--dirty continue`), use an isolated worktree, commit them separately, or explicitly stash them. The companion never silently stashes, resets, or discards work.
+- **"implement continuation refused"** — the recorded task snapshot no longer matches the current repo, worktree, branch, HEAD, status, tracked diff, or untracked file hashes. Inspect the mismatch and decide whether to continue manually, start a new task, or move the work to an isolated branch.
 - **"agy modified the working tree during this review"** — the delta warning (printed with the result) on an unrestricted `research`/`review` run: agy changed files it was told to leave alone. Inspect the listed paths and revert them; the warning includes the rollback hint.
 - **Project-scoped agy permissions** — agy has project-level rules ("highest priority") tied to its `--project` system; the settings-file path for those is undocumented and unverified, so setup only edits the global file. If a rule seems ignored, check agy interactively. See [Advanced: project-scoped permissions](#advanced-project-scoped-permissions).
 - **Rules context** — agy auto-loads `AGENTS.md`/`GEMINI.md`/`.agents/rules/*.md` from the workspace; keep those files sane in repos where you delegate.

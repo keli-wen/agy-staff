@@ -5,9 +5,8 @@
  * Round-2 spec: research/review/implement all default to `unrestricted`
  * (--dangerously-skip-permissions on the agy argv), `--restricted` is the
  * opt-in hardening flag, and ask stays tool-free/restricted. Guards are tiered:
- * implement needs a clean tree inside a repo (warns and proceeds outside one),
- * review/research are never blocked and report any working-tree delta with the
- * result instead.
+ * implement inspects workspace state and records a continuation snapshot,
+ * review/research are never blocked and report any working-tree delta instead.
  *
  * Output split: stdout (and the stored result file) carry agy's response plus
  * any guard warning; the `[agy-staff]` telemetry line goes to stderr, which for
@@ -17,10 +16,12 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import {
   sandbox,
   run,
   agyCalls,
+  ghCalls,
   promptOf,
   jobIdOf,
   jobLog,
@@ -30,6 +31,30 @@ import {
 } from './helpers.mjs';
 
 const SKIP = '--dangerously-skip-permissions';
+
+function git(sb, args) {
+  const r = spawnSync('git', args, { cwd: sb.repo, encoding: 'utf8' });
+  assert.equal(r.status, 0, `git ${args.join(' ')}\n${r.stderr}${r.stdout}`);
+  return r.stdout.trim();
+}
+
+function seedCommit(sb) {
+  fs.writeFileSync(path.join(sb.repo, 'README.md'), '# test\n');
+  git(sb, ['add', '--', 'README.md']);
+  git(sb, ['-c', 'user.name=Agy Test', '-c', 'user.email=agy@example.test', 'commit', '-m', 'seed']);
+}
+
+function configureGitUser(sb) {
+  git(sb, ['config', 'user.name', 'Agy Test']);
+  git(sb, ['config', 'user.email', 'agy@example.test']);
+}
+
+function addBareRemote(sb) {
+  const bare = path.join(sb.root, 'origin.git');
+  const init = spawnSync('git', ['init', '--bare', '-q', bare], { encoding: 'utf8' });
+  assert.equal(init.status, 0, init.stderr);
+  git(sb, ['remote', 'add', 'origin', bare]);
+}
 
 describe('execution style is fixed per mode', () => {
   test('ask runs in the foreground and returns the answer synchronously', () => {
@@ -213,13 +238,15 @@ describe('permission profile wiring reaches the agy argv', () => {
 });
 
 describe('tiered git guards: implement', () => {
-  test('implement on a dirty tree still fails fast before detaching', () => {
+  test('implement on a dirty tree returns a workspace decision before detaching', () => {
     const sb = sandbox('dirty');
     fs.writeFileSync(path.join(sb.repo, 'dirty.txt'), 'uncommitted\n');
 
     const r = run(sb, ['implement', 'a task']);
     assert.notEqual(r.code, 0);
-    assert.match(r.stderr, /unrestricted profile refused: the working tree is not clean\./);
+    assert.match(r.stderr, /implement needs a workspace decision before starting/);
+    assert.match(r.stderr, /--dirty continue/);
+    assert.match(r.stderr, /Create an isolated worktree/);
     assert.match(r.stderr, /dirty\.txt/);
     assert.doesNotMatch(r.stderr, /\bloose\b/);
     assert.equal(agyCalls(sb).length, 0, 'agy must not be invoked');
@@ -247,8 +274,7 @@ describe('tiered git guards: implement', () => {
     assert.doesNotMatch(res.stdout, /\[agy-staff\]/);
     assert.match(jobLog(sb, id), /\[agy-staff\] mode=implement profile=unrestricted/);
     // no git → no tree report of either kind
-    assert.doesNotMatch(res.stdout, /\[unrestricted\] Working tree unchanged/);
-    assert.doesNotMatch(res.stdout, /\[unrestricted\] agy modified the working tree/);
+    assert.doesNotMatch(res.stdout, /\[unrestricted\] implement delivery=/);
   });
 
   test('implement reports the tree with the [unrestricted] prefix', async () => {
@@ -261,7 +287,7 @@ describe('tiered git guards: implement', () => {
     const res = run(sb, ['result', id]);
     assert.equal(res.code, 0, res.stderr);
     // the guard warning stays in the body …
-    assert.match(res.stdout, /\[unrestricted\] Working tree unchanged/);
+    assert.match(res.stdout, /\[unrestricted\] implement delivery=diff left the working tree unchanged/);
     assert.doesNotMatch(res.stdout, /\[loose\]/);
     // … the telemetry does not, it is in the worker log instead
     assert.doesNotMatch(res.stdout, /\[agy-staff\]/);
@@ -270,7 +296,7 @@ describe('tiered git guards: implement', () => {
     assert.match(jobLog(sb, id), /^conversation: conv-1 \(follow up with --continue\)$/m);
   });
 
-  test('implement reports edits agy made on the clean tree', async () => {
+  test('implement reports edits agy made on a clean first run', async () => {
     const sb = sandbox('impl-touched');
     const started = run(sb, ['implement', 'a task'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-wrote.txt'),
@@ -280,9 +306,147 @@ describe('tiered git guards: implement', () => {
     assert.equal(await waitForJob(sb, id), 'done');
 
     const res = run(sb, ['result', id]);
-    assert.match(res.stdout, /\[unrestricted\] agy modified the working tree\./);
+    assert.match(res.stdout, /\[unrestricted\] implement delivery=diff left workspace changes/);
+    assert.match(res.stdout, /\?\? agy-wrote\.txt/);
     assert.match(res.stdout, /New untracked files: agy-wrote\.txt/);
     assert.match(res.stdout, /ACTION FOR THE CALLING AGENT/);
+  });
+
+  test('implement can start on a dirty tree when the caller chooses --dirty continue', async () => {
+    const sb = sandbox('dirty-continue');
+    fs.writeFileSync(path.join(sb.repo, 'pre-existing.txt'), 'belongs to this task\n');
+
+    const started = run(sb, ['implement', '--dirty', 'continue', 'build on the existing change'], {
+      FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-wrote.txt'),
+    });
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(started.stdout, /delivery: diff \(default\)/);
+    const id = jobIdOf(started.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+
+    const res = run(sb, ['result', id]);
+    assert.match(res.stdout, /\?\? agy-wrote\.txt/);
+    assert.doesNotMatch(res.stdout.slice(res.stdout.indexOf('Changed status entries')), /pre-existing\.txt/);
+  });
+
+  test('implement continuation is allowed on its recorded dirty result', async () => {
+    const sb = sandbox('implement-continue');
+    const first = run(sb, ['implement', 'write a file'], {
+      FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-wrote.txt'),
+    });
+    assert.equal(first.code, 0, first.stderr);
+    assert.equal(await waitForJob(sb, jobIdOf(first.stdout)), 'done');
+
+    const cont = run(sb, ['continue', 'refine the same change'], {
+      FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-refined.txt'),
+    });
+    assert.equal(cont.code, 0, cont.stderr);
+    assert.match(cont.stdout, /Started background implement job/);
+    assert.equal(await waitForJob(sb, jobIdOf(cont.stdout)), 'done');
+
+    const calls = await waitForCalls(sb, 2);
+    assert.equal(calls[1][calls[1].indexOf('--conversation') + 1], 'conv-1');
+    assert.match(calls[1][calls[1].indexOf('-p') + 1], /refine the same change/);
+  });
+
+  test('implement continuation refuses when untracked content changed externally', async () => {
+    const sb = sandbox('implement-continue-mismatch');
+    const touched = path.join(sb.repo, 'agy-wrote.txt');
+    const first = run(sb, ['implement', 'write a file'], {
+      FAKE_AGY_TOUCH_FILE: touched,
+      FAKE_AGY_TOUCH_CONTENT: 'version 1\n',
+    });
+    assert.equal(first.code, 0, first.stderr);
+    assert.equal(await waitForJob(sb, jobIdOf(first.stdout)), 'done');
+
+    fs.writeFileSync(touched, 'external edit\n');
+    const cont = run(sb, ['continue', 'refine the same change']);
+    assert.notEqual(cont.code, 0);
+    assert.match(cont.stderr, /implement continuation refused/);
+    assert.match(cont.stderr, /workspace state changed since the recorded snapshot/);
+    assert.equal(agyCalls(sb).length, 1, 'the refused continuation must not call agy');
+  });
+});
+
+describe('implement delivery contracts', () => {
+  test('--delivery commit commits the resulting workspace changes', async () => {
+    const sb = sandbox('delivery-commit');
+    configureGitUser(sb);
+
+    const started = run(sb, ['implement', '--delivery', 'commit', '--commit-message', 'commit from test', 'write a file'], {
+      FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'committed.txt'),
+    });
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(started.stdout, /delivery: commit \(flag\)/);
+    const id = jobIdOf(started.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+
+    const res = run(sb, ['result', id]);
+    assert.match(res.stdout, /implement delivery=commit completed/);
+    assert.match(res.stdout, /staged paths: committed\.txt/);
+    assert.equal(git(sb, ['status', '--porcelain']), '');
+    assert.equal(git(sb, ['log', '-1', '--pretty=%s']), 'commit from test');
+  });
+
+  test('--delivery commit leaves the diff uncommitted when agy finishes with warnings', async () => {
+    const sb = sandbox('delivery-commit-warning');
+    configureGitUser(sb);
+
+    const started = run(sb, ['implement', '--delivery', 'commit', 'write a file'], {
+      FAKE_AGY_STATUS: 'ERROR',
+      FAKE_AGY_RESPONSE: 'finished but warned',
+      FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'warned.txt'),
+    });
+    assert.equal(started.code, 0, started.stderr);
+    const id = jobIdOf(started.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+
+    const res = run(sb, ['result', id]);
+    assert.match(res.stdout, /delivery=commit was not performed because agy finished with warnings/);
+    assert.match(git(sb, ['status', '--porcelain']), /\?\? warned\.txt/);
+    assert.equal(spawnSync('git', ['log', '-1', '--pretty=%s'], { cwd: sb.repo, encoding: 'utf8' }).status, 128);
+  });
+
+  test('task text can infer PR delivery and create a draft PR without a second confirmation', async () => {
+    const sb = sandbox('delivery-pr');
+    configureGitUser(sb);
+    seedCommit(sb);
+    addBareRemote(sb);
+    git(sb, ['switch', '-c', 'feature/pr-delivery']);
+
+    const started = run(
+      sb,
+      ['implement', '--base', 'master', '--pr-title', 'Test PR delivery', 'write a file and open a PR'],
+      {
+        FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'pr-file.txt'),
+      }
+    );
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(started.stdout, /delivery: pr \(task\)/);
+    const id = jobIdOf(started.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+
+    const res = run(sb, ['result', id]);
+    assert.match(res.stdout, /implement delivery=pr completed/);
+    assert.match(res.stdout, /pull request: https:\/\/github\.test\/new\/pull\/9/);
+    assert.equal(git(sb, ['status', '--porcelain']), '');
+    const calls = ghCalls(sb);
+    assert.deepEqual(calls[0], ['pr', 'view', '--head', 'feature/pr-delivery', '--json', 'number,url']);
+    assert.equal(calls[1][0], 'pr');
+    assert.equal(calls[1][1], 'create');
+    assert.ok(calls[1].includes('--draft'), JSON.stringify(calls[1]));
+    assert.equal(calls[1][calls[1].indexOf('--head') + 1], 'feature/pr-delivery');
+  });
+
+  test('dirty baseline cannot be committed or put in a PR without --include-baseline', () => {
+    const sb = sandbox('delivery-dirty-baseline');
+    fs.writeFileSync(path.join(sb.repo, 'pre-existing.txt'), 'not confirmed\n');
+
+    const r = run(sb, ['implement', '--dirty', 'continue', '--delivery', 'commit', 'finish this']);
+    assert.notEqual(r.code, 0);
+    assert.match(r.stderr, /--dirty continue` alone is not enough/);
+    assert.match(r.stderr, /--include-baseline/);
+    assert.equal(agyCalls(sb).length, 0);
   });
 });
 

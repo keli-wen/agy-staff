@@ -18,6 +18,7 @@
  *   FAKE_AGY_TOUCH_FILE      create this file mid-"run" (default: touch nothing)
  *                            — simulates agy dirtying the working tree, which
  *                            the review/research delta report must catch
+ *   FAKE_AGY_TOUCH_CONTENT   content for FAKE_AGY_TOUCH_FILE
  *   FAKE_AGY_STDERR          text written to stderr alongside the payload
  *                            (or before dying under FAKE_AGY_NO_JSON)
  *   FAKE_AGY_ERROR           payload `error` field (default: absent)
@@ -50,7 +51,7 @@ const touch = process.env.FAKE_AGY_TOUCH_FILE;
 if (touch) {
   const target = path.resolve(touch);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, 'written by fake agy\n');
+  fs.writeFileSync(target, process.env.FAKE_AGY_TOUCH_CONTENT || 'written by fake agy\n');
 }
 
 const sleepMs = Number(process.env.FAKE_AGY_SLEEP_MS || 0);
