@@ -8,7 +8,7 @@ The companion inspects the repo root, cwd, worktree, branch, HEAD, status, track
 
 When the workspace is dirty, ask the user to choose one path:
 
-- Continue on current changes when the listed paths are part of, or required by, the requested implementation. Rerun with `--dirty continue`.
+- Continue on current changes when the listed paths are part of, or required by, the requested implementation. Rerun with `Dirty workspace: continue` in the task prompt.
 - Use an isolated worktree when the task is independent of the listed paths.
 - Commit existing changes first only after the user confirms exact paths and intent.
 - Stash only when the user explicitly asks for it.
@@ -25,7 +25,7 @@ Never silently stash, reset, discard, rebase, or overwrite existing work.
 
 Choosing `commit` or `pr` at task start is the authorization for that delivery. Do not ask the user to approve the same action again unless the target, repo, branch, scope, or side effects changed.
 
-Dirty baselines are not included in `commit` or `pr` by default. Pass `--include-baseline` only after the user confirms every baseline path belongs in that commit or PR.
+Dirty baselines are not included in `commit` or `pr` by default. Add `Include baseline: yes` to the task prompt only after the user confirms every baseline path belongs in that commit or PR.
 
 ## Continuation
 

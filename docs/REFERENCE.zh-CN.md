@@ -10,7 +10,7 @@
 | `staffer` | `staffer` | 通用委托，最小化 prompt：不设角色、不设规则、不设输出格式——任务文本自己决定输出形状 | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
 | `researcher` | `research` | 深度调研：要求引用来源、显式标注未验证的结论 | `gemini-3.7-flash-high` | unrestricted | 后台任务——返回一个 job id |
 | `reviewer` | `review` | 第二意见式审查，按对象路由两个 flavor：代码审查（severity 分级 findings，带 `file:line` 引用）与通用审查（对方案/设计/决策的多角度 challenge） | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
-| `implementer` | `implement` | 范围明确的编码任务；agy 修改并验证，companion 负责 workspace decision 和 `diff` / `commit` / `pr` delivery | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
+| `implementer` | `implement` | 范围明确的编码任务；agy 修改并验证，companion 负责 workspace decision 和由 prompt 选择的 `diff` / `commit` / `pr` delivery | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
 
 执行方式按模式固定，没有任何 flag 可以覆盖。`continue` 沿用解析出的模式的执行方式（续接 `ask` 仍是同步；续接其余模式返回 job id）。
 
@@ -37,7 +37,7 @@
 
 | 模式 | 在 git 仓库内 | 不在 git 仓库内 |
 |---|---|---|
-| `implement` | 工作区脏时**要求先做决策**。首次运行如果干净就直接启动；如果不干净，除非调用方选择了 `--dirty continue`，否则返回 decision packet。续跑比较已记录的 task snapshot，不再要求 clean tree | `diff` 会警告 agy 的修改无法通过 git 审阅或回滚，然后继续执行；`commit` 和 `pr` 要求位于 git 仓库内 |
+| `implement` | 工作区脏时**要求先做决策**。首次运行如果干净就直接启动；如果不干净，除非任务 prompt 明确确认 `Dirty workspace: continue`，否则返回 decision packet。续跑比较已记录的 task snapshot，不再要求 clean tree | `diff` 会警告 agy 的修改无法通过 git 审阅或回滚，然后继续执行；`commit` 和 `pr` 要求位于 git 仓库内 |
 | `research`、`review` | 永不阻塞，也不检查工作区是否干净。worker 在运行前对 `git status --porcelain` 拍快照，运行后比对；若 agy 引入了改动，结果会带一条警告，列出 delta 并给出回滚提示 | 无可比对——静默 |
 | `staffer` | 与 research/review 相同的快照/比对，但措辞中性：通用任务可能本来就该改文件，delta 是给调用方的信息（「确认任务确实要求了这些改动」），不是指控 | 无可比对——静默 |
 
@@ -51,9 +51,21 @@
 - `commit`：agy 修改并验证，companion 用 `git add -- <paths>` stage 精确变更路径，然后创建一个本地 commit。
 - `pr`：agy 修改并验证，companion commit，用 `git push -u origin <branch>` 推送当前分支，并用 `gh pr` 创建或更新 draft PR。
 
-优先用 `--delivery diff|commit|pr` 明确 contract。省略时默认是 `diff`；如果任务正文明确写了 “commit this” 或 “open a PR”，companion 会推断为对应模式。选择 `commit` 或 `pr` 就是这次交付的授权；除非目标、仓库、分支、范围或副作用变了，调用方不应再次要求用户确认同一个 commit/push/PR。
+Delivery contract 由 prompt 控制，不再增加一组 implementer 专属 flags。如果用户说 “commit this” 或 “open a PR”，companion 会推断为 `commit` 或 `pr`；调用 skill 也可以把短 contract 写进任务文本：
 
-Dirty baseline 默认不会进入 commit 或 PR。`--dirty continue` 只表示允许 agy 基于已有改动继续；如果要把这些已有改动写进 Git history，还必须传 `--include-baseline`，并且只能在用户确认每个 baseline path 都属于这次交付后使用。
+```text
+Delivery: pr
+Dirty workspace: continue
+Include baseline: yes
+Base branch: master
+Commit message: feat: add delivery handling
+PR title: feat(implementer): support delivery handling
+PR body: Implements issue #1.
+```
+
+通常只需要 `Delivery`；省略时默认是 `diff`。选择 `commit` 或 `pr` 就是这次交付的授权；除非目标、仓库、分支、范围或副作用变了，调用方不应再次要求用户确认同一个 commit/push/PR。
+
+Dirty baseline 默认不会进入 commit 或 PR。`Dirty workspace: continue` 只表示允许 agy 基于已有改动继续；如果要把这些已有改动写进 Git history，还必须在 prompt 中写 `Include baseline: yes`，并且只能在用户确认每个 baseline path 都属于这次交付后使用。
 
 ### prompt 层护栏：默认拒绝，按需开放
 
@@ -124,10 +136,6 @@ policy 写入 `<repo>/.agy-staff/config.json`，之后自动生效（运行时�
 | `--restricted` / `--unrestricted` | 覆盖权限档（`ask` 会忽略）。`staffer`/`research`/`review`/`implement` 默认就是 unrestricted，所以实际会用到的是 `--restricted` |
 | `--restrict <modes\|none>` | （setup）仓库级 policy：列出的模式在本仓库默认 restricted；`none` 清除。见[仓库级 policy](#仓库级-policysetup---restrict) |
 | `--json` | （review）按 schema 强制输出 JSON findings；默认是自由格式 markdown。面向代码审查 flavor |
-| `--delivery diff\|commit\|pr` | （implement）delivery contract。`diff` 保留工作区 diff，`commit` 创建本地 commit，`pr` commit、push 并创建或更新 draft PR |
-| `--dirty continue` | （implement）用户确认列出的路径属于任务范围后，允许从当前 dirty workspace 开始 |
-| `--include-baseline` | （implement）允许 dirty baseline 进入 `commit` 或 `pr`。只能在确认每个 baseline path 都属于交付后使用 |
-| `--commit-message <text>` / `--pr-title <text>` / `--pr-body <text>` / `--base <branch>` | （implement）可选 Git delivery 元数据 |
 | `--timeout <dur>` | agy 的 `--print-timeout`（默认：staffer/research/implement 10m，review 5m，ask 2m） |
 | `--prompt-file <path>` | 从文件读任务文本——长 prompt 用它，不用跟 shell 引号搏斗 |
 | `--stdin` | 从 stdin 读任务文本。每次调用只允许一个任务来源：内联文本、`--prompt-file` 或 `--stdin` |
@@ -181,7 +189,7 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 - **空响应但 "status SUCCESS"** — 只会出现在 restricted 档的运行里（传了 `--restricted`，或项目 policy 把该模式设成了 restricted）：即使所有工具调用都被拒绝，agy 也会报 success；此时内容为空、stderr 带权限提示。companion 会检测到并给出修复方式：跑一次 `setup` 把 allowlist 装上，或者放宽权限档（去掉 `--restricted`；来自 policy 的话用 `setup --restrict none`）。另有一个 agy 自身的限制：部分工具在 headless 下完全无视 allow-rules，只在跳过权限时可用——这类操作永远需要 unrestricted 的运行。（`ask` 不可能触发此情况；若触发请报 bug。）
 - **"task text exceeds the 200KB inline limit"** — 整个 prompt 作为单个 argv 传给 agy，macOS 的 ARG_MAX 约 1MB（agy 自己不读 stdin，所以 `--prompt-file`/`--stdin` 只解决 shell 引号问题，解决不了这个上限）。请缩短任务描述：把材料的位置（PR 号、ref、文件路径）指给 agy，让它自己去取内容，而不是整段粘进来。
 - **这些模式绝不要用 agy 的 `--sandbox`** — 它会把执行重定向到 agy 自己的 scratch 工作区（`~/.gemini/antigravity-cli/scratch`），看不到你真实的工作目录。companion 从不传该参数。
-- **"implement needs a workspace decision"** — `implement` 启动前发现 dirty workspace。请确认列出的路径是否属于这次任务（`--dirty continue`）、改用 isolated worktree、先单独提交，或明确要求 stash。companion 不会静默 stash、reset 或丢弃改动。
+- **"implement needs a workspace decision"** — `implement` 启动前发现 dirty workspace。请确认列出的路径是否属于这次任务（在 task prompt 中写 `Dirty workspace: continue`）、改用 isolated worktree、先单独提交，或明确要求 stash。companion 不会静默 stash、reset 或丢弃改动。
 - **"implement continuation refused"** — 已记录的 task snapshot 和当前 repo、worktree、branch、HEAD、status、tracked diff 或 untracked 文件 hash 不一致。请先检查 mismatch，再决定手动继续、开新任务，或把工作移动到独立分支。
 - **"agy modified the working tree during this review"** — 这是 unrestricted 的 `research`/`review` 的 delta 警告（随结果一起打印）：agy 动了本不该动的文件。按列出的路径检查并还原，警告里附带回滚提示。
 - **agy 的项目级权限** — agy 有绑定其 `--project` 体系的项目级规则（「最高优先级」）；其设置文件路径无文档、未验证，所以 setup 只改全局文件。若某条规则似乎不生效，请在 agy 交互模式里检查。参见[进阶：项目级权限](#进阶项目级权限)。

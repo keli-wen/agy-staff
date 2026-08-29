@@ -43,8 +43,8 @@ round 2's equal-permissions default (`research`/`review`/`implement` all send
 `--dangerously-skip-permissions` with no flags and no setup, `--restricted` is
 the opt-in that removes it, `ask` never gets it). Also: the tiered git guards
 (`implement` returns a workspace decision on a dirty first run, supports
-`--dirty continue`, records continuation snapshots, refuses continuation
-mismatches, and covers `diff` / `commit` / `pr` delivery; `review`/`research`
+prompt-confirmed dirty continuation, records continuation snapshots, refuses continuation
+mismatches, and covers prompt-selected `diff` / `commit` / `pr` delivery; `review`/`research`
 are never blocked and instead report a working-tree delta — present when the
 fake `agy` touches a file, silent when it does not, scoped to what appeared
 during the run, and skipped entirely for `--restricted` runs); the reworded

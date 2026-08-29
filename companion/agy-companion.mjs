@@ -36,9 +36,6 @@
  *   --unrestricted        pass --dangerously-skip-permissions (already the
  *                         default for research/review/implement)
  *   --json                (review) ask agy for schema-enforced JSON findings
- *   --delivery <mode>     (implement) diff|commit|pr
- *   --dirty continue      (implement) start from confirmed dirty state
- *   --include-baseline    (implement) allow dirty baseline in commit/pr
  *   --timeout <dur>       agy --print-timeout, e.g. 5m, 90s
  *   --prompt-file <path>  read the task text from a file (long prompts)
  *   --stdin               read the task text from stdin
@@ -53,7 +50,7 @@
  * The guardrails against irreversible side effects live in the prompt
  * templates, backed by tiered workspace checks here: implement records a task
  * snapshot, asks for a dirty-workspace decision when needed, and can deliver a
- * diff/commit/PR contract; staffer/review/research snapshot
+ * prompt-selected diff/commit/PR contract; staffer/review/research snapshot
  * `git status --porcelain` around the run and report any delta with the result
  * without ever blocking.
  *
@@ -367,11 +364,14 @@ function tokenize(argv) {
 }
 
 function normalizeArgv(argv) {
-  return argv.length === 1 ? tokenize(argv) : argv;
+  if (argv.length !== 1) return argv;
+  // A single multi-line argument is already structured prompt text, not a
+  // shell-like `$ARGUMENTS` blob. Preserve its line boundaries so prompt
+  // contract fields such as "Commit message:" remain parseable.
+  return argv[0].includes('\n') ? argv : tokenize(argv);
 }
 
 const VALUE_FLAGS = new Set(['conversation', 'model', 'effort', 'timeout', 'restrict', 'prompt-file']);
-for (const f of ['delivery', 'dirty', 'commit-message', 'pr-title', 'pr-body', 'base']) VALUE_FLAGS.add(f);
 const BOOL_FLAGS = new Set([
   'continue',
   'restricted',
@@ -380,7 +380,6 @@ const BOOL_FLAGS = new Set([
   'apply',
   'dry-run',
   'stdin',
-  'include-baseline',
 ]);
 
 // Flags dropped in 0.2. They get their own error instead of falling through to
@@ -483,41 +482,106 @@ function oneLine(text, max = 80) {
   return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
 }
 
+function escapeRe(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function contractValue(task, labels) {
+  const pattern = labels.map(escapeRe).join('|');
+  const re = new RegExp(`^\\s*(?:[-*]\\s*)?(?:${pattern})\\s*[:=]\\s*(.*?)\\s*$`, 'im');
+  const m = re.exec(task || '');
+  return m?.[1]?.trim() || null;
+}
+
+function normalizeDeliveryValue(raw) {
+  const s = String(raw || '').trim().toLowerCase().replace(/[_-]+/g, ' ');
+  if (!s) return null;
+  if (/^(diff|patch|working tree|workspace diff)\b/.test(s)) return 'diff';
+  if (/^(commit|local commit)\b/.test(s)) return 'commit';
+  if (/^(pr|pull request|draft pr|draft pull request)\b/.test(s)) return 'pr';
+  return null;
+}
+
+function truthyContract(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  return /^(yes|true|confirmed|confirm|continue|include|in scope|belongs)\b/.test(s) ||
+    /^(属于|确认|继续|纳入|包含)/.test(s);
+}
+
+function dirtyContinueFromPrompt(task) {
+  const structured = contractValue(task, [
+    'Dirty workspace',
+    'Dirty',
+    'Existing changes',
+    'Current changes',
+    'Workspace baseline',
+    'Workspace',
+    '脏工作区',
+    '已有改动',
+    '当前改动',
+    '工作区',
+  ]);
+  if (structured && /continue|confirmed|in scope|belongs|yes|true|继续|确认|属于|任务范围/.test(structured.toLowerCase())) {
+    return true;
+  }
+  return /(?:continue|build|work)\s+on\s+(?:the\s+)?(?:current|existing|dirty)\s+changes/i.test(task) ||
+    /(?:current|existing|dirty)\s+changes\s+(?:are\s+)?(?:in scope|part of this task|required)/i.test(task) ||
+    /(?:继续|基于)(?:当前|已有|现有)(?:改动|修改)/.test(task) ||
+    /(?:已有|当前|现有)(?:改动|修改).*(?:属于|纳入|包含).*(?:任务|范围|交付)/.test(task);
+}
+
+function includeBaselineFromPrompt(task) {
+  const structured = contractValue(task, [
+    'Include baseline',
+    'Include dirty baseline',
+    'Baseline',
+    'Dirty baseline',
+    'Include existing changes',
+    '包含 baseline',
+    '纳入 baseline',
+    '包含已有改动',
+    '纳入已有改动',
+  ]);
+  if (structured && truthyContract(structured)) return true;
+  return /include\s+(?:the\s+)?(?:dirty\s+)?baseline/i.test(task) ||
+    /include\s+(?:the\s+)?(?:current|existing|dirty)\s+changes\s+in\s+(?:the\s+)?(?:commit|pr|pull request)/i.test(task) ||
+    /(?:把|将)?(?:已有|当前|现有)(?:改动|修改).*(?:纳入|包含).*(?:commit|提交|PR|pull request|交付)/i.test(task);
+}
+
 function inferImplementDelivery(task) {
   if (/\b(?:open|create|raise|update|prepare)\s+(?:a\s+)?(?:pull request|PR)\b/i.test(task)) return 'pr';
   if (/\b(?:pull request|PR)\b/i.test(task) && /\b(?:push|branch|review)\b/i.test(task)) return 'pr';
+  if (/(?:创建|更新|打开).*(?:PR|pull request|合并请求)/i.test(task)) return 'pr';
   if (/\bcommit\b/i.test(task) && !/\b(?:do not|don't|without)\s+commit\b/i.test(task)) return 'commit';
+  if (/(?:创建|生成|提交).*commit|提交到当前分支/.test(task)) return 'commit';
   return 'diff';
 }
 
-function resolveDelivery(mode, opts, task) {
-  if (opts.delivery && mode !== 'implement') die('--delivery applies only to implement');
-  if (opts.dirty && mode !== 'implement') die('--dirty applies only to implement');
-  if (opts['include-baseline'] && mode !== 'implement') die('--include-baseline applies only to implement');
-  if (opts['commit-message'] && mode !== 'implement') die('--commit-message applies only to implement');
-  if ((opts['pr-title'] || opts['pr-body'] || opts.base) && mode !== 'implement') {
-    die('--pr-title, --pr-body, and --base apply only to implement');
-  }
+function resolveDelivery(mode, task) {
   if (mode !== 'implement') return null;
 
-  const validDelivery = new Set(['diff', 'commit', 'pr']);
-  const deliveryMode = opts.delivery || inferImplementDelivery(task);
-  if (!validDelivery.has(deliveryMode)) die('--delivery must be diff|commit|pr');
-
-  if (opts.dirty && opts.dirty !== 'continue') {
-    die('--dirty currently supports only "continue"; stash, reset, and committing existing changes must be done explicitly outside the companion');
+  const explicitDelivery = normalizeDeliveryValue(
+    contractValue(task, ['Delivery', 'Delivery mode', 'Deliver', '交付', '交付模式'])
+  );
+  const deliveryMode = explicitDelivery || inferImplementDelivery(task);
+  if (!['diff', 'commit', 'pr'].includes(deliveryMode)) {
+    die('implement delivery must be diff, commit, or pr');
   }
 
   const summary = oneLine(task, 64);
+  const commitMessage = contractValue(task, ['Commit message', 'Commit title', '提交信息', '提交消息']);
+  const prTitle = contractValue(task, ['PR title', 'Pull request title', 'Pull Request title', 'PR 标题']);
+  const prBody = contractValue(task, ['PR body', 'Pull request body', 'Pull Request body', 'PR 描述']);
+  const base = contractValue(task, ['Base branch', 'PR base', 'Pull request base', 'base', '目标分支']);
   return {
     mode: deliveryMode,
-    source: opts.delivery ? 'flag' : deliveryMode === 'diff' ? 'default' : 'task',
-    dirty: opts.dirty || null,
-    includeBaseline: !!opts['include-baseline'],
-    commitMessage: opts['commit-message'] || `agy implement: ${summary || 'update'}`,
-    prTitle: opts['pr-title'] || summary || 'agy implement update',
-    prBody: opts['pr-body'] || `Automated implementation from agy-staff.\n\nTask: ${task}`,
-    base: opts.base || null,
+    source: explicitDelivery ? 'prompt' : deliveryMode === 'diff' ? 'default' : 'task',
+    dirty: dirtyContinueFromPrompt(task) ? 'continue' : null,
+    includeBaseline: includeBaselineFromPrompt(task),
+    commitMessage: commitMessage || `agy implement: ${summary || 'update'}`,
+    prTitle: prTitle || summary || 'agy implement update',
+    prBody: prBody || `Automated implementation from agy-staff.\n\nTask: ${task}`,
+    base: base || null,
   };
 }
 
@@ -758,7 +822,7 @@ function resolveRun(mode, opts, task = '') {
     if (!conversation) die(`--continue given but no previous ${mode} conversation is recorded in state.json`);
   }
 
-  const delivery = resolveDelivery(mode, opts, task);
+  const delivery = resolveDelivery(mode, task);
 
   return { mode, model, profile, profileSource, background, timeout, conversation, delivery };
 }
@@ -824,7 +888,7 @@ function buildPrompt(mode, task, resolved) {
 // tiered workspace guards
 //
 //   implement → inspect first. A dirty first run returns a decision packet
-//               unless the caller explicitly chose `--dirty continue`.
+//               unless the task prompt explicitly confirms the dirty baseline.
 //               Continuations compare the recorded task snapshot instead of
 //               requiring a clean tree.
 //   review /  → no gate at all, never blocked. They should not be touching
@@ -982,8 +1046,8 @@ function findImplementTask(state, resolved) {
 function dirtyWorkspaceDecision(snapshot, delivery) {
   const recommendation =
     delivery.mode === 'diff'
-      ? 'If these changes are part of this task, rerun with `--dirty continue`; otherwise use an isolated worktree or commit/stash them explicitly first.'
-      : 'For `commit` or `pr`, start from a clean or isolated worktree, or explicitly include the existing baseline with `--include-baseline` after confirming every path belongs in the delivery.';
+      ? 'If these changes are part of this task, rerun with a prompt contract that says `Dirty workspace: continue`; otherwise use an isolated worktree or commit/stash them explicitly first.'
+      : 'For `commit` or `pr`, start from a clean or isolated worktree, or explicitly add `Dirty workspace: continue` and `Include baseline: yes` to the prompt contract after confirming every path belongs in the delivery.';
   return (
     'implement needs a workspace decision before starting.\n' +
     `delivery: ${delivery.mode} (${delivery.source})\n` +
@@ -994,7 +1058,7 @@ function dirtyWorkspaceDecision(snapshot, delivery) {
     `${formatStatus(snapshot.status)}\n\n` +
     `Recommended: ${recommendation}\n\n` +
     'Options:\n' +
-    '- Rerun with `--dirty continue` when the listed changes are in scope for this implement task.\n' +
+    '- Rerun with `Dirty workspace: continue` in the task prompt when the listed changes are in scope for this implement task.\n' +
     '- Create an isolated worktree when this task is independent of the listed changes.\n' +
     '- Commit the existing changes first only after confirming the exact paths and intent.\n' +
     '- Stash only when the user explicitly asks for it.\n\n' +
@@ -1007,8 +1071,8 @@ function baselineDeliveryDecision(task, delivery) {
     `implement delivery ${delivery.mode} would include a dirty baseline from task ${task.id}.\n` +
     'The companion will not commit or put pre-existing changes into a PR unless the caller confirms they belong in this delivery.\n\n' +
     'Options:\n' +
-    '- Rerun with `--include-baseline` after confirming the recorded baseline paths belong in the commit or PR.\n' +
-    '- Keep `--delivery diff` and review the workspace manually.\n' +
+    '- Rerun with `Include baseline: yes` in the task prompt after confirming the recorded baseline paths belong in the commit or PR.\n' +
+    '- Use `Delivery: diff` in the prompt and review the workspace manually.\n' +
     '- Move the task to an isolated worktree or commit the baseline separately first.\n\n' +
     'No Git delivery was performed.'
   );
@@ -1025,7 +1089,7 @@ function treeReportApplies(resolved) {
 function prepareImplementLaunch(resolved, jobId) {
   if (!inGitRepo()) {
     if (['commit', 'pr'].includes(resolved.delivery.mode)) {
-      die(`implement delivery ${resolved.delivery.mode} needs a git repository; run from a repo or use --delivery diff.`);
+      die(`implement delivery ${resolved.delivery.mode} needs a git repository; run from a repo or ask for Delivery: diff.`);
     }
     process.stderr.write(
       'agy-staff warning: not a git repository — agy\'s edits cannot be reviewed or rolled back via git.\n' +
@@ -1070,7 +1134,7 @@ function prepareImplementLaunch(resolved, jobId) {
   if (snapshot.dirty && ['commit', 'pr'].includes(resolved.delivery.mode) && !resolved.delivery.includeBaseline) {
     die(
       dirtyWorkspaceDecision(snapshot, resolved.delivery) +
-        '\n\nBecause this delivery would create Git history, `--dirty continue` alone is not enough. Add `--include-baseline` only after confirming these paths belong in the commit or PR.'
+        '\n\nBecause this delivery would create Git history, `Dirty workspace: continue` alone is not enough. Add `Include baseline: yes` to the prompt only after confirming these paths belong in the commit or PR.'
     );
   }
 
@@ -1865,7 +1929,6 @@ function main() {
       'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|status|wait|result|cancel|setup> [flags] [task]\n' +
         'flags: --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
         '--prompt-file <path> --stdin --conversation <id> --continue --json (review) ' +
-        '--delivery <diff|commit|pr> --dirty continue --include-baseline (implement) ' +
         '--apply --restrict <modes|none> (setup)\n' +
         'staffer/research/review/implement run unrestricted by default (no setup needed); --restricted is the ' +
         'hardening opt-in that uses the evidence-gathering allowlist from `setup`. ask is always tool-free. ' +

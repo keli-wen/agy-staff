@@ -245,7 +245,7 @@ describe('tiered git guards: implement', () => {
     const r = run(sb, ['implement', 'a task']);
     assert.notEqual(r.code, 0);
     assert.match(r.stderr, /implement needs a workspace decision before starting/);
-    assert.match(r.stderr, /--dirty continue/);
+    assert.match(r.stderr, /Dirty workspace: continue/);
     assert.match(r.stderr, /Create an isolated worktree/);
     assert.match(r.stderr, /dirty\.txt/);
     assert.doesNotMatch(r.stderr, /\bloose\b/);
@@ -312,11 +312,11 @@ describe('tiered git guards: implement', () => {
     assert.match(res.stdout, /ACTION FOR THE CALLING AGENT/);
   });
 
-  test('implement can start on a dirty tree when the caller chooses --dirty continue', async () => {
+  test('implement can start on a dirty tree when the prompt confirms the dirty workspace', async () => {
     const sb = sandbox('dirty-continue');
     fs.writeFileSync(path.join(sb.repo, 'pre-existing.txt'), 'belongs to this task\n');
 
-    const started = run(sb, ['implement', '--dirty', 'continue', 'build on the existing change'], {
+    const started = run(sb, ['implement', 'Dirty workspace: continue\n\nbuild on the existing change'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-wrote.txt'),
     });
     assert.equal(started.code, 0, started.stderr);
@@ -369,15 +369,24 @@ describe('tiered git guards: implement', () => {
 });
 
 describe('implement delivery contracts', () => {
-  test('--delivery commit commits the resulting workspace changes', async () => {
+  test('delivery is controlled by prompt text, not a public CLI flag', () => {
+    const sb = sandbox('delivery-not-flag');
+
+    const r = run(sb, ['implement', '--delivery', 'commit', 'write a file']);
+    assert.notEqual(r.code, 0);
+    assert.match(r.stderr, /unknown flag --delivery/);
+    assert.equal(agyCalls(sb).length, 0);
+  });
+
+  test('prompt delivery=commit commits the resulting workspace changes', async () => {
     const sb = sandbox('delivery-commit');
     configureGitUser(sb);
 
-    const started = run(sb, ['implement', '--delivery', 'commit', '--commit-message', 'commit from test', 'write a file'], {
+    const started = run(sb, ['implement', 'Delivery: commit\nCommit message: commit from test\n\nwrite a file'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'committed.txt'),
     });
     assert.equal(started.code, 0, started.stderr);
-    assert.match(started.stdout, /delivery: commit \(flag\)/);
+    assert.match(started.stdout, /delivery: commit \(prompt\)/);
     const id = jobIdOf(started.stdout);
     assert.equal(await waitForJob(sb, id), 'done');
 
@@ -388,11 +397,11 @@ describe('implement delivery contracts', () => {
     assert.equal(git(sb, ['log', '-1', '--pretty=%s']), 'commit from test');
   });
 
-  test('--delivery commit leaves the diff uncommitted when agy finishes with warnings', async () => {
+  test('prompt delivery=commit leaves the diff uncommitted when agy finishes with warnings', async () => {
     const sb = sandbox('delivery-commit-warning');
     configureGitUser(sb);
 
-    const started = run(sb, ['implement', '--delivery', 'commit', 'write a file'], {
+    const started = run(sb, ['implement', 'Delivery: commit\n\nwrite a file'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: 'finished but warned',
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'warned.txt'),
@@ -407,7 +416,7 @@ describe('implement delivery contracts', () => {
     assert.equal(spawnSync('git', ['log', '-1', '--pretty=%s'], { cwd: sb.repo, encoding: 'utf8' }).status, 128);
   });
 
-  test('task text can infer PR delivery and create a draft PR without a second confirmation', async () => {
+  test('prompt delivery=pr creates a draft PR without a second confirmation', async () => {
     const sb = sandbox('delivery-pr');
     configureGitUser(sb);
     seedCommit(sb);
@@ -416,13 +425,13 @@ describe('implement delivery contracts', () => {
 
     const started = run(
       sb,
-      ['implement', '--base', 'master', '--pr-title', 'Test PR delivery', 'write a file and open a PR'],
+      ['implement', 'Delivery: pr\nBase branch: master\nPR title: Test PR delivery\n\nwrite a file'],
       {
         FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'pr-file.txt'),
       }
     );
     assert.equal(started.code, 0, started.stderr);
-    assert.match(started.stdout, /delivery: pr \(task\)/);
+    assert.match(started.stdout, /delivery: pr \(prompt\)/);
     const id = jobIdOf(started.stdout);
     assert.equal(await waitForJob(sb, id), 'done');
 
@@ -438,14 +447,27 @@ describe('implement delivery contracts', () => {
     assert.equal(calls[1][calls[1].indexOf('--head') + 1], 'feature/pr-delivery');
   });
 
-  test('dirty baseline cannot be committed or put in a PR without --include-baseline', () => {
+  test('natural task text can infer PR delivery', async () => {
+    const sb = sandbox('delivery-pr-inferred');
+    configureGitUser(sb);
+    seedCommit(sb);
+    addBareRemote(sb);
+    git(sb, ['switch', '-c', 'feature/inferred-pr']);
+
+    const started = run(sb, ['implement', 'fix the retry test and open a PR']);
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(started.stdout, /delivery: pr \(task\)/);
+    assert.equal(await waitForJob(sb, jobIdOf(started.stdout)), 'done');
+  });
+
+  test('dirty baseline cannot be committed or put in a PR without prompt confirmation', () => {
     const sb = sandbox('delivery-dirty-baseline');
     fs.writeFileSync(path.join(sb.repo, 'pre-existing.txt'), 'not confirmed\n');
 
-    const r = run(sb, ['implement', '--dirty', 'continue', '--delivery', 'commit', 'finish this']);
+    const r = run(sb, ['implement', 'Dirty workspace: continue\nDelivery: commit\n\nfinish this']);
     assert.notEqual(r.code, 0);
-    assert.match(r.stderr, /--dirty continue` alone is not enough/);
-    assert.match(r.stderr, /--include-baseline/);
+    assert.match(r.stderr, /Dirty workspace: continue` alone is not enough/);
+    assert.match(r.stderr, /Include baseline: yes/);
     assert.equal(agyCalls(sb).length, 0);
   });
 });
