@@ -48,11 +48,10 @@
  * written by `setup --restrict`) > built-in default. The policy is a run
  * policy for per-repo consistency, not a security boundary.
  * The guardrails against irreversible side effects live in the prompt
- * templates, backed by tiered workspace checks here: implement records a task
- * snapshot, asks for a dirty-workspace decision when needed, and can deliver a
- * prompt-selected diff/commit/PR contract; staffer/review/research snapshot
- * `git status --porcelain` around the run and report any delta with the result
- * without ever blocking.
+ * templates, backed by two tiered checks here: implement injects dirty
+ * workspace prompt context instead of refusing, while staffer/review/research
+ * snapshot `git status --porcelain` around the run and report any delta with
+ * the result without ever blocking.
  *
  * Output split: stdout carries the deliverable — agy's response plus any guard
  * warning about the working tree. The `[agy-staff]` telemetry line (mode,
@@ -79,14 +78,12 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const SELF = fileURLToPath(import.meta.url);
 const TEMPLATES_DIR = path.join(path.dirname(SELF), '..', 'templates');
 const AGY_BIN = process.env.AGY_BIN || 'agy';
-const GH_BIN = process.env.AGY_STAFF_GH_BIN || 'gh';
 const AGY_SETTINGS = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'settings.json');
 
 const MODES = ['staffer', 'research', 'review', 'implement', 'ask'];
@@ -218,15 +215,6 @@ function sh(cmd, args, opts = {}) {
   return { code: r.status ?? -1, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
 }
 
-function shBuffer(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, { encoding: null, maxBuffer: 64 * 1024 * 1024, ...opts });
-  return {
-    code: r.status ?? -1,
-    out: r.stdout || Buffer.alloc(0),
-    err: (r.stderr || Buffer.alloc(0)).toString('utf8').trim(),
-  };
-}
-
 function repoRoot() {
   const r = sh('git', ['rev-parse', '--show-toplevel']);
   return r.code === 0 && r.out ? r.out : process.cwd();
@@ -302,10 +290,10 @@ function loadState() {
   try {
     raw = fs.readFileSync(statePath(), 'utf8');
   } catch {
-    return ensureStateShape({ conversations: {}, last: null, jobs: [] });
+    return { conversations: {}, last: null, jobs: [] };
   }
   try {
-    return ensureStateShape(JSON.parse(raw));
+    return JSON.parse(raw);
   } catch {
     // Never silently reset: every caller writes the state back, which would
     // wipe all job records and conversation ids.
@@ -332,7 +320,8 @@ function pidAlive(pid) {
   }
 }
 
-/** Shell-like tokenizer for the single-string `$ARGUMENTS` shape. */
+/** Shell-like tokenizer so `node companion.mjs review "$ARGUMENTS"` works
+ *  whether the caller passes one big string or real argv entries. */
 function tokenize(argv) {
   const tokens = [];
   for (const raw of argv) {
@@ -363,24 +352,8 @@ function tokenize(argv) {
   return tokens.filter((t) => t !== '');
 }
 
-function normalizeArgv(argv) {
-  if (argv.length !== 1) return argv;
-  // A single multi-line argument is already structured prompt text, not a
-  // shell-like `$ARGUMENTS` blob. Preserve its line boundaries so prompt
-  // contract fields such as "Commit message:" remain parseable.
-  return argv[0].includes('\n') ? argv : tokenize(argv);
-}
-
 const VALUE_FLAGS = new Set(['conversation', 'model', 'effort', 'timeout', 'restrict', 'prompt-file']);
-const BOOL_FLAGS = new Set([
-  'continue',
-  'restricted',
-  'unrestricted',
-  'json',
-  'apply',
-  'dry-run',
-  'stdin',
-]);
+const BOOL_FLAGS = new Set(['continue', 'restricted', 'unrestricted', 'json', 'apply', 'dry-run', 'stdin']);
 
 // Flags dropped in 0.2. They get their own error instead of falling through to
 // "unknown flag", so a 0.1 caller learns what replaced them.
@@ -404,18 +377,12 @@ function migrationDie(name) {
   );
 }
 
-function parseFlags(tokens, { stopAtFirstPositional = false } = {}) {
+function parseFlags(tokens) {
   const opts = { _: [] };
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
-    if (t === '--') {
-      opts._.push(...tokens.slice(i + 1));
-      break;
-    }
     if (t.startsWith('--')) {
-      const eq = t.indexOf('=');
-      let name = eq > 2 ? t.slice(2, eq) : t.slice(2);
-      const inlineValue = eq > 2 ? t.slice(eq + 1) : null;
+      let name = t.slice(2);
       if (REMOVED_REVIEW_FLAGS.has(name) || REMOVED_EXEC_FLAGS.has(name)) migrationDie(name);
       if (FLAG_ALIASES[name]) {
         if (!warnedAliases.has(name)) {
@@ -425,21 +392,16 @@ function parseFlags(tokens, { stopAtFirstPositional = false } = {}) {
         name = FLAG_ALIASES[name];
       }
       if (VALUE_FLAGS.has(name)) {
-        const v = inlineValue ?? tokens[++i];
+        const v = tokens[++i];
         if (v === undefined) die(`flag --${name} needs a value`);
         opts[name] = v;
       } else if (BOOL_FLAGS.has(name)) {
-        if (inlineValue != null) die(`flag --${name} does not take a value`);
         opts[name] = true;
       } else {
         die(`unknown flag --${name}`);
       }
     } else {
       opts._.push(t);
-      if (stopAtFirstPositional) {
-        opts._.push(...tokens.slice(i + 1));
-        break;
-      }
     }
   }
   return opts;
@@ -477,131 +439,18 @@ function gatherContext() {
   ].join('\n');
 }
 
-function oneLine(text, max = 80) {
-  const s = String(text || '').replace(/\s+/g, ' ').trim();
-  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
-}
-
-function escapeRe(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function contractValue(task, labels) {
-  const pattern = labels.map(escapeRe).join('|');
-  const re = new RegExp(`^\\s*(?:[-*]\\s*)?(?:${pattern})\\s*[:=]\\s*(.*?)\\s*$`, 'im');
-  const m = re.exec(task || '');
-  return m?.[1]?.trim() || null;
-}
-
-function normalizeDeliveryValue(raw) {
-  const s = String(raw || '').trim().toLowerCase().replace(/[_-]+/g, ' ');
-  if (!s) return null;
-  if (/^(diff|patch|working tree|workspace diff)\b/.test(s)) return 'diff';
-  if (/^(commit|local commit)\b/.test(s)) return 'commit';
-  if (/^(pr|pull request|draft pr|draft pull request)\b/.test(s)) return 'pr';
-  return null;
-}
-
-function truthyContract(raw) {
-  const s = String(raw || '').trim().toLowerCase();
-  return /^(yes|true|confirmed|confirm|continue|include|in scope|belongs)\b/.test(s) ||
-    /^(属于|确认|继续|纳入|包含)/.test(s);
-}
-
-function dirtyContinueFromPrompt(task) {
-  const structured = contractValue(task, [
-    'Dirty workspace',
-    'Dirty',
-    'Existing changes',
-    'Current changes',
-    'Workspace baseline',
-    'Workspace',
-    '脏工作区',
-    '已有改动',
-    '当前改动',
-    '工作区',
-  ]);
-  if (structured && /continue|confirmed|in scope|belongs|yes|true|继续|确认|属于|任务范围/.test(structured.toLowerCase())) {
-    return true;
-  }
-  return /(?:continue|build|work)\s+on\s+(?:the\s+)?(?:current|existing|dirty)\s+changes/i.test(task) ||
-    /(?:current|existing|dirty)\s+changes\s+(?:are\s+)?(?:in scope|part of this task|required)/i.test(task) ||
-    /(?:继续|基于)(?:当前|已有|现有)(?:改动|修改)/.test(task) ||
-    /(?:已有|当前|现有)(?:改动|修改).*(?:属于|纳入|包含).*(?:任务|范围|交付)/.test(task);
-}
-
-function includeBaselineFromPrompt(task) {
-  const structured = contractValue(task, [
-    'Include baseline',
-    'Include dirty baseline',
-    'Baseline',
-    'Dirty baseline',
-    'Include existing changes',
-    '包含 baseline',
-    '纳入 baseline',
-    '包含已有改动',
-    '纳入已有改动',
-  ]);
-  if (structured && truthyContract(structured)) return true;
-  return /include\s+(?:the\s+)?(?:dirty\s+)?baseline/i.test(task) ||
-    /include\s+(?:the\s+)?(?:current|existing|dirty)\s+changes\s+in\s+(?:the\s+)?(?:commit|pr|pull request)/i.test(task) ||
-    /(?:把|将)?(?:已有|当前|现有)(?:改动|修改).*(?:纳入|包含).*(?:commit|提交|PR|pull request|交付)/i.test(task);
-}
-
-function inferImplementDelivery(task) {
-  if (/\b(?:open|create|raise|update|prepare)\s+(?:a\s+)?(?:pull request|PR)\b/i.test(task)) return 'pr';
-  if (/\b(?:pull request|PR)\b/i.test(task) && /\b(?:push|branch|review)\b/i.test(task)) return 'pr';
-  if (/(?:创建|更新|打开).*(?:PR|pull request|合并请求)/i.test(task)) return 'pr';
-  if (/\bcommit\b/i.test(task) && !/\b(?:do not|don't|without)\s+commit\b/i.test(task)) return 'commit';
-  if (/(?:创建|生成|提交).*commit|提交到当前分支/.test(task)) return 'commit';
-  return 'diff';
-}
-
-function resolveDelivery(mode, task) {
-  if (mode !== 'implement') return null;
-
-  const explicitDelivery = normalizeDeliveryValue(
-    contractValue(task, ['Delivery', 'Delivery mode', 'Deliver', '交付', '交付模式'])
+function dirtyWorkspacePrompt() {
+  if (!inGitRepo()) return '';
+  const status = porcelainSnapshot();
+  if (!status?.length) return '';
+  return (
+    '## Existing workspace changes\n\n' +
+    'The workspace was already dirty before this implement run. Treat these paths as user-owned context. Build on them only when the task clearly includes them; otherwise pause and ask for confirmation before overwriting, cleaning, stashing, resetting, deleting, committing, pushing, or opening a PR with them.\n\n' +
+    '`git status --porcelain` before this run:\n' +
+    '```text\n' +
+    status.join('\n') +
+    '\n```'
   );
-  const deliveryMode = explicitDelivery || inferImplementDelivery(task);
-  if (!['diff', 'commit', 'pr'].includes(deliveryMode)) {
-    die('implement delivery must be diff, commit, or pr');
-  }
-
-  const summary = oneLine(task, 64);
-  const commitMessage = contractValue(task, ['Commit message', 'Commit title', '提交信息', '提交消息']);
-  const prTitle = contractValue(task, ['PR title', 'Pull request title', 'Pull Request title', 'PR 标题']);
-  const prBody = contractValue(task, ['PR body', 'Pull request body', 'Pull Request body', 'PR 描述']);
-  const base = contractValue(task, ['Base branch', 'PR base', 'Pull request base', 'base', '目标分支']);
-  return {
-    mode: deliveryMode,
-    source: explicitDelivery ? 'prompt' : deliveryMode === 'diff' ? 'default' : 'task',
-    dirty: dirtyContinueFromPrompt(task) ? 'continue' : null,
-    includeBaseline: includeBaselineFromPrompt(task),
-    commitMessage: commitMessage || `agy implement: ${summary || 'update'}`,
-    prTitle: prTitle || summary || 'agy implement update',
-    prBody: prBody || `Automated implementation from agy-staff.\n\nTask: ${task}`,
-    base: base || null,
-  };
-}
-
-function implementDeliveryPrompt(delivery) {
-  if (!delivery) return '';
-  const lines = [
-    '## Delivery contract',
-    '',
-    `The agreed delivery mode is \`${delivery.mode}\` (${delivery.source}).`,
-    'Implement the task and run safe local verification by default.',
-    'Leave Git delivery to the companion. Do not commit, push, create a PR, rewrite history, stash, or reset from inside the model run.',
-  ];
-  if (delivery.mode === 'commit') {
-    lines.push('After your run succeeds, the companion is authorized to commit the resulting task changes without a second confirmation.');
-  } else if (delivery.mode === 'pr') {
-    lines.push('After your run succeeds, the companion is authorized to commit, push the current branch, and create or update a draft pull request without a second confirmation.');
-  } else {
-    lines.push('After your run succeeds, the companion will leave a reviewable uncommitted diff.');
-  }
-  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -769,7 +618,7 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource) {
 // run (research / review / implement / continue)
 // ---------------------------------------------------------------------------
 
-function resolveRun(mode, opts, task = '') {
+function resolveRun(mode, opts) {
   // likely a typo for --restricted; --restrict (per-repo policy) belongs to setup
   if (opts.restrict !== undefined) {
     die(`--restrict is a setup flag (per-repo policy: \`setup --restrict <modes|none>\`). For a single ${mode} run use --restricted.`);
@@ -822,9 +671,7 @@ function resolveRun(mode, opts, task = '') {
     if (!conversation) die(`--continue given but no previous ${mode} conversation is recorded in state.json`);
   }
 
-  const delivery = resolveDelivery(mode, task);
-
-  return { mode, model, profile, profileSource, background, timeout, conversation, delivery };
+  return { mode, model, profile, profileSource, background, timeout, conversation };
 }
 
 /** Task text comes from exactly one source: inline argv, --prompt-file, or
@@ -854,9 +701,11 @@ function taskText(opts) {
   return inline;
 }
 
-function requireTask(mode, task) {
-  const text = (task || '').trim();
-  if (!text) {
+function buildPrompt(mode, opts) {
+  const task = taskText(opts);
+  const context = gatherContext();
+
+  if (!task) {
     if (mode === 'ask') die('ask needs a question');
     if (mode === 'review') {
       die(
@@ -865,32 +714,25 @@ function requireTask(mode, task) {
     }
     die(`${mode} needs a task description`);
   }
-  if (Buffer.byteLength(text) > MAX_INLINE_BYTES) {
+  if (Buffer.byteLength(task) > MAX_INLINE_BYTES) {
     die(`task text exceeds the ${MAX_INLINE_BYTES / 1024}KB inline limit`);
   }
-  return text;
-}
-
-function buildPrompt(mode, task, resolved) {
-  const text = requireTask(mode, task);
-  const context = gatherContext();
-
   // ask is zero-tool by design: question only, no workspace context
-  if (mode === 'ask') return fillTemplate('ask', { TASK: text });
+  if (mode === 'ask') return fillTemplate('ask', { TASK: task });
   return fillTemplate(mode, {
-    TASK: text,
+    TASK: task,
     CONTEXT: context,
-    DELIVERY: implementDeliveryPrompt(resolved.delivery),
+    WORKSPACE: mode === 'implement' ? dirtyWorkspacePrompt() : '',
   });
 }
 
 // ---------------------------------------------------------------------------
-// tiered workspace guards
+// tiered guards (unrestricted runs only; ask is forced restricted upstream)
 //
-//   implement → inspect first. A dirty first run returns a decision packet
-//               unless the task prompt explicitly confirms the dirty baseline.
-//               Continuations compare the recorded task snapshot instead of
-//               requiring a clean tree.
+//   implement → it is meant to edit files. Dirty workspaces are prompt context,
+//               not a hard companion refusal: agy can continue when the task
+//               clearly includes the existing changes, and must ask when it
+//               would overwrite or deliver unrelated user work.
 //   review /  → no gate at all, never blocked. They should not be touching
 //   research    files, so we snapshot `git status --porcelain` around the run
 //               and report any delta with the result.
@@ -919,297 +761,48 @@ function porcelainDelta(before, after) {
   return after.filter((line) => seen.get(line.slice(3)) !== line);
 }
 
-function hash(data) {
-  return crypto.createHash('sha256').update(data).digest('hex');
-}
-
-function gitBuffer(args) {
-  const r = shBuffer('git', args);
-  return r.code === 0 ? r.out : Buffer.alloc(0);
-}
-
-function untrackedPathsFromStatus(raw) {
-  return raw
-    .toString('utf8')
-    .split('\0')
-    .filter((entry) => entry.startsWith('? '))
-    .map((entry) => entry.slice(2));
-}
-
-function hashPath(root, rel) {
-  const abs = path.resolve(root, rel);
-  if (!abs.startsWith(root + path.sep) && abs !== root) return { path: rel, type: 'outside', hash: null };
-  let st;
-  try {
-    st = fs.lstatSync(abs);
-  } catch {
-    return { path: rel, type: 'missing', hash: null };
-  }
-  if (st.isSymbolicLink()) {
-    return { path: rel, type: 'symlink', hash: hash(fs.readlinkSync(abs)) };
-  }
-  if (st.isFile()) {
-    return { path: rel, type: 'file', hash: hash(fs.readFileSync(abs)) };
-  }
-  if (st.isDirectory()) {
-    const entries = fs.readdirSync(abs).sort();
-    const parts = [];
-    for (const name of entries) {
-      const childRel = path.join(rel, name);
-      parts.push(JSON.stringify(hashPath(root, childRel)));
-    }
-    return { path: rel, type: 'dir', hash: hash(parts.join('\0')) };
-  }
-  return { path: rel, type: 'other', hash: `${st.mode}:${st.size}:${st.mtimeMs}` };
-}
-
-function currentHead() {
-  const r = sh('git', ['rev-parse', 'HEAD']);
-  return r.code === 0 && r.out ? r.out : null;
-}
-
-function currentBranch() {
-  return sh('git', ['branch', '--show-current']).out || '(detached)';
-}
-
-function workspaceSnapshot() {
-  if (!inGitRepo()) return null;
-  const root = repoRoot();
-  const status = porcelainSnapshot() || [];
-  const statusRaw = gitBuffer(['status', '--porcelain=v2', '-z']);
-  const head = currentHead();
-  const diffParts = head
-    ? [gitBuffer(['diff', '--binary', 'HEAD'])]
-    : [gitBuffer(['diff', '--binary']), gitBuffer(['diff', '--cached', '--binary'])];
-  const untracked = untrackedPathsFromStatus(statusRaw).map((rel) => hashPath(root, rel));
-  const statusHash = hash(statusRaw);
-  const diffHash = hash(Buffer.concat(diffParts));
-  const untrackedHash = hash(JSON.stringify(untracked));
-  return {
-    repoRoot: root,
-    cwd: process.cwd(),
-    worktree: sh('git', ['rev-parse', '--show-toplevel']).out || root,
-    gitCommonDir: path.resolve(root, sh('git', ['rev-parse', '--git-common-dir']).out || '.git'),
-    branch: currentBranch(),
-    head,
-    status,
-    dirty: status.length > 0,
-    statusHash,
-    diffHash,
-    untracked,
-    fingerprint: hash([statusHash, diffHash, untrackedHash].join('\0')),
-  };
-}
-
-function snapshotMismatches(expected, actual) {
-  if (!expected && !actual) return [];
-  if (!expected || !actual) return ['repository presence changed'];
-  const checks = [
-    ['repo root', expected.repoRoot, actual.repoRoot],
-    ['worktree', expected.worktree, actual.worktree],
-    ['branch', expected.branch, actual.branch],
-    ['HEAD', expected.head || '(none)', actual.head || '(none)'],
-  ];
-  const out = [];
-  for (const [label, a, b] of checks) {
-    if (a !== b) out.push(`${label} changed: expected ${a}, got ${b}`);
-  }
-  if (expected.fingerprint !== actual.fingerprint) {
-    out.push('workspace state changed since the recorded snapshot');
-  }
-  return out;
-}
-
-function formatStatus(lines) {
-  return lines && lines.length ? lines.map((l) => `  ${l}`).join('\n') : '  (clean)';
-}
-
-function ensureStateShape(state) {
-  state.conversations = state.conversations || {};
-  state.jobs = state.jobs || [];
-  state.implementTasks = state.implementTasks || {};
-  state.implementConversations = state.implementConversations || {};
-  return state;
-}
-
-function findImplementTask(state, resolved) {
-  ensureStateShape(state);
-  if (!resolved.conversation) return null;
-  const taskId =
-    state.implementConversations[resolved.conversation] ||
-    (state.last?.id === resolved.conversation ? state.last?.taskId : null) ||
-    null;
-  if (!taskId) return null;
-  return state.implementTasks[taskId] || null;
-}
-
-function dirtyWorkspaceDecision(snapshot, delivery) {
-  const recommendation =
-    delivery.mode === 'diff'
-      ? 'If these changes are part of this task, rerun with a prompt contract that says `Dirty workspace: continue`; otherwise use an isolated worktree or commit/stash them explicitly first.'
-      : 'For `commit` or `pr`, start from a clean or isolated worktree, or explicitly add `Dirty workspace: continue` and `Include baseline: yes` to the prompt contract after confirming every path belongs in the delivery.';
-  return (
-    'implement needs a workspace decision before starting.\n' +
-    `delivery: ${delivery.mode} (${delivery.source})\n` +
-    `repo: ${snapshot.repoRoot}\n` +
-    `branch: ${snapshot.branch}\n` +
-    `HEAD: ${snapshot.head || '(no commits yet)'}\n\n` +
-    'Current dirty state:\n' +
-    `${formatStatus(snapshot.status)}\n\n` +
-    `Recommended: ${recommendation}\n\n` +
-    'Options:\n' +
-    '- Rerun with `Dirty workspace: continue` in the task prompt when the listed changes are in scope for this implement task.\n' +
-    '- Create an isolated worktree when this task is independent of the listed changes.\n' +
-    '- Commit the existing changes first only after confirming the exact paths and intent.\n' +
-    '- Stash only when the user explicitly asks for it.\n\n' +
-    'No agy job was started.'
-  );
-}
-
-function baselineDeliveryDecision(task, delivery) {
-  return (
-    `implement delivery ${delivery.mode} would include a dirty baseline from task ${task.id}.\n` +
-    'The companion will not commit or put pre-existing changes into a PR unless the caller confirms they belong in this delivery.\n\n' +
-    'Options:\n' +
-    '- Rerun with `Include baseline: yes` in the task prompt after confirming the recorded baseline paths belong in the commit or PR.\n' +
-    '- Use `Delivery: diff` in the prompt and review the workspace manually.\n' +
-    '- Move the task to an isolated worktree or commit the baseline separately first.\n\n' +
-    'No Git delivery was performed.'
-  );
-}
-
 function implementGuardApplies(resolved) {
-  return resolved.mode === 'implement';
+  return resolved.profile === 'unrestricted' && resolved.mode === 'implement';
 }
 
 function treeReportApplies(resolved) {
   return resolved.profile === 'unrestricted' && ['staffer', 'review', 'research'].includes(resolved.mode);
 }
 
-function prepareImplementLaunch(resolved, jobId) {
+function implementDispatchWarning() {
   if (!inGitRepo()) {
-    if (['commit', 'pr'].includes(resolved.delivery.mode)) {
-      die(`implement delivery ${resolved.delivery.mode} needs a git repository; run from a repo or ask for Delivery: diff.`);
-    }
     process.stderr.write(
       'agy-staff warning: not a git repository — agy\'s edits cannot be reviewed or rolled back via git.\n' +
         'Proceeding anyway; back up anything you care about, or run implement from inside a repository.\n'
     );
-    return { inGitRepo: false, taskId: jobId };
   }
-
-  const snapshot = workspaceSnapshot();
-  const state = loadState();
-  const previous = findImplementTask(state, resolved);
-  if (previous) {
-    const mismatches = snapshotMismatches(previous.lastObservedSnapshot, snapshot);
-    if (mismatches.length) {
-      die(
-        'implement continuation refused: workspace changed since the recorded implement task.\n' +
-          mismatches.map((m) => `- ${m}`).join('\n') +
-          '\n\nExpected status:\n' +
-          `${formatStatus(previous.lastObservedSnapshot?.status || [])}\n\n` +
-          'Current status:\n' +
-          `${formatStatus(snapshot.status)}`
-      );
-    }
-    const includeBaseline = previous.includeBaseline || resolved.delivery.includeBaseline;
-    if (previous.baselineDirty && ['commit', 'pr'].includes(resolved.delivery.mode) && !includeBaseline) {
-      die(baselineDeliveryDecision(previous, resolved.delivery));
-    }
-    return {
-      inGitRepo: true,
-      taskId: previous.id,
-      continuation: true,
-      launchSnapshot: snapshot,
-      baselineSnapshot: previous.baselineSnapshot,
-      baselineDirty: previous.baselineDirty,
-      includeBaseline,
-    };
-  }
-
-  if (snapshot.dirty && resolved.delivery.dirty !== 'continue') {
-    die(dirtyWorkspaceDecision(snapshot, resolved.delivery));
-  }
-  if (snapshot.dirty && ['commit', 'pr'].includes(resolved.delivery.mode) && !resolved.delivery.includeBaseline) {
-    die(
-      dirtyWorkspaceDecision(snapshot, resolved.delivery) +
-        '\n\nBecause this delivery would create Git history, `Dirty workspace: continue` alone is not enough. Add `Include baseline: yes` to the prompt only after confirming these paths belong in the commit or PR.'
-    );
-  }
-
-  return {
-    inGitRepo: true,
-    taskId: jobId,
-    continuation: false,
-    launchSnapshot: snapshot,
-    baselineSnapshot: snapshot,
-    baselineDirty: snapshot.dirty,
-    includeBaseline: resolved.delivery.includeBaseline,
-  };
 }
 
-function verifyImplementLaunch(resolved) {
-  const launch = resolved.implement;
-  if (!launch?.inGitRepo) return null;
-  const current = workspaceSnapshot();
-  const mismatches = snapshotMismatches(launch.launchSnapshot, current);
-  if (mismatches.length) {
-    die(
-      'implement job refused: workspace changed after dispatch and before the worker started.\n' +
-        mismatches.map((m) => `- ${m}`).join('\n') +
-        '\n\nDispatch status:\n' +
-        `${formatStatus(launch.launchSnapshot.status)}\n\n` +
-        'Current status:\n' +
-        `${formatStatus(current?.status || [])}`
-    );
-  }
-  return current;
-}
-
-function implementPostcondition(resolved, before, afterRun, deliveryResult) {
+function implementPostcondition(before) {
   if (!inGitRepo()) return '';
-  if (deliveryResult?.mode === 'commit') {
-    if (deliveryResult.noChanges) {
-      return '\n[unrestricted] implement delivery=commit found no workspace changes to commit.';
-    }
-    return (
-      '\n[unrestricted] implement delivery=commit completed.\n' +
-      `commit: ${deliveryResult.commit}\n` +
-      `staged paths: ${deliveryResult.paths.join(', ')}`
-    );
-  }
-  if (deliveryResult?.mode === 'pr') {
-    return (
-      '\n[unrestricted] implement delivery=pr completed.\n' +
-      (deliveryResult.commit ? `commit: ${deliveryResult.commit}\n` : '') +
-      `branch: ${deliveryResult.branch}\n` +
-      `pull request: ${deliveryResult.prUrl || '(created or updated; gh did not return a URL)'}`
-    );
-  }
-  if (deliveryResult?.mode === 'skipped') {
-    return (
-      `\n[unrestricted] implement delivery=${deliveryResult.requested} was not performed because agy finished with warnings.\n` +
-      'The workspace result is left for review.'
-    );
-  }
-
-  if (!afterRun?.dirty) return '\n[unrestricted] implement delivery=diff left the working tree unchanged.';
+  const after = porcelainSnapshot() || [];
+  if (!after.length) return '\n[unrestricted] Working tree clean after implement.';
   const diffStat = sh('git', ['diff', '--stat']).out;
-  const delta = before && afterRun ? porcelainDelta(before.status || [], afterRun.status || []) : afterRun.status || [];
-  const changedShape = delta.length ? delta.map((l) => `  ${l}`).join('\n') : '  (content changed without a new status entry)';
+  const delta = before ? porcelainDelta(before, after) : after;
   const untracked = delta
     .filter((l) => l.startsWith('??'))
     .map((l) => l.slice(3))
     .join(', ');
-  let out =
-    `\n[unrestricted] implement delivery=${resolved.delivery.mode} left workspace changes. ` +
-    'Changed status entries since launch:\n' +
-    changedShape +
-    '\n`git diff --stat`:\n' +
-    (diffStat || '(only new files)');
+  let out;
+  if (before?.length) {
+    out =
+      '\n[unrestricted] Working tree is dirty after implement. Existing pre-run changes may be part of the task context.\n' +
+      'Status entries that appeared or changed during the run:\n' +
+      (delta.length ? delta.map((l) => `  ${l}`).join('\n') : '  (none detected by porcelain status)') +
+      '\n`git diff --stat`:\n' +
+      (diffStat || '(only new files or committed by agy)');
+  } else {
+    out =
+      '\n[unrestricted] agy modified the working tree. `git diff --stat`:\n' +
+      (diffStat || '(only new files or committed by agy)');
+  }
   if (untracked) out += `\nNew untracked files: ${untracked}`;
-  out += '\nACTION FOR THE CALLING AGENT: review the diff or continue the same task; do not require a clean tree for this recorded result.';
+  out += '\nACTION FOR THE CALLING AGENT: inspect the workspace or continue the same agy conversation; do not require a clean tree just because implement produced or used a dirty workspace.';
   return out;
 }
 
@@ -1229,163 +822,12 @@ function treeDeltaReport(mode, before, after) {
     `Delta (\`git status --porcelain\` entries that appeared or changed during the run):\n` +
     delta.map((l) => `  ${l}`).join('\n') +
     `\nACTION FOR THE CALLING AGENT: inspect these changes (\`git diff\`) before trusting this ${mode}. ` +
-      `Rollback: \`git checkout -- <path>\` for tracked files, delete the new untracked ones.`
+    `Rollback: \`git checkout -- <path>\` for tracked files, delete the new untracked ones.`
   );
 }
 
-function runChecked(cmd, args, label) {
-  const r = sh(cmd, args);
-  if (r.code !== 0) {
-    die(`${label} failed.\ncommand: ${cmd} ${args.join(' ')}\n${r.err || r.out || '(no output)'}`);
-  }
-  return r;
-}
-
-function statusPaths() {
-  const r = shBuffer('git', ['status', '--porcelain', '-z']);
-  if (r.code !== 0) return [];
-  const entries = r.out.toString('utf8').split('\0').filter(Boolean);
-  const paths = [];
-  for (let i = 0; i < entries.length; i++) {
-    const entry = entries[i];
-    if (entry.length < 4) continue;
-    let rel = entry.slice(3);
-    if ((entry[0] === 'R' || entry[1] === 'R' || entry[0] === 'C' || entry[1] === 'C') && entries[i + 1]) {
-      rel = entries[++i];
-    }
-    if (rel && !rel.startsWith('.agy-staff/')) paths.push(rel);
-  }
-  return [...new Set(paths)];
-}
-
-function commitImplementChanges(resolved) {
-  const paths = statusPaths();
-  if (!paths.length) return { mode: 'commit', noChanges: true, paths: [], commit: null };
-  runChecked('git', ['add', '--', ...paths], 'git add for implement delivery');
-  runChecked('git', ['commit', '-m', resolved.delivery.commitMessage], 'git commit for implement delivery');
-  const commit = runChecked('git', ['rev-parse', 'HEAD'], 'read new commit SHA').out;
-  return { mode: 'commit', noChanges: false, paths, commit };
-}
-
-function branchExists(name) {
-  return sh('git', ['show-ref', '--verify', '--quiet', `refs/heads/${name}`]).code === 0;
-}
-
-function defaultBaseBranch(current) {
-  const remoteHead = sh('git', ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD']).out;
-  if (remoteHead?.startsWith('origin/')) return remoteHead.slice('origin/'.length);
-  const merge = sh('git', ['config', `branch.${current}.merge`]).out;
-  if (merge?.startsWith('refs/heads/')) return merge.slice('refs/heads/'.length);
-  if (current !== 'master' && branchExists('master')) return 'master';
-  if (current !== 'main' && branchExists('main')) return 'main';
-  return current === 'master' ? 'main' : 'master';
-}
-
-function parseGhJson(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-function createOrUpdatePullRequest(resolved, commitResult) {
-  const branch = currentBranch();
-  const base = resolved.delivery.base || defaultBaseBranch(branch);
-  if (branch === base) {
-    die(`implement delivery pr needs a feature branch; current branch "${branch}" is the PR base "${base}".`);
-  }
-
-  runChecked('git', ['push', '-u', 'origin', branch], 'git push for implement PR delivery');
-
-  const existing = sh(GH_BIN, ['pr', 'view', '--head', branch, '--json', 'number,url']);
-  if (existing.code === 0) {
-    const pr = parseGhJson(existing.out);
-    if (pr?.number) {
-      runChecked(GH_BIN, ['pr', 'edit', String(pr.number), '--base', base, '--title', resolved.delivery.prTitle, '--body', resolved.delivery.prBody], 'gh pr edit for implement delivery');
-      return { mode: 'pr', branch, base, commit: commitResult.commit, prNumber: pr.number, prUrl: pr.url || null };
-    }
-  }
-
-  const created = runChecked(
-    GH_BIN,
-    ['pr', 'create', '--draft', '--base', base, '--head', branch, '--title', resolved.delivery.prTitle, '--body', resolved.delivery.prBody],
-    'gh pr create for implement delivery'
-  );
-  return { mode: 'pr', branch, base, commit: commitResult.commit, prNumber: null, prUrl: created.out || null };
-}
-
-function finalizeImplementDelivery(resolved) {
-  if (resolved.mode !== 'implement' || !resolved.delivery || !inGitRepo()) return null;
-  if (!['commit', 'pr'].includes(resolved.delivery.mode)) return { mode: 'diff' };
-  if (resolved.implement?.baselineDirty && !resolved.implement?.includeBaseline) {
-    die(baselineDeliveryDecision({ id: resolved.implement.taskId }, resolved.delivery));
-  }
-  const commitResult = commitImplementChanges(resolved);
-  if (resolved.delivery.mode === 'commit') return commitResult;
-  return createOrUpdatePullRequest(resolved, commitResult);
-}
-
-function agySucceeded(result) {
-  const status = (result.payload.status || '').toUpperCase();
-  return (!status || status === 'SUCCESS') && result.exit === 0;
-}
-
-function recordImplementDispatch(state, resolved, jobId) {
-  if (resolved.mode !== 'implement' || !resolved.implement?.inGitRepo) return;
-  ensureStateShape(state);
-  const launch = resolved.implement;
-  const taskId = launch.taskId || jobId;
-  let task = state.implementTasks[taskId];
-  if (!task) {
-    task = {
-      id: taskId,
-      mode: 'implement',
-      conversationId: resolved.conversation || null,
-      repoRoot: launch.launchSnapshot.repoRoot,
-      worktree: launch.launchSnapshot.worktree,
-      branch: launch.launchSnapshot.branch,
-      baseHead: launch.launchSnapshot.head,
-      baselineSnapshot: launch.baselineSnapshot,
-      baselineDirty: launch.baselineDirty,
-      includeBaseline: launch.includeBaseline,
-      jobIds: [],
-    };
-    state.implementTasks[taskId] = task;
-  }
-  task.delivery = resolved.delivery;
-  task.includeBaseline = launch.includeBaseline;
-  task.lastDispatchSnapshot = launch.launchSnapshot;
-  task.lastObservedSnapshot = task.lastObservedSnapshot || launch.launchSnapshot;
-  task.status = 'running';
-  if (!task.jobIds.includes(jobId)) task.jobIds.push(jobId);
-}
-
-function recordImplementFinish(state, resolved, payload, jobId, snapshot, deliveryResult) {
-  if (resolved.mode !== 'implement' || !resolved.implement?.inGitRepo) return;
-  ensureStateShape(state);
-  const taskId = resolved.implement.taskId || jobId;
-  const task = state.implementTasks[taskId] || { id: taskId, jobIds: [] };
-  task.mode = 'implement';
-  task.conversationId = payload.conversation_id || resolved.conversation || task.conversationId || null;
-  task.repoRoot = snapshot?.repoRoot || task.repoRoot;
-  task.worktree = snapshot?.worktree || task.worktree;
-  task.branch = snapshot?.branch || task.branch;
-  task.baseHead = task.baseHead ?? resolved.implement.baselineSnapshot?.head ?? null;
-  task.baselineSnapshot = task.baselineSnapshot || resolved.implement.baselineSnapshot;
-  task.baselineDirty = task.baselineDirty ?? resolved.implement.baselineDirty;
-  task.includeBaseline = resolved.implement.includeBaseline;
-  task.delivery = resolved.delivery;
-  task.deliveryResult = deliveryResult || null;
-  task.lastObservedSnapshot = snapshot || task.lastObservedSnapshot;
-  task.status = 'done';
-  if (!task.jobIds.includes(jobId)) task.jobIds.push(jobId);
-  state.implementTasks[taskId] = task;
-  if (task.conversationId) state.implementConversations[task.conversationId] = taskId;
-}
-
-function executeRun(resolved, prompt, opts, jobId = null) {
-  const implementBefore = implementGuardApplies(resolved) ? verifyImplementLaunch(resolved) : null;
+function executeRun(resolved, prompt, opts) {
+  const implementBefore = implementGuardApplies(resolved) ? porcelainSnapshot() : null;
   const treeBefore = treeReportApplies(resolved) ? porcelainSnapshot() : null;
 
   const result = runAgy({
@@ -1396,32 +838,17 @@ function executeRun(resolved, prompt, opts, jobId = null) {
     unrestricted: resolved.profile === 'unrestricted',
     jsonSchema: opts.json && resolved.mode === 'review' ? REVIEW_JSON_SCHEMA : null,
   });
+  const treeAfter = treeBefore ? porcelainSnapshot() : null;
   const payload = result.payload;
 
   const response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource);
-  const treeAfter = treeBefore ? porcelainSnapshot() : null;
-  const implementAfterRun = implementGuardApplies(resolved) ? workspaceSnapshot() : null;
-  const deliveryResult =
-    implementGuardApplies(resolved) && agySucceeded(result)
-      ? finalizeImplementDelivery(resolved)
-      : implementGuardApplies(resolved) && ['commit', 'pr'].includes(resolved.delivery?.mode)
-        ? { mode: 'skipped', requested: resolved.delivery.mode }
-        : null;
-  const implementAfterDelivery = implementGuardApplies(resolved) ? workspaceSnapshot() : null;
 
   // persist conversation id
   const state = loadState();
-  ensureStateShape(state);
+  state.conversations = state.conversations || {};
   if (payload.conversation_id) {
     state.conversations[resolved.mode] = payload.conversation_id;
-    state.last = {
-      mode: resolved.mode,
-      id: payload.conversation_id,
-      ...(resolved.implement?.taskId ? { taskId: resolved.implement.taskId } : {}),
-    };
-  }
-  if (implementGuardApplies(resolved)) {
-    recordImplementFinish(state, resolved, payload, jobId, implementAfterDelivery, deliveryResult);
+    state.last = { mode: resolved.mode, id: payload.conversation_id };
   }
   saveState(state);
 
@@ -1437,20 +864,14 @@ function executeRun(resolved, prompt, opts, jobId = null) {
 
   // Guard output is part of the body: the calling agent must act on it.
   let guard = '';
-  if (implementGuardApplies(resolved)) {
-    guard += implementPostcondition(resolved, implementBefore, implementAfterRun, deliveryResult);
-  }
+  if (implementGuardApplies(resolved)) guard += implementPostcondition(implementBefore);
   if (treeReportApplies(resolved)) guard += treeDeltaReport(resolved.mode, treeBefore, treeAfter);
   return guard ? response + '\n' + guard : response;
 }
 
 function cmdRun(mode, opts) {
-  if (opts.restrict !== undefined) {
-    die(`--restrict is a setup flag (per-repo policy: \`setup --restrict <modes|none>\`). For a single ${mode} run use --restricted.`);
-  }
-  const task = requireTask(mode, taskText(opts));
-  const resolved = resolveRun(mode, opts, task);
-  const prompt = buildPrompt(mode, task, resolved);
+  const resolved = resolveRun(mode, opts);
+  const prompt = buildPrompt(mode, opts);
   dispatch(resolved, prompt, opts);
 }
 
@@ -1461,21 +882,22 @@ function dispatch(resolved, prompt, opts) {
     return;
   }
 
+  if (implementGuardApplies(resolved)) implementDispatchWarning();
+
   // background: write a job spec, spawn ourselves detached as _worker
   const jobId = `${mode}-${Date.now().toString(36)}${Math.floor(Math.random() * 36).toString(36)}`;
-  if (implementGuardApplies(resolved)) resolved.implement = prepareImplementLaunch(resolved, jobId);
   const jobsDir = path.join(ensureStateDir(), 'jobs');
   fs.mkdirSync(jobsDir, { recursive: true });
   const logFile = path.join(jobsDir, `${jobId}.log`);
   const specFile = path.join(jobsDir, `${jobId}.spec.json`);
   const resultFile = path.join(jobsDir, `${jobId}.result.md`);
 
-  fs.writeFileSync(specFile, JSON.stringify({ jobId, resolved, prompt, opts: { json: !!opts.json } }, null, 2));
+  fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, opts: { json: !!opts.json } }, null, 2));
 
   // Register the job BEFORE spawning: a fast worker's own state update must
   // find the record already present, or it gets lost in its read-modify-write.
   const state = loadState();
-  ensureStateShape(state);
+  state.jobs = state.jobs || [];
   state.jobs.push({
     id: jobId,
     mode,
@@ -1484,10 +906,7 @@ function dispatch(resolved, prompt, opts) {
     started_at: new Date().toISOString(),
     log_file: logFile,
     result_file: resultFile,
-    ...(resolved.delivery ? { delivery: resolved.delivery.mode } : {}),
-    ...(resolved.implement?.taskId ? { task_id: resolved.implement.taskId } : {}),
   });
-  recordImplementDispatch(state, resolved, jobId);
   saveState(state);
 
   const logFd = fs.openSync(logFile, 'a');
@@ -1514,7 +933,6 @@ function dispatch(resolved, prompt, opts) {
     `Started background ${mode} job.\n` +
       `job id: ${jobId} (pid ${child.pid})\n` +
       `model: ${resolved.model}  profile: ${resolved.profile}  timeout: ${resolved.timeout}\n` +
-      (resolved.delivery ? `delivery: ${resolved.delivery.mode} (${resolved.delivery.source})\n` : '') +
       `result file (written when the job finishes): ${resultFile}\n` +
       `Collect: run \`wait ${jobId} --timeout ${collectTimeout(resolved.timeout)}\` as a background command ` +
       `(one background wait per job; exit 0 = result printed, 2 = still running — wait again).\n` +
@@ -1528,7 +946,7 @@ function cmdWorker(jobId) {
   const resultFile = path.join(jobsDir, `${jobId}.result.md`);
   const spec = JSON.parse(fs.readFileSync(specFile, 'utf8'));
 
-  const output = executeRun(spec.resolved, spec.prompt, spec.opts, spec.jobId || jobId);
+  const output = executeRun(spec.resolved, spec.prompt, spec.opts);
   fs.writeFileSync(resultFile, output + '\n');
   const state = loadState();
   const job = (state.jobs || []).find((j) => j.id === jobId);
@@ -1756,12 +1174,10 @@ function cmdContinue(opts) {
 
   // execution style follows the resumed mode's default (ask → foreground,
   // everything else → background job)
-  const resolved = resolveRun(mode, { ...opts, conversation: opts.conversation || last.id }, task);
+  const resolved = resolveRun(mode, { ...opts, conversation: opts.conversation || last.id });
 
-  const prompt =
-    mode === 'implement'
-      ? `${implementDeliveryPrompt(resolved.delivery)}\n\nFollow-up in the same conversation:\n\n${task}`
-      : `Follow-up in the same conversation:\n\n${task}`;
+  const workspace = mode === 'implement' ? dirtyWorkspacePrompt() : '';
+  const prompt = `${workspace ? `${workspace}\n\n` : ''}Follow-up in the same conversation:\n\n${task}`;
   dispatch(resolved, prompt, opts);
 }
 
@@ -1935,7 +1351,7 @@ function main() {
         'Per-repo policy: `setup --restrict review,research` makes those modes restricted by default here.'
     );
   }
-  const opts = parseFlags(normalizeArgv(rest), { stopAtFirstPositional: MODES.includes(cmd) || cmd === 'continue' });
+  const opts = parseFlags(tokenize(rest));
 
   if (MODES.includes(cmd)) return cmdRun(cmd, opts);
   switch (cmd) {

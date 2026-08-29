@@ -15,7 +15,6 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const COMPANION = path.join(HERE, '..', 'companion', 'agy-companion.mjs');
 export const FAKE_AGY = path.join(HERE, 'fake-agy.mjs');
-export const FAKE_GH = path.join(HERE, 'fake-gh.mjs');
 
 /**
  * Create an isolated {repo, home, argvFile} sandbox.
@@ -38,8 +37,9 @@ export function sandbox(label = 'case', { git = true } = {}) {
     if (init.status !== 0) throw new Error(`git init failed: ${init.stderr}`);
 
     // Calling-agent hygiene (spec ".agy-staff/ hygiene"): the companion never
-    // puts its own state in the shared .gitignore. Without this, implement
-    // snapshots and review/research delta reports would see `.agy-staff/`.
+    // git-ignores its own state, so the caller must. Without this the implement
+    // clean-tree precondition would trip over `?? .agy-staff/` on the 2nd call,
+    // and the review/research delta report would blame agy for it.
     fs.appendFileSync(path.join(repo, '.git', 'info', 'exclude'), '\n.agy-staff/\n');
   }
 
@@ -58,8 +58,6 @@ export function run(sb, args, extraEnv = {}, { input } = {}) {
       HOME: sb.home,
       AGY_BIN: FAKE_AGY,
       FAKE_AGY_ARGV_FILE: sb.argvFile,
-      AGY_STAFF_GH_BIN: FAKE_GH,
-      FAKE_GH_ARGV_FILE: path.join(sb.root, 'gh-argv.jsonl'),
       // The fake agy answers in microseconds; a real one takes seconds. Keep a
       // realistic minimum latency so these suites measure the interface, not
       // concurrent read-modify-writes of state.json (a residual lost-update
@@ -78,16 +76,6 @@ export function agyCalls(sb) {
   if (!fs.existsSync(sb.argvFile)) return [];
   return fs
     .readFileSync(sb.argvFile, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map((l) => JSON.parse(l));
-}
-
-export function ghCalls(sb) {
-  const f = path.join(sb.root, 'gh-argv.jsonl');
-  if (!fs.existsSync(f)) return [];
-  return fs
-    .readFileSync(f, 'utf8')
     .split('\n')
     .filter(Boolean)
     .map((l) => JSON.parse(l));

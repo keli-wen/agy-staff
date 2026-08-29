@@ -53,7 +53,7 @@ codex plugin add agy@agy-staff
 装完**重启 harness**，技能才会加载。首次运行：`/agy:ask "reply with OK"`——ask 不用任何工具、不需要 setup，装完就能用。
 
 > [!IMPORTANT]
-> **没有必须先做的 setup 步骤。** `staffer`、`researcher`、`reviewer`、`implementer` 默认以 **unrestricted** 档运行：agy 自己收集证据、自己改文件。护栏有两层：prompt 模板（不做花钱或不可逆的操作），加上 `implementer` 的 workspace decision 和由 prompt 选择的 `diff` / `commit` / `pr` delivery contract。
+> **没有必须先做的 setup 步骤。** `staffer`、`researcher`、`reviewer`、`implementer` 默认以 **unrestricted** 档运行：agy 自己收集证据、自己改文件，主要由 prompt 模板约束。`implementer` 现在把 dirty workspace 当作 prompt context，而不是硬拒绝；只有任务明确要求对应交付时，agy 才能 commit、push 或打开 PR。
 > `setup` + `--restricted` 是**可选的加固手段**，处理不可信输入时才需要——既可按次传 `--restricted`，也可用 `setup --restrict review,research` 设为本仓库默认。`setup` 会先 dry run，经你确认才写入（对 agent 说「set up agy」即可触发）；用之前请读[权限说明](docs/REFERENCE.zh-CN.md#可选加固-setup)——allowlist 按前缀匹配、对整台机器生效，restricted 档运行返回的内容也可能比 unrestricted 少。
 
 #### 给 Agent
@@ -94,7 +94,6 @@ codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then resta
 | 审查一个方案/决策 | `/agy:reviewer Challenge docs/plan.md 里的迁移方案` |
 | 调研一个主题 | `/agy:researcher 这个仓库的鉴权是怎么做的` |
 | 实现一个范围明确的修复 | `/agy:implementer 修复那个不稳定的重试测试` |
-| 实现并打开 draft PR | `/agy:implementer 修复那个不稳定的重试测试，并打开 draft PR` |
 | 任务管理（等待/进度/取消/续接） | 自然语言：「agy 的 job 好了吗」「continue：再看看错误路径」 |
 
 `reviewer` 完全靠 prompt 描述审查对象，agy 自己去收集证据（`gh pr view`、`git diff`、直接读文件）；没有任何 flag 可以直接传入 diff。它有两个 flavor，按对象自动路由：代码审查（severity 分级的 findings）和通用审查（对方案、设计、决策的多角度 challenge）。

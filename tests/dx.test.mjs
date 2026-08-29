@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { sandbox, run, agyCalls, jobIdOf, waitForJob, waitForCalls, promptOf } from './helpers.mjs';
+import { sandbox, run, jobIdOf, waitForJob, waitForCalls, promptOf } from './helpers.mjs';
 
 describe('staffer: the general-purpose mode', () => {
   test('prompt is minimal: task + environment + guardrails, no role or output framing', async () => {
@@ -36,22 +36,15 @@ describe('staffer: the general-purpose mode', () => {
 });
 
 describe('task text sources', () => {
-  test('inline task text keeps flag-like tokens opaque after the first positional', () => {
-    const sb = sandbox('inline-flag-like');
-    const r = run(sb, ['ask', 'what does git diff --check do?']);
-    assert.equal(r.code, 0, r.stderr);
-    assert.match(promptOf(agyCalls(sb)[0]), /git diff --check do\?/);
-  });
-
   test('--prompt-file reads the task from a file', async () => {
     const sb = sandbox('prompt-file');
     const f = path.join(sb.root, 'task.md');
-    fs.writeFileSync(f, 'a long task written in a file about git diff --check\n');
+    fs.writeFileSync(f, 'a long task written in a file\n');
     const r = run(sb, ['staffer', '--prompt-file', f]);
     assert.equal(r.code, 0, r.stderr);
     await waitForJob(sb, jobIdOf(r.stdout));
     const [argv] = await waitForCalls(sb, 1);
-    assert.match(promptOf(argv), /a long task written in a file about git diff --check/);
+    assert.match(promptOf(argv), /a long task written in a file/);
   });
 
   test('--stdin reads the task from stdin', async () => {

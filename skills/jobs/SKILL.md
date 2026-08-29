@@ -29,7 +29,7 @@ The job-start output prints the exact collect command — `wait <id> --timeout <
 
 Exit codes (`wait`, and `status <id>`): **0** = done — the result is already printed; **2** = still running when the wait's own timeout expired — run the same `wait <id>` again; **3** = error/crashed; **4** = canceled; **1** = generic companion error (e.g. unknown id).
 
-Delivering an exit-0 result: a short report (about a screenful) → verbatim; a long report → the verdict/key points plus the result-file path (printed at job start), expanding sections on request. A `done_with_warnings` run (agy reported an error after producing a complete response) still exits 0 — the warning is on stderr / in the job log; mention it, deliver the response. For an implement `diff` result, show `git status --short` / `git diff` for review. For prompt-selected implement `commit` or `pr`, do not ask the user to approve the same Git delivery again unless the target, repo, branch, scope, or side effects changed.
+Delivering an exit-0 result: a short report (about a screenful) → verbatim; a long report → the verdict/key points plus the result-file path (printed at job start), expanding sections on request. A `done_with_warnings` run (agy reported an error after producing a complete response) still exits 0 — the warning is on stderr / in the job log; mention it, deliver the response. If it was an implement job whose output says the working tree changed, also show `git diff`; if the task explicitly asked agy to commit or open a PR, report and verify agy's result instead of doing Git delivery yourself.
 
 ## Subcommands
 
