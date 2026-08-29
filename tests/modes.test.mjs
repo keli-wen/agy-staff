@@ -5,9 +5,8 @@
  * Round-2 spec: research/review/implement all default to `unrestricted`
  * (--dangerously-skip-permissions on the agy argv), `--restricted` is the
  * opt-in hardening flag, and ask stays tool-free/restricted. Guards are tiered:
- * implement receives dirty-workspace prompt context instead of a clean-tree
- * refusal, review/research are never blocked and report any working-tree delta
- * with the result instead.
+ * implement receives bounded dirty-workspace prompt context, review/research
+ * are never blocked and report any working-tree delta with the result instead.
  *
  * Output split: stdout (and the stored result file) carry agy's response plus
  * any guard warning; the `[agy-staff]` telemetry line goes to stderr, which for
@@ -213,6 +212,18 @@ describe('permission profile wiring reaches the agy argv', () => {
 });
 
 describe('tiered git guards: implement', () => {
+  test('implement defaults to high effort Flash', async () => {
+    const sb = sandbox('impl-default-model');
+    const started = run(sb, ['implement', 'a task']);
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(started.stdout, /model: gemini-3\.7-flash-high/);
+
+    const id = jobIdOf(started.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+    const [argv] = await waitForCalls(sb, 1);
+    assert.equal(argv[argv.indexOf('--model') + 1], 'gemini-3.7-flash-high');
+  });
+
   test('implement on a dirty tree injects workspace context instead of refusing', async () => {
     const sb = sandbox('dirty');
     fs.writeFileSync(path.join(sb.repo, 'dirty.txt'), 'uncommitted\n');
@@ -229,6 +240,27 @@ describe('tiered git guards: implement', () => {
     assert.match(prompt, /## Existing workspace changes/);
     assert.match(prompt, /dirty\.txt/);
     assert.match(prompt, /Treat these paths as user-owned context/);
+  });
+
+  test('dirty workspace context is bounded and points agy at git ground truth', async () => {
+    const sb = sandbox('dirty-bounded');
+    for (let i = 0; i < 105; i++) {
+      fs.writeFileSync(path.join(sb.repo, `dirty-${String(i).padStart(3, '0')}.txt`), 'x\n');
+    }
+
+    const r = run(sb, ['implement', 'a task']);
+    assert.equal(r.code, 0, r.stderr);
+    const id = jobIdOf(r.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+
+    const [argv] = await waitForCalls(sb, 1);
+    const prompt = promptOf(argv);
+    assert.match(prompt, /`git status --porcelain` before this run \(bounded summary\):/);
+    assert.match(prompt, /\?\? dirty-000\.txt/);
+    assert.match(prompt, /\?\? dirty-099\.txt/);
+    assert.doesNotMatch(prompt, /\?\? dirty-100\.txt/);
+    assert.match(prompt, /truncated to 100 of 105 entries/);
+    assert.match(prompt, /Run `git status --porcelain` and inspect relevant diffs/);
   });
 
   test('implement outside a git repository warns and proceeds', async () => {

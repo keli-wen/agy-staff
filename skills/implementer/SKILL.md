@@ -22,7 +22,7 @@ node "<skill-dir>/../../companion/agy-companion.mjs" implement [flags] "task des
 
 ## Workspace and delivery
 
-- Inside a git repository, dirty workspaces are allowed. When `git status --porcelain` is not clean, the companion injects the pre-run status into the implement prompt so agy treats those paths as user-owned context.
+- Inside a git repository, dirty workspaces are allowed. When `git status --porcelain` is not clean, the companion injects a bounded pre-run status summary into the implement prompt so agy treats those paths as user-owned context.
 - Outside a git repository the companion warns that agy's edits cannot be reviewed or rolled back via git, and proceeds. Relay that warning; there is no diff to fall back on.
 - By default, agy leaves a working-tree diff. If the user explicitly asks for a commit, push, or PR, include that request verbatim in the task text and let agy do that exact Git delivery.
 - After the run, surface agy's summary and the current workspace state. Do not add your own commit/PR step unless the user separately asks you to do it.
@@ -38,7 +38,7 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 ## Flags (all optional)
 
 - `--restricted` / `--unrestricted` — permission profile. implement defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it can usually only propose rather than edit, and it needs the setup flow's evidence-gathering allowlist to be useful.
-- `--continue` (or `--conversation <id>`), `--model <id>` / `--effort low|medium|high` (default `gemini-3.7-flash-medium`), `--timeout <dur>` (default 10m).
+- `--continue` (or `--conversation <id>`), `--model <id>` / `--effort low|medium|high` (default `gemini-3.7-flash-high`), `--timeout <dur>` (default 10m).
 - `--prompt-file <path>` / `--stdin` — task text from a file or stdin (long prompts).
 
 ## Rules

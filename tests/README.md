@@ -39,8 +39,8 @@ and permission-profile wiring asserted on the argv the fake `agy` received —
 round 2's equal-permissions default (`research`/`review`/`implement` all send
 `--dangerously-skip-permissions` with no flags and no setup, `--restricted` is
 the opt-in that removes it, `ask` never gets it). Also: the tiered git guards
-(`implement` injects dirty-workspace prompt context, warns and proceeds outside a
-repository, allows continuation over its own dirty result, and reports workspace state with the result; `review`/`research` are never
+(`implement` injects bounded dirty-workspace prompt context, warns and proceeds outside a
+repository, defaults to `gemini-3.7-flash-high`, allows continuation over its own dirty result, and reports workspace state with the result; `review`/`research` are never
 blocked and instead report a working-tree delta — present when the fake `agy`
 touches a file, silent when it does not, scoped to what appeared during the run,
 and skipped entirely for `--restricted` runs); the reworded `--restricted`

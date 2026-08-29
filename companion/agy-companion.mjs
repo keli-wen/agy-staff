@@ -48,10 +48,10 @@
  * written by `setup --restrict`) > built-in default. The policy is a run
  * policy for per-repo consistency, not a security boundary.
  * The guardrails against irreversible side effects live in the prompt
- * templates, backed by two tiered checks here: implement injects dirty
- * workspace prompt context instead of refusing, while staffer/review/research
- * snapshot `git status --porcelain` around the run and report any delta with
- * the result without ever blocking.
+ * templates, backed by two tiered checks here: implement treats dirty
+ * workspaces as bounded prompt context, while staffer/review/research snapshot
+ * `git status --porcelain` around the run and report any delta with the result
+ * without ever blocking.
  *
  * Output split: stdout carries the deliverable — agy's response plus any guard
  * warning about the working tree. The `[agy-staff]` telemetry line (mode,
@@ -93,7 +93,7 @@ const DEFAULTS = {
     staffer: 'gemini-3.7-flash-medium',
     research: 'gemini-3.7-flash-high',
     review: 'gemini-3.7-flash-medium',
-    implement: 'gemini-3.7-flash-medium',
+    implement: 'gemini-3.7-flash-high',
     ask: 'gemini-3.7-flash-low',
   },
   // Every tool-using mode is unrestricted by default: headless agy denies
@@ -176,6 +176,8 @@ const EVIDENCE_ALLOWLIST = [
 // ~200KB task-text ceiling; macOS ARG_MAX is ~1MB and the prompt
 // travels as a single argv entry.
 const MAX_INLINE_BYTES = 200 * 1024;
+const MAX_DIRTY_STATUS_LINES = 100;
+const MAX_DIRTY_STATUS_BYTES = 16 * 1024;
 
 const REVIEW_JSON_SCHEMA = JSON.stringify({
   type: 'object',
@@ -443,13 +445,26 @@ function dirtyWorkspacePrompt() {
   if (!inGitRepo()) return '';
   const status = porcelainSnapshot();
   if (!status?.length) return '';
+  const lines = [];
+  let bytes = 0;
+  for (const line of status) {
+    const next = Buffer.byteLength(`${line}\n`);
+    if (lines.length >= MAX_DIRTY_STATUS_LINES || bytes + next > MAX_DIRTY_STATUS_BYTES) break;
+    lines.push(line);
+    bytes += next;
+  }
+  const truncated = lines.length < status.length;
+  const limitNote = truncated
+    ? `\n\nThe status list was truncated to ${lines.length} of ${status.length} entries and ${bytes} bytes. Run \`git status --porcelain\` and inspect relevant diffs before editing or delivering changes.`
+    : '';
   return (
     '## Existing workspace changes\n\n' +
-    'The workspace was already dirty before this implement run. Treat these paths as user-owned context. Build on them only when the task clearly includes them; otherwise pause and ask for confirmation before overwriting, cleaning, stashing, resetting, deleting, committing, pushing, or opening a PR with them.\n\n' +
-    '`git status --porcelain` before this run:\n' +
+    'The workspace was already dirty before this implement run. Treat these paths as user-owned context. Build on them only when the task clearly includes them; otherwise pause and ask for confirmation before overwriting, cleaning, stashing, resetting, deleting, committing, pushing, or opening a PR with them. Use `git status --porcelain` and `git diff` as ground truth when path ownership is unclear.\n\n' +
+    '`git status --porcelain` before this run (bounded summary):\n' +
     '```text\n' +
-    status.join('\n') +
-    '\n```'
+    lines.join('\n') +
+    '\n```' +
+    limitNote
   );
 }
 
@@ -802,7 +817,7 @@ function implementPostcondition(before) {
       (diffStat || '(only new files or committed by agy)');
   }
   if (untracked) out += `\nNew untracked files: ${untracked}`;
-  out += '\nACTION FOR THE CALLING AGENT: inspect the workspace or continue the same agy conversation; do not require a clean tree just because implement produced or used a dirty workspace.';
+  out += '\nACTION FOR THE CALLING AGENT: inspect the current workspace (`git status --short`, `git diff`) and distinguish pre-run dirty paths from this run\'s delta. Continue the same agy conversation for follow-up work. If committing or opening a PR, first verify the task explicitly authorized that delivery.';
   return out;
 }
 
