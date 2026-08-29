@@ -10,7 +10,7 @@
 | `staffer` | `staffer` | 通用委托，最小化 prompt：不设角色、不设规则、不设输出格式——任务文本自己决定输出形状 | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
 | `researcher` | `research` | 深度调研：要求引用来源、显式标注未验证的结论 | `gemini-3.7-flash-high` | unrestricted | 后台任务——返回一个 job id |
 | `reviewer` | `review` | 第二意见式审查，按对象路由两个 flavor：代码审查（severity 分级 findings，带 `file:line` 引用）与通用审查（对方案/设计/决策的多角度 challenge） | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
-| `implementer` | `implement` | 范围明确的编码任务；agy 直接修改工作区，由你审阅 diff | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
+| `implementer` | `implement` | 范围明确的编码任务；agy 直接修改工作区，也可以执行用户明确要求的 Git 交付 | `gemini-3.7-flash-high` | unrestricted | 后台任务——返回一个 job id |
 
 执行方式按模式固定，没有任何 flag 可以覆盖。`continue` 沿用解析出的模式的执行方式（续接 `ask` 仍是同步；续接其余模式返回 job id）。
 
@@ -37,7 +37,7 @@
 
 | 模式 | 在 git 仓库内 | 不在 git 仓库内 |
 |---|---|---|
-| `implement` | **要求工作区干净**——工作区不干净时 companion 拒绝启动；结束后打印 `git diff --stat`，`git checkout .` 就是完整回滚 | 打印警告：agy 的修改无法通过 git 审阅或回滚，然后继续执行 |
+| `implement` | 允许 dirty workspace。若仓库里已经有改动，companion 会把一份简短的运行前状态摘要加进 agy 的 prompt，让它知道哪些路径是用户已有改动，必须当作用户的工作来处理。摘要有长度上限；路径归属不清楚时，agy 应自己运行 `git status --porcelain` 并查看 diff。结束后 companion 会报告工作区是干净、已变化，还是仍然 dirty | 打印警告：agy 的修改无法通过 git 审阅或回滚，然后继续执行 |
 | `research`、`review` | 永不阻塞，也不检查工作区是否干净。worker 在运行前对 `git status --porcelain` 拍快照，运行后比对；若 agy 引入了改动，结果会带一条警告，列出 delta 并给出回滚提示 | 无可比对——静默 |
 | `staffer` | 与 research/review 相同的快照/比对，但措辞中性：通用任务可能本来就该改文件，delta 是给调用方的信息（「确认任务确实要求了这些改动」），不是指控 | 无可比对——静默 |
 
@@ -47,14 +47,14 @@
 
 `staffer`、`research`、`review`、`implement` 四个模板**默认拒绝**不可逆或有代价的副作用：
 
-- 不 commit、不 push、不改写历史；
+- 不 commit、不 push、不写 PR、不改写历史，除非任务明确要求这项 Git 交付；
 - 不删除工作区之外的文件；
 - 不发起有副作用的网络调用；
 - 不执行会消耗付费 API 额度或 token 的命令（例如会真实计费的 e2e 测试）。
 
 临时脚本写到临时目录；运行在工作区里做的一切都保持可被 git 回滚。
 
-**默认是关着的，但不是锁死的。** 如果你的请求里明确授权了上述某项操作（「跑一下 e2e 测试」、「调 staging API」），agy 就照授权执行，并汇报它实际跑了什么——所以委托时请把这类明确授权原样传下去。特别地，`review` 可以运行只读命令、临时脚本和测试来验证某个 finding；它不能做的是修改被跟踪的文件、commit 或 push。
+**默认是关着的，但不是锁死的。** 如果你的请求里明确授权了上述某项操作（「commit this」「打开 draft PR」「跑一下 e2e 测试」「调 staging API」），agy 就照授权执行，并汇报它实际跑了什么——所以委托时请把这类明确授权原样传下去。特别地，`review` 可以运行只读命令、临时脚本和测试来验证某个 finding；它不能做的是修改被跟踪的文件、commit 或 push。
 
 ### 审查不可信内容
 
@@ -165,7 +165,7 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 - **空响应但 "status SUCCESS"** — 只会出现在 restricted 档的运行里（传了 `--restricted`，或项目 policy 把该模式设成了 restricted）：即使所有工具调用都被拒绝，agy 也会报 success；此时内容为空、stderr 带权限提示。companion 会检测到并给出修复方式：跑一次 `setup` 把 allowlist 装上，或者放宽权限档（去掉 `--restricted`；来自 policy 的话用 `setup --restrict none`）。另有一个 agy 自身的限制：部分工具在 headless 下完全无视 allow-rules，只在跳过权限时可用——这类操作永远需要 unrestricted 的运行。（`ask` 不可能触发此情况；若触发请报 bug。）
 - **"task text exceeds the 200KB inline limit"** — 整个 prompt 作为单个 argv 传给 agy，macOS 的 ARG_MAX 约 1MB（agy 自己不读 stdin，所以 `--prompt-file`/`--stdin` 只解决 shell 引号问题，解决不了这个上限）。请缩短任务描述：把材料的位置（PR 号、ref、文件路径）指给 agy，让它自己去取内容，而不是整段粘进来。
 - **这些模式绝不要用 agy 的 `--sandbox`** — 它会把执行重定向到 agy 自己的 scratch 工作区（`~/.gemini/antigravity-cli/scratch`），看不到你真实的工作目录。companion 从不传该参数。
-- **implement 因工作区不干净被拒** — 这是有意的，而且只针对 `implement`（`research`/`review` 永不被拦）。先 commit 或 stash，agy 的修改才是隔离的，`git checkout .` 才是完整回滚。不在 git 仓库里时，`implement` 只警告不拒绝——因为根本没有回滚路径。
+- **implement 遇到 dirty workspace** — 即使仓库里已经有改动，`implement` 也可以启动。companion 会把一份有长度上限的状态摘要加进 agy 的 prompt，让它知道这些路径是用户已有改动。若任务没有明确包含这些改动，agy 应先询问，再决定是否覆盖、清理、stash、reset、删除、commit、push，或把它们放进 PR。
 - **"agy modified the working tree during this review"** — 这是 unrestricted 的 `research`/`review` 的 delta 警告（随结果一起打印）：agy 动了本不该动的文件。按列出的路径检查并还原，警告里附带回滚提示。
 - **agy 的项目级权限** — agy 有绑定其 `--project` 体系的项目级规则（「最高优先级」）；其设置文件路径无文档、未验证，所以 setup 只改全局文件。若某条规则似乎不生效，请在 agy 交互模式里检查。参见[进阶：项目级权限](#进阶项目级权限)。
 - **规则上下文** — agy 会自动加载工作区里的 `AGENTS.md`/`GEMINI.md`/`.agents/rules/*.md`；在你委托任务的仓库里保持这些文件干净合理。

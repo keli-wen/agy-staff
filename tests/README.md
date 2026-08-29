@@ -22,10 +22,7 @@ import. Each test builds its own sandbox (`tests/helpers.mjs`):
 - a throwaway git repo under `os.tmpdir()` (so `.agy-staff/` state never lands in
   the real repo), with `.agy-staff/` added to `.git/info/exclude` — since 0.4 the
   companion does this itself on first use (`ensureStateDir`), the sandbox just
-  pre-applies it; it is a precondition for `implement`'s clean-tree check to pass
-  on the second call, and what keeps the companion's own state out of the
-  review/research delta report. The auto-exclude path itself is pinned in
-  `dx.test.mjs`.
+  pre-applies it so the companion's own state stays out of implement dirty-context prompts and review/research delta reports. The auto-exclude path itself is pinned in `dx.test.mjs`.
   `sandbox(label, { git: false })` skips the `git init` for the cases that must
   run outside a repository;
 - a throwaway `HOME` (so `setup` can never touch the real `~/.gemini`);
@@ -42,8 +39,8 @@ and permission-profile wiring asserted on the argv the fake `agy` received —
 round 2's equal-permissions default (`research`/`review`/`implement` all send
 `--dangerously-skip-permissions` with no flags and no setup, `--restricted` is
 the opt-in that removes it, `ask` never gets it). Also: the tiered git guards
-(`implement` still refuses a dirty tree, warns and proceeds outside a
-repository, and reports its edits with the result; `review`/`research` are never
+(`implement` injects bounded dirty-workspace prompt context, warns and proceeds outside a
+repository, defaults to `gemini-3.7-flash-high`, allows continuation over its own dirty result, and reports workspace state with the result; `review`/`research` are never
 blocked and instead report a working-tree delta — present when the fake `agy`
 touches a file, silent when it does not, scoped to what appeared during the run,
 and skipped entirely for `--restricted` runs); the reworded `--restricted`

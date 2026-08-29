@@ -10,7 +10,7 @@ Back to the [README](../README.md). 中文版见 [REFERENCE.zh-CN.md](REFERENCE.
 | `staffer` | `staffer` | General-purpose delegation with a minimal prompt: no role, rules, or output format — the task text alone shapes the output | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
 | `researcher` | `research` | Deep survey with cited sources and explicit unverified-claims marking | `gemini-3.7-flash-high` | unrestricted | background job — returns a job id |
 | `reviewer` | `review` | Second-opinion verifier, two flavors routed by subject: code review (severity-ranked findings with `file:line` refs) and general review (multi-angle challenge of a plan, design, or decision) | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
-| `implementer` | `implement` | Well-scoped coding task; agy edits the working tree, you review the diff | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
+| `implementer` | `implement` | Well-scoped coding task; agy edits the working tree and can perform explicitly requested Git delivery | `gemini-3.7-flash-high` | unrestricted | background job — returns a job id |
 
 Execution style is fixed per mode and cannot be overridden by a flag. `continue` inherits the resolved mode's style (continuing an `ask` stays synchronous; continuing the others returns a job id).
 
@@ -37,7 +37,7 @@ The guards apply to **unrestricted runs only** and differ by mode:
 
 | Mode | Inside a git repo | Not a git repo |
 |---|---|---|
-| `implement` | clean tree **required** — the companion refuses to start on a dirty tree, prints `git diff --stat` afterwards, and `git checkout .` is a complete rollback | warns that agy's edits cannot be reviewed or rolled back via git, then proceeds |
+| `implement` | dirty workspaces are allowed. If the repo already has changes, the companion adds a short pre-run status summary to agy's prompt so it knows which paths were already touched and must treat them as user-owned work. The summary is capped; agy should run `git status --porcelain` and inspect diffs when ownership is unclear. Afterward the companion reports whether the workspace is clean, changed, or still dirty | warns that agy's edits cannot be reviewed or rolled back via git, then proceeds |
 | `research`, `review` | never blocked, no clean-tree check. The worker snapshots `git status --porcelain` before the run and compares afterwards; if agy introduced changes, the result carries a warning listing the delta plus a rollback hint | nothing to compare — silent |
 | `staffer` | same snapshot/report as research/review, but neutrally worded: a general task may legitimately edit files, so the delta is information for the caller ("verify the task asked for it"), not an accusation | nothing to compare — silent |
 
@@ -47,14 +47,14 @@ Silence is the normal case for `research`/`review`: the delta warning shows up o
 
 The `staffer`, `research`, `review` and `implement` templates deny irreversible or costly side effects **by default**:
 
-- no commits, pushes or history rewrites;
+- no commits, pushes, PR writes or history rewrites unless the task explicitly asks for that exact Git delivery;
 - no deleting files outside the workspace;
 - no side-effectful network calls;
 - no commands that burn paid API quota or tokens (e.g. an e2e suite that bills a live API).
 
 Scratch scripts go in a temp dir, and everything the run does inside the workspace stays git-revertible.
 
-**The default is closed, not locked.** If your request explicitly authorizes one of those operations ("run the e2e tests", "call the staging API"), agy does exactly what was authorized and reports what it ran — so pass such authorizations through verbatim when you delegate. `review` in particular may run read-only commands, scratch scripts and tests to verify a finding; what it must not do is modify tracked files, commit or push.
+**The default is closed, not locked.** If your request explicitly authorizes one of those operations ("commit this", "open a draft PR", "run the e2e tests", "call the staging API"), agy does exactly what was authorized and reports what it ran — so pass such authorizations through verbatim when you delegate. `review` in particular may run read-only commands, scratch scripts and tests to verify a finding; what it must not do is modify tracked files, commit or push.
 
 ### Reviewing untrusted content
 
@@ -165,7 +165,7 @@ Automatic since 0.4: when the companion creates `.agy-staff/` for the first time
 - **Empty response, "status SUCCESS"** — only happens on a restricted run (`--restricted`, or a project policy that restricts the mode): agy reports success even when every tool call was denied, so the content is empty and stderr carries a permission note. The companion detects this and tells you the fix: run `setup` once so the allowlist exists, or relax the profile (drop `--restricted`, or `setup --restrict none` if it came from the policy). Caveat baked into agy: some tools ignore allow-rules in headless mode entirely and only work with the skip flag — those always need an unrestricted run. (`ask` cannot hit this case; if it does, report a bug.)
 - **"task text exceeds the 200KB inline limit"** — the whole prompt travels to agy as one argv entry and macOS ARG_MAX is ~1MB (agy itself does not read stdin, so `--prompt-file`/`--stdin` only fix shell quoting, not this ceiling). Shorten the task text: point agy at the material (a PR number, a ref, a file path) and let it fetch the content itself instead of pasting it in.
 - **Never use agy's `--sandbox` for these modes** — it redirects execution into agy's own scratch workspace (`~/.gemini/antigravity-cli/scratch`) and cannot see your real working directory. The companion never passes it.
-- **Dirty-tree refusal on implement** — intentional, and specific to `implement` (`research`/`review` are never blocked). Commit or stash so agy's edits are isolated and `git checkout .` is a complete rollback. Outside a git repo `implement` warns instead of refusing — there is simply no rollback path.
+- **Dirty workspace on implement** — `implement` can start even when the repo already has changes. The companion adds a capped status summary to agy's prompt so it knows those paths are pre-existing user work. If the task does not clearly include them, agy should ask before overwriting, cleaning, stashing, resetting, deleting, committing, pushing, or opening a PR with those changes.
 - **"agy modified the working tree during this review"** — the delta warning (printed with the result) on an unrestricted `research`/`review` run: agy changed files it was told to leave alone. Inspect the listed paths and revert them; the warning includes the rollback hint.
 - **Project-scoped agy permissions** — agy has project-level rules ("highest priority") tied to its `--project` system; the settings-file path for those is undocumented and unverified, so setup only edits the global file. If a rule seems ignored, check agy interactively. See [Advanced: project-scoped permissions](#advanced-project-scoped-permissions).
 - **Rules context** — agy auto-loads `AGENTS.md`/`GEMINI.md`/`.agents/rules/*.md` from the workspace; keep those files sane in repos where you delegate.

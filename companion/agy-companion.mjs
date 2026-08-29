@@ -48,10 +48,10 @@
  * written by `setup --restrict`) > built-in default. The policy is a run
  * policy for per-repo consistency, not a security boundary.
  * The guardrails against irreversible side effects live in the prompt
- * templates, backed by two tiered checks here: implement needs a clean git
- * tree inside a repository (outside one it warns and proceeds), while
- * staffer/review/research snapshot `git status --porcelain` around the run and
- * report any delta with the result without ever blocking.
+ * templates, backed by two tiered checks here: implement treats dirty
+ * workspaces as bounded prompt context, while staffer/review/research snapshot
+ * `git status --porcelain` around the run and report any delta with the result
+ * without ever blocking.
  *
  * Output split: stdout carries the deliverable — agy's response plus any guard
  * warning about the working tree. The `[agy-staff]` telemetry line (mode,
@@ -93,7 +93,7 @@ const DEFAULTS = {
     staffer: 'gemini-3.7-flash-medium',
     research: 'gemini-3.7-flash-high',
     review: 'gemini-3.7-flash-medium',
-    implement: 'gemini-3.7-flash-medium',
+    implement: 'gemini-3.7-flash-high',
     ask: 'gemini-3.7-flash-low',
   },
   // Every tool-using mode is unrestricted by default: headless agy denies
@@ -176,6 +176,8 @@ const EVIDENCE_ALLOWLIST = [
 // ~200KB task-text ceiling; macOS ARG_MAX is ~1MB and the prompt
 // travels as a single argv entry.
 const MAX_INLINE_BYTES = 200 * 1024;
+const MAX_DIRTY_STATUS_LINES = 100;
+const MAX_DIRTY_STATUS_BYTES = 16 * 1024;
 
 const REVIEW_JSON_SCHEMA = JSON.stringify({
   type: 'object',
@@ -437,6 +439,33 @@ function gatherContext() {
     `Git branch: ${branch}`,
     `Date: ${new Date().toISOString().slice(0, 10)}`,
   ].join('\n');
+}
+
+function dirtyWorkspacePrompt() {
+  if (!inGitRepo()) return '';
+  const status = porcelainSnapshot();
+  if (!status?.length) return '';
+  const lines = [];
+  let bytes = 0;
+  for (const line of status) {
+    const next = Buffer.byteLength(`${line}\n`);
+    if (lines.length >= MAX_DIRTY_STATUS_LINES || bytes + next > MAX_DIRTY_STATUS_BYTES) break;
+    lines.push(line);
+    bytes += next;
+  }
+  const truncated = lines.length < status.length;
+  const limitNote = truncated
+    ? `\n\nThe status list was truncated to ${lines.length} of ${status.length} entries and ${bytes} bytes. Run \`git status --porcelain\` and inspect relevant diffs before editing or delivering changes.`
+    : '';
+  return (
+    '## Existing workspace changes\n\n' +
+    'The workspace was already dirty before this implement run. Treat these paths as user-owned context. Build on them only when the task clearly includes them; otherwise pause and ask for confirmation before overwriting, cleaning, stashing, resetting, deleting, committing, pushing, or opening a PR with them. Use `git status --porcelain` and `git diff` as ground truth when path ownership is unclear.\n\n' +
+    '`git status --porcelain` before this run (bounded summary):\n' +
+    '```text\n' +
+    lines.join('\n') +
+    '\n```' +
+    limitNote
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -705,16 +734,20 @@ function buildPrompt(mode, opts) {
   }
   // ask is zero-tool by design: question only, no workspace context
   if (mode === 'ask') return fillTemplate('ask', { TASK: task });
-  return fillTemplate(mode, { TASK: task, CONTEXT: context });
+  return fillTemplate(mode, {
+    TASK: task,
+    CONTEXT: context,
+    WORKSPACE: mode === 'implement' ? dirtyWorkspacePrompt() : '',
+  });
 }
 
 // ---------------------------------------------------------------------------
 // tiered guards (unrestricted runs only; ask is forced restricted upstream)
 //
-//   implement → it is *meant* to edit files, so bound the blast radius: a
-//               clean git tree is required inside a repository, because
-//               `git checkout .` is the only rollback there is. Outside a
-//               repository there is nothing to bound, so warn and proceed.
+//   implement → it is meant to edit files. Dirty workspaces are prompt context,
+//               not a hard companion refusal: agy can continue when the task
+//               clearly includes the existing changes, and must ask when it
+//               would overwrite or deliver unrelated user work.
 //   review /  → no gate at all, never blocked. They should not be touching
 //   research    files, so we snapshot `git status --porcelain` around the run
 //               and report any delta with the result.
@@ -751,40 +784,40 @@ function treeReportApplies(resolved) {
   return resolved.profile === 'unrestricted' && ['staffer', 'review', 'research'].includes(resolved.mode);
 }
 
-function implementPrecondition() {
+function implementDispatchWarning() {
   if (!inGitRepo()) {
     process.stderr.write(
       'agy-staff warning: not a git repository — agy\'s edits cannot be reviewed or rolled back via git.\n' +
         'Proceeding anyway; back up anything you care about, or run implement from inside a repository.\n'
     );
-    return;
-  }
-  const r = sh('git', ['status', '--porcelain']);
-  if (r.out) {
-    die(
-      'unrestricted profile refused: the working tree is not clean.\n' +
-        'Commit or stash your changes first so agy edits are isolated and `git checkout .` can roll them back.\n\n' +
-        r.out
-    );
   }
 }
 
-/** implement runs on a clean tree, so the whole porcelain output is agy's work. */
-function implementPostcondition() {
+function implementPostcondition(before) {
   if (!inGitRepo()) return '';
-  const stat = sh('git', ['status', '--porcelain']).out;
-  if (!stat) return '\n[unrestricted] Working tree unchanged — agy made no file edits.';
+  const after = porcelainSnapshot() || [];
+  if (!after.length) return '\n[unrestricted] Working tree clean after implement.';
   const diffStat = sh('git', ['diff', '--stat']).out;
-  const untracked = stat
-    .split('\n')
+  const delta = before ? porcelainDelta(before, after) : after;
+  const untracked = delta
     .filter((l) => l.startsWith('??'))
     .map((l) => l.slice(3))
     .join(', ');
-  let out =
-    '\n[unrestricted] agy modified the working tree. `git diff --stat`:\n' + (diffStat || '(only new files)');
+  let out;
+  if (before?.length) {
+    out =
+      '\n[unrestricted] Working tree is dirty after implement. Existing pre-run changes may be part of the task context.\n' +
+      'Status entries that appeared or changed during the run:\n' +
+      (delta.length ? delta.map((l) => `  ${l}`).join('\n') : '  (none detected by porcelain status)') +
+      '\n`git diff --stat`:\n' +
+      (diffStat || '(only new files or committed by agy)');
+  } else {
+    out =
+      '\n[unrestricted] agy modified the working tree. `git diff --stat`:\n' +
+      (diffStat || '(only new files or committed by agy)');
+  }
   if (untracked) out += `\nNew untracked files: ${untracked}`;
-  out +=
-    '\nACTION FOR THE CALLING AGENT: show the user the full diff (`git diff`) and ask for confirmation before building on it. Rollback: `git checkout .` (plus deleting untracked files).';
+  out += '\nACTION FOR THE CALLING AGENT: inspect the current workspace (`git status --short`, `git diff`) and distinguish pre-run dirty paths from this run\'s delta. Continue the same agy conversation for follow-up work. If committing or opening a PR, first verify the task explicitly authorized that delivery.';
   return out;
 }
 
@@ -809,7 +842,7 @@ function treeDeltaReport(mode, before, after) {
 }
 
 function executeRun(resolved, prompt, opts) {
-  if (implementGuardApplies(resolved)) implementPrecondition();
+  const implementBefore = implementGuardApplies(resolved) ? porcelainSnapshot() : null;
   const treeBefore = treeReportApplies(resolved) ? porcelainSnapshot() : null;
 
   const result = runAgy({
@@ -846,7 +879,7 @@ function executeRun(resolved, prompt, opts) {
 
   // Guard output is part of the body: the calling agent must act on it.
   let guard = '';
-  if (implementGuardApplies(resolved)) guard += implementPostcondition();
+  if (implementGuardApplies(resolved)) guard += implementPostcondition(implementBefore);
   if (treeReportApplies(resolved)) guard += treeDeltaReport(resolved.mode, treeBefore, treeAfter);
   return guard ? response + '\n' + guard : response;
 }
@@ -864,9 +897,7 @@ function dispatch(resolved, prompt, opts) {
     return;
   }
 
-  // fail fast in the foreground before detaching: a dirty-tree refusal must
-  // reach the caller directly, not land in a background job's log
-  if (implementGuardApplies(resolved)) implementPrecondition();
+  if (implementGuardApplies(resolved)) implementDispatchWarning();
 
   // background: write a job spec, spawn ourselves detached as _worker
   const jobId = `${mode}-${Date.now().toString(36)}${Math.floor(Math.random() * 36).toString(36)}`;
@@ -1160,7 +1191,8 @@ function cmdContinue(opts) {
   // everything else → background job)
   const resolved = resolveRun(mode, { ...opts, conversation: opts.conversation || last.id });
 
-  const prompt = `Follow-up in the same conversation:\n\n${task}`;
+  const workspace = mode === 'implement' ? dirtyWorkspacePrompt() : '';
+  const prompt = `${workspace ? `${workspace}\n\n` : ''}Follow-up in the same conversation:\n\n${task}`;
   dispatch(resolved, prompt, opts);
 }
 

@@ -5,9 +5,8 @@
  * Round-2 spec: research/review/implement all default to `unrestricted`
  * (--dangerously-skip-permissions on the agy argv), `--restricted` is the
  * opt-in hardening flag, and ask stays tool-free/restricted. Guards are tiered:
- * implement needs a clean tree inside a repo (warns and proceeds outside one),
- * review/research are never blocked and report any working-tree delta with the
- * result instead.
+ * implement receives bounded dirty-workspace prompt context, review/research
+ * are never blocked and report any working-tree delta with the result instead.
  *
  * Output split: stdout (and the stored result file) carry agy's response plus
  * any guard warning; the `[agy-staff]` telemetry line goes to stderr, which for
@@ -213,17 +212,55 @@ describe('permission profile wiring reaches the agy argv', () => {
 });
 
 describe('tiered git guards: implement', () => {
-  test('implement on a dirty tree still fails fast before detaching', () => {
+  test('implement defaults to high effort Flash', async () => {
+    const sb = sandbox('impl-default-model');
+    const started = run(sb, ['implement', 'a task']);
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(started.stdout, /model: gemini-3\.7-flash-high/);
+
+    const id = jobIdOf(started.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+    const [argv] = await waitForCalls(sb, 1);
+    assert.equal(argv[argv.indexOf('--model') + 1], 'gemini-3.7-flash-high');
+  });
+
+  test('implement on a dirty tree injects workspace context instead of refusing', async () => {
     const sb = sandbox('dirty');
     fs.writeFileSync(path.join(sb.repo, 'dirty.txt'), 'uncommitted\n');
 
     const r = run(sb, ['implement', 'a task']);
-    assert.notEqual(r.code, 0);
-    assert.match(r.stderr, /unrestricted profile refused: the working tree is not clean\./);
-    assert.match(r.stderr, /dirty\.txt/);
-    assert.doesNotMatch(r.stderr, /\bloose\b/);
-    assert.equal(agyCalls(sb).length, 0, 'agy must not be invoked');
-    assert.match(run(sb, ['status']).stdout, /No agy-staff jobs recorded/);
+    assert.equal(r.code, 0, r.stderr);
+    assert.doesNotMatch(r.stderr, /unrestricted profile refused/);
+    assert.match(r.stdout, /Started background implement job\./);
+
+    const id = jobIdOf(r.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+    const [argv] = await waitForCalls(sb, 1);
+    const prompt = promptOf(argv);
+    assert.match(prompt, /## Existing workspace changes/);
+    assert.match(prompt, /dirty\.txt/);
+    assert.match(prompt, /Treat these paths as user-owned context/);
+  });
+
+  test('dirty workspace context is bounded and points agy at git ground truth', async () => {
+    const sb = sandbox('dirty-bounded');
+    for (let i = 0; i < 105; i++) {
+      fs.writeFileSync(path.join(sb.repo, `dirty-${String(i).padStart(3, '0')}.txt`), 'x\n');
+    }
+
+    const r = run(sb, ['implement', 'a task']);
+    assert.equal(r.code, 0, r.stderr);
+    const id = jobIdOf(r.stdout);
+    assert.equal(await waitForJob(sb, id), 'done');
+
+    const [argv] = await waitForCalls(sb, 1);
+    const prompt = promptOf(argv);
+    assert.match(prompt, /`git status --porcelain` before this run \(bounded summary\):/);
+    assert.match(prompt, /\?\? dirty-000\.txt/);
+    assert.match(prompt, /\?\? dirty-099\.txt/);
+    assert.doesNotMatch(prompt, /\?\? dirty-100\.txt/);
+    assert.match(prompt, /truncated to 100 of 105 entries/);
+    assert.match(prompt, /Run `git status --porcelain` and inspect relevant diffs/);
   });
 
   test('implement outside a git repository warns and proceeds', async () => {
@@ -247,7 +284,7 @@ describe('tiered git guards: implement', () => {
     assert.doesNotMatch(res.stdout, /\[agy-staff\]/);
     assert.match(jobLog(sb, id), /\[agy-staff\] mode=implement profile=unrestricted/);
     // no git → no tree report of either kind
-    assert.doesNotMatch(res.stdout, /\[unrestricted\] Working tree unchanged/);
+    assert.doesNotMatch(res.stdout, /\[unrestricted\] Working tree clean after implement/);
     assert.doesNotMatch(res.stdout, /\[unrestricted\] agy modified the working tree/);
   });
 
@@ -261,7 +298,7 @@ describe('tiered git guards: implement', () => {
     const res = run(sb, ['result', id]);
     assert.equal(res.code, 0, res.stderr);
     // the guard warning stays in the body …
-    assert.match(res.stdout, /\[unrestricted\] Working tree unchanged/);
+    assert.match(res.stdout, /\[unrestricted\] Working tree clean after implement/);
     assert.doesNotMatch(res.stdout, /\[loose\]/);
     // … the telemetry does not, it is in the worker log instead
     assert.doesNotMatch(res.stdout, /\[agy-staff\]/);
@@ -283,6 +320,26 @@ describe('tiered git guards: implement', () => {
     assert.match(res.stdout, /\[unrestricted\] agy modified the working tree\./);
     assert.match(res.stdout, /New untracked files: agy-wrote\.txt/);
     assert.match(res.stdout, /ACTION FOR THE CALLING AGENT/);
+  });
+
+  test('implement continuation can build on its own dirty result', async () => {
+    const sb = sandbox('impl-continue-dirty');
+    const first = run(sb, ['implement', 'write a file'], {
+      FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-wrote.txt'),
+    });
+    assert.equal(first.code, 0, first.stderr);
+    assert.equal(await waitForJob(sb, jobIdOf(first.stdout)), 'done');
+
+    const cont = run(sb, ['continue', 'refine the same change']);
+    assert.equal(cont.code, 0, cont.stderr);
+    assert.match(cont.stdout, /Started background implement job\./);
+    assert.equal(await waitForJob(sb, jobIdOf(cont.stdout)), 'done');
+
+    const calls = await waitForCalls(sb, 2);
+    assert.equal(calls[1][calls[1].indexOf('--conversation') + 1], 'conv-1');
+    assert.match(promptOf(calls[1]), /refine the same change/);
+    assert.match(promptOf(calls[1]), /## Existing workspace changes/);
+    assert.match(promptOf(calls[1]), /agy-wrote\.txt/);
   });
 });
 
