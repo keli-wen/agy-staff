@@ -53,7 +53,7 @@ codex plugin add agy@agy-staff
 装完**重启 harness**，技能才会加载。首次运行：`/agy:ask "reply with OK"`——ask 不用任何工具、不需要 setup，装完就能用。
 
 > [!IMPORTANT]
-> **没有必须先做的 setup 步骤。** `staffer`、`researcher`、`reviewer`、`implementer` 默认以 **unrestricted** 档运行：agy 自己收集证据、自己改文件，主要由 prompt 模板约束。`implementer` 把 dirty workspace 作为有界 prompt context 处理；只有任务明确要求对应交付时，agy 才能 commit、push 或打开 PR。
+> **没有必须先做的 setup 步骤。** `staffer`、`researcher`、`reviewer`、`implementer` 默认以 **unrestricted** 档运行：agy 可以自己看仓库、跑命令、改文件。agy-staff 靠一层会看当前仓库状态的 prompt 来约束它。比如 `implementer` 遇到 dirty workspace 时，companion 会告诉 agy 哪些文件本来就有改动，并提醒它不要覆盖或交付无关的用户改动。只有任务明确要求 commit、push 或 PR 时，agy 才做对应交付；否则它只留下工作区 diff 供你审查。
 > `setup` + `--restricted` 是**可选的加固手段**，处理不可信输入时才需要——既可按次传 `--restricted`，也可用 `setup --restrict review,research` 设为本仓库默认。`setup` 会先 dry run，经你确认才写入（对 agent 说「set up agy」即可触发）；用之前请读[权限说明](docs/REFERENCE.zh-CN.md#可选加固-setup)——allowlist 按前缀匹配、对整台机器生效，restricted 档运行返回的内容也可能比 unrestricted 少。
 
 #### 给 Agent

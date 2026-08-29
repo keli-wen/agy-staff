@@ -53,7 +53,7 @@ codex plugin add agy@agy-staff
 Restart the harness afterwards so the skills load, then first run: `/agy:ask "reply with OK"` — ask is tool-free and works with zero setup.
 
 > [!IMPORTANT]
-> **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy gathers evidence and edits files on its own, guarded by prompt templates. `implementer` treats dirty workspaces as bounded prompt context, and agy may commit/push/open a PR only when the task explicitly asks for that delivery.
+> **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy can inspect the repo, run commands, and edit files. agy-staff keeps that practical with prompts that adapt to the current repo state. For example, when `implementer` starts in a dirty workspace, the companion tells agy which files already had changes and reminds it not to overwrite or deliver unrelated user work. If the task asks for a commit, push, or PR, agy can do that delivery; otherwise it leaves a working-tree diff for review.
 > `setup` + `--restricted` is **optional hardening** for untrusted input — per run (`--restricted`) or as a per-repo default (`setup --restrict review,research`). `setup` dry-runs and asks before writing anything ("set up agy" triggers it); read the [permission notes](docs/REFERENCE.md#optional-hardening-setup) first — the allowlist is prefix-matched, applies machine-wide, and a restricted run can return less than an unrestricted one.
 
 #### For agents
