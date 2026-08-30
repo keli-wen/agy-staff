@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*)
 
 # agy ask
 
-The quick mode: one question in, one answer out, ~3 seconds on the default `gemini-3.7-flash-low`. Zero tools by design (restricted profile, question-only prompt), so it needs no setup and works on a fresh install — run it first as the smoke test: `ask "reply with OK"`.
+The quick mode: one question in, one answer out, ~3 seconds on the default `gemini-3.7-flash-low`. Zero tools by design (restricted profile, question-only prompt), so it needs no setup and works on a fresh install — run it first as the smoke test: `ask --prompt "reply with OK"`.
 
 ask is the only persona that runs in the foreground: the call blocks and the answer comes back on stdout. staffer, researcher, reviewer, and implementer instead return a background job id (see the jobs skill, `../jobs/SKILL.md`).
 
@@ -16,14 +16,17 @@ ask is the only persona that runs in the foreground: the call blocks and the ans
 This skill file lives at `<plugin-root>/skills/ask/SKILL.md`; resolve the companion path relative to this skill directory:
 
 ```bash
-node "<skill-dir>/../../companion/agy-companion.mjs" ask [flags] "question"
+node "<skill-dir>/../../companion/agy-companion.mjs" ask [flags] --prompt "question"
 ```
+
+Pass the user's question verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for a long question.
 
 > [!IMPORTANT]
 > Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`.
 
 ## Flags (all optional)
 
+- `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the question, from exactly one of these three sources. Use file/stdin for a long question.
 - `--continue` — reuse the last ask conversation; `--conversation <id>` targets a specific one.
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.7-flash-low`.
 - `--timeout <dur>` — default 2m.

@@ -76,7 +76,7 @@ describe('profile precedence: flag > project policy > default', () => {
   test('a policy-restricted mode runs without --dangerously-skip-permissions', async () => {
     const sb = sandbox('policy-applies');
     run(sb, ['setup', '--restrict', 'review']);
-    const r = run(sb, ['review', 'Review the current working tree']);
+    const r = run(sb, ['review', '--prompt', 'Review the current working tree']);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /profile: restricted/);
     assert.match(r.stderr, /profile=restricted set by project policy/);
@@ -90,7 +90,7 @@ describe('profile precedence: flag > project policy > default', () => {
   test('unlisted modes keep the built-in default', async () => {
     const sb = sandbox('policy-unlisted');
     run(sb, ['setup', '--restrict', 'review']);
-    const r = run(sb, ['research', 'a topic']);
+    const r = run(sb, ['research', '--prompt', 'a topic']);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /profile: unrestricted/);
     const calls = await waitForCalls(sb, 1);
@@ -100,7 +100,7 @@ describe('profile precedence: flag > project policy > default', () => {
   test('an explicit flag overrides the policy', async () => {
     const sb = sandbox('policy-flag-wins');
     run(sb, ['setup', '--restrict', 'review']);
-    const r = run(sb, ['review', '--unrestricted', 'Review the current working tree']);
+    const r = run(sb, ['review', '--unrestricted', '--prompt', 'Review the current working tree']);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /profile: unrestricted/);
     assert.doesNotMatch(r.stderr, /set by project policy/);
@@ -120,7 +120,7 @@ describe('profile precedence: flag > project policy > default', () => {
     const sb = sandbox('policy-corrupt');
     fs.mkdirSync(path.join(sb.repo, '.agy-staff'), { recursive: true });
     fs.writeFileSync(configFile(sb), '{nope');
-    const r = run(sb, ['review', 'Review the tree']);
+    const r = run(sb, ['review', '--prompt', 'Review the tree']);
     assert.notEqual(r.code, 0);
     assert.match(r.stderr, /project config is corrupt/);
   });

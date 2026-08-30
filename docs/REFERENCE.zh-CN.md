@@ -113,20 +113,43 @@ policy 写入 `<repo>/.agy-staff/config.json`，之后自动生效（运行时�
 | `--restrict <modes\|none>` | （setup）仓库级 policy：列出的模式在本仓库默认 restricted；`none` 清除。见[仓库级 policy](#仓库级-policysetup---restrict) |
 | `--json` | （review）按 schema 强制输出 JSON findings；默认是自由格式 markdown。面向代码审查 flavor |
 | `--timeout <dur>` | agy 的 `--print-timeout`（默认：staffer/research/implement 10m，review 5m，ask 2m） |
+| `--prompt <text>` | 任务正文，作为**一个**参数传入。请加引号；引号里的内容一律不透明 |
 | `--prompt-file <path>` | 从文件读任务文本——长 prompt 用它，不用跟 shell 引号搏斗 |
-| `--stdin` | 从 stdin 读任务文本。每次调用只允许一个任务来源：内联文本、`--prompt-file` 或 `--stdin` |
+| `--stdin` | 从 stdin 读任务文本。每次调用只允许一个任务来源：`--prompt`、`--prompt-file` 或 `--stdin` |
 
 这张表就是全部对外接口。执行方式没有对应 flag——见上面的模式表。
+
+## 任务正文
+
+这一节讲的是 **companion CLI**，不是人格的调用方式。你在斜杠命令后面直接写自然语言任务（`/agy:reviewer Review PR #730`）；skill 会读它，再组装成下面的 `--prompt` 调用。`--prompt` 不需要你自己写。
+
+所有运行类命令（`staffer`、`research`、`review`、`implement`、`ask`、`continue`）的任务正文来自三个来源中的**恰好一个**：
+
+```
+ask       --prompt "what does git diff --check verify?"
+research  --prompt-file /tmp/task.md
+review    --stdin < /tmp/task.md
+```
+
+同时给两个是错误（`task text given more than one way (…) — use exactly one`），一个都不给也是错误。
+
+**不透明性保证。** companion 只解析一次 shell 交给它的 argv，且完全按照 shell 交付的样子：不切分任何一个参数，不解释引号，也不检查任务正文里的任何一个字节。你的任务正文会逐字节送到 agy——空白、引号、换行全部保留——其中形似 flag 的文本（`--check`、`--json`、`--timeout`，乃至未知的 `--whatever`）就是 prompt 内容，而不是 companion 选项。`--prompt-file` 和 `--stdin` 的内容同理。
+
+当 `--prompt` 的值是一个真正的句子（即含有空白）时，它可以以 `--` 开头：`ask --prompt "--check means what?"` 是有效的。不含任何空白、形似 flag 的值会被读作「忘了写值」并拒绝。`--` 本身没有特殊含义，它会被当作未知 flag 解析。
+
+带值的 flag（`--conversation`、`--model`、`--effort`、`--timeout`、`--restrict`、`--prompt`、`--prompt-file`）都需要一个值。缺失的值、空字符串值，以及形似 flag 的值（`--prompt` 的整句情况除外，见上）都是错误，所以 `--model ""` 是错误。
+
+每个 flag 都是独立的一个参数。多个 flag 被打包进同一个引号字符串（`review "--restricted Review PR #730"`）是错误，companion 会直接给出修法，而不是去猜 flag 在哪里结束、任务从哪里开始。
 
 ## review 完全基于 prompt
 
 `review` 接受一段「审查对象」的描述，然后自己去收集证据（PR 用 `gh pr view`/`gh pr diff`，ref 和工作区用 `git diff`/`git log`，补丁则直接读文件）。没有任何 flag 可以直接传入 diff；请在 prompt 里描述对象：
 
 ```
-review "Review PR #730"
-review "Review the current working tree"
-review "Review changes against master"
-review "Review the patch at /tmp/change.patch"
+review --prompt "Review PR #730"
+review --prompt "Review the current working tree"
+review --prompt "Review changes against master"
+review --prompt "Review the patch at /tmp/change.patch"
 ```
 
 任务描述为空是错误——`review` 必须有审查对象。若对象有歧义，模板要求 agy 报告这个歧义，而不是猜你想审什么。
@@ -163,6 +186,7 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 - **"agy reported an error (status ERROR)"** — companion 会原样转述 agy 自己的报错，且只在错误文本确实匹配时才追加原因提示（模型 id 无效 → 运行 `agy models`；登录过期 → 交互式运行一次 `agy` 重新登录；额度用尽）。如果 agy 报了错但完整的 response 已经产出（例如收尾时一次工具调用超时），companion 会照常交付：退出码 0，response 走 stdout，警告走 stderr（`done_with_warnings`）——只有没有 response 的运行才算失败。
 - **`~/.gemini/...` 上的 `operation not permitted` / `bind: operation not permitted` / 终端里 `agy` 明明正常却突然"authentication failed"** — agy 被放进了 harness 的命令沙箱里执行（典型是 Codex 的 workspace-write）。agy 无法在沙箱内运行：它要为内部 language server 绑定 localhost 端口、还要读自己的 OAuth token 文件，而沙箱的凭据保护会直接把 token 藏起来——无论开多少 `writable_roots`/`network_access` 都救不回来。companion 命令必须在沙箱外执行——Codex 里给该 workspace 授予 full access，或以 escalated 权限批准命令。
 - **空响应但 "status SUCCESS"** — 只会出现在 restricted 档的运行里（传了 `--restricted`，或项目 policy 把该模式设成了 restricted）：即使所有工具调用都被拒绝，agy 也会报 success；此时内容为空、stderr 带权限提示。companion 会检测到并给出修复方式：跑一次 `setup` 把 allowlist 装上，或者放宽权限档（去掉 `--restricted`；来自 policy 的话用 `setup --restrict none`）。另有一个 agy 自身的限制：部分工具在 headless 下完全无视 allow-rules，只在跳过权限时可用——这类操作永远需要 unrestricted 的运行。（`ask` 不可能触发此情况；若触发请报 bug。）
+- **"unknown flag --X: the whole string … arrived as a single argument"** — 多个 flag（通常还带着任务正文）被引号打包成了一个参数。每个 flag 都要作为独立参数传，任务正文放进 `--prompt`。见[任务正文](#任务正文)。
 - **"task text exceeds the 200KB inline limit"** — 整个 prompt 作为单个 argv 传给 agy，macOS 的 ARG_MAX 约 1MB（agy 自己不读 stdin，所以 `--prompt-file`/`--stdin` 只解决 shell 引号问题，解决不了这个上限）。请缩短任务描述：把材料的位置（PR 号、ref、文件路径）指给 agy，让它自己去取内容，而不是整段粘进来。
 - **这些模式绝不要用 agy 的 `--sandbox`** — 它会把执行重定向到 agy 自己的 scratch 工作区（`~/.gemini/antigravity-cli/scratch`），看不到你真实的工作目录。companion 从不传该参数。
 - **implement 遇到 dirty workspace** — 即使仓库里已经有改动，`implement` 也可以启动。companion 会把一份有长度上限的状态摘要加进 agy 的 prompt，让它知道这些路径是用户已有改动。若任务没有明确包含这些改动，agy 应先询问，再决定是否覆盖、清理、stash、reset、删除、commit、push，或把它们放进 PR。
@@ -180,9 +204,9 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 | `--strict` | `--restricted` | 旧名保留一个版本仍可用，会在 stderr 打印一次弃用提示。语义不变。 |
 | `--loose` | `--unrestricted` | 旧名保留一个版本仍可用，会在 stderr 打印一次弃用提示。语义不变。 |
 | 输出中的权限档名 "strict"/"loose" | "restricted"/"unrestricted" | 纯改名；telemetry 行（stderr）现在打印 `profile=restricted` / `profile=unrestricted`。 |
-| `--diff-file <path>` | *（已移除）* | review 改为基于 prompt：`review "Review the patch at /tmp/change.patch"`。 |
-| `--pr <num>` | *（已移除）* | `review "Review PR #730"`。 |
-| `--target <ref>` | *（已移除）* | `review "Review changes against master"`。 |
+| `--diff-file <path>` | *（已移除）* | review 改为基于 prompt：`review --prompt "Review the patch at /tmp/change.patch"`。 |
+| `--pr <num>` | *（已移除）* | `review --prompt "Review PR #730"`。 |
+| `--target <ref>` | *（已移除）* | `review --prompt "Review changes against master"`。 |
 | `--background` / `--wait` | *（已移除）* | 执行方式按模式固定：`ask` 同步，`research`/`review`/`implement` 返回 job id，用 `status`/`result`/`cancel` 管理。 |
 
 已移除的 flag 会立即报错并在错误信息里给出替代写法；弃用的权限档别名在本版本内继续可用，下个版本删除。
@@ -200,6 +224,17 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 | *（无）* | `/agy:staffer` | 新增的通用模式，最小化 prompt |
 | `/agy:status`、`/agy:wait`、`/agy:result`、`/agy:cancel`、`/agy:continue`、`/agy:setup` | `jobs` skill（面向模型） | 用自然语言（「agy 的 job 好了吗」）；companion 子命令本身不变 |
 | 手动写 `.git/info/exclude` | 首次运行自动完成 | |
+
+## 从 0.4.4 迁移（破坏性变更）
+
+0.4.5 移除了 positional 任务正文。companion 只解析一次 shell 交给它的 argv，且绝不重新切分参数——正是这一点让任务正文里形似 flag 的文本变得安全（见[任务正文](#任务正文)）。代价是任务必须通过一个显式来源传入。
+
+| 0.4.4 | 0.4.5 | 说明 |
+|---|---|---|
+| `ask "question"`、`review "Review PR #730"`（positional 任务正文） | `ask --prompt "question"`、`review --prompt "Review PR #730"` | positional 正文是移除而不是弃用：运行类命令上出现 positional 参数会直接报错，并指出三个来源。`--prompt-file` 与 `--stdin` 不变。 |
+| 打包成一个大字符串，如 `review "--restricted Review PR #730"` | `review --restricted --prompt "Review PR #730"` | companion 不再把一个参数切分成多个 flag。若某个 flag 名里仍含空白，会得到一条指向此修法的错误。 |
+
+管理类命令（`status`、`wait`、`result`、`cancel`、`setup`）不受影响：它们的 positional 参数是 id 和取值，`wait <id> --timeout 30s` 与之前完全一致。
 
 ## 升级
 

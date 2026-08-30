@@ -1,6 +1,6 @@
 {
   "name": "agy",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Delegate work to Google's Antigravity CLI (agy) with fast Gemini access - five personas: staffer (general), researcher, reviewer (code and plans), implementer, ask.",
   "author": {
     "name": "Keli Wen",

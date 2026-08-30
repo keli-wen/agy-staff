@@ -14,8 +14,10 @@ Delegate a research task to the agy staffer via the shared companion script. You
 This skill file lives at `<plugin-root>/skills/researcher/SKILL.md`; resolve the companion path relative to this skill directory:
 
 ```bash
-node "<skill-dir>/../../companion/agy-companion.mjs" research [flags] "what to research"
+node "<skill-dir>/../../companion/agy-companion.mjs" research [flags] --prompt "what to research"
 ```
+
+Pass the user's research topic verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for a long brief.
 
 > [!IMPORTANT]
 > Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`.
@@ -33,7 +35,7 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 - `--continue` — reuse the last research conversation (quota-friendly, served largely from cache); `--conversation <id>` targets a specific one.
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.7-flash-high`.
 - `--restricted` / `--unrestricted` — permission profile. research defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy runs without `--dangerously-skip-permissions` and may only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
-- `--prompt-file <path>` / `--stdin` — task text from a file or stdin (long prompts).
+- `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
 - `--timeout <dur>` — default 10m.
 
 ## Rules

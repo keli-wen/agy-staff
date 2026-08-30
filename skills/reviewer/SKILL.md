@@ -19,8 +19,10 @@ The companion's template contributes only the reviewer stance, evidence discipli
 This skill file lives at `<plugin-root>/skills/reviewer/SKILL.md`; resolve the companion path relative to this skill directory:
 
 ```bash
-node "<skill-dir>/../../companion/agy-companion.mjs" review [flags] "what to review"
+node "<skill-dir>/../../companion/agy-companion.mjs" review [flags] --prompt "what to review"
 ```
+
+Pass the review subject verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for long text, which a composed task usually needs.
 
 > [!IMPORTANT]
 > Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`.
@@ -42,7 +44,7 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 - `--json` — schema-enforced JSON findings (verdict/summary/findings/could_not_verify) instead of markdown. Code-review flavor only, and only when the user asks for machine-readable output.
 - `--restricted` / `--unrestricted` — permission profile. review defaults to unrestricted, so it works out of the box and can run tests or reproduce a bug when the request asks for it. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
 - `--model <id>` / `--effort low|medium|high` (default `gemini-3.7-flash-medium`), `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 5m).
-- `--prompt-file <path>` / `--stdin` — task text from a file or stdin (long prompts; a composed task with the flavor framing usually is one).
+- `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts (a composed task with the flavor framing usually is one).
 
 ## Reviewing untrusted content
 

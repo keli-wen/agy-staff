@@ -14,7 +14,7 @@ import { sandbox, run, jobIdOf, jobLog, waitForJob } from './helpers.mjs';
 describe('status <id> exit codes', () => {
   test('running → 2, done → 0', async () => {
     const sb = sandbox('waitc-status');
-    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_SLEEP_MS: '3000' });
+    const started = run(sb, ['research', '--prompt', 'a topic'], { FAKE_AGY_SLEEP_MS: '3000' });
     const id = jobIdOf(started.stdout);
 
     const running = run(sb, ['status', id]);
@@ -30,7 +30,7 @@ describe('status <id> exit codes', () => {
     const sb = sandbox('waitc-status-err');
     // an ERROR with a response would be delivered (done_with_warnings); a real
     // failure has no response
-    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '' });
+    const started = run(sb, ['research', '--prompt', 'a topic'], { FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '' });
     const id = jobIdOf(started.stdout);
     await waitForJob(sb, id);
 
@@ -43,7 +43,7 @@ describe('status <id> exit codes', () => {
 describe('wait', () => {
   test('blocks until done, prints the result, exits 0', async () => {
     const sb = sandbox('wait-done');
-    const started = run(sb, ['research', 'a topic']);
+    const started = run(sb, ['research', '--prompt', 'a topic']);
     const id = jobIdOf(started.stdout);
 
     const r = run(sb, ['wait', id]);
@@ -54,7 +54,7 @@ describe('wait', () => {
 
   test('the delivered result is the body only; telemetry stays in the job log', async () => {
     const sb = sandbox('wait-telemetry');
-    const started = run(sb, ['research', 'a topic']);
+    const started = run(sb, ['research', '--prompt', 'a topic']);
     const id = jobIdOf(started.stdout);
 
     const r = run(sb, ['wait', id]);
@@ -70,7 +70,7 @@ describe('wait', () => {
 
   test('own timeout while the job runs → exit 2, then a second wait succeeds', async () => {
     const sb = sandbox('wait-timeout');
-    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_SLEEP_MS: '5000' });
+    const started = run(sb, ['research', '--prompt', 'a topic'], { FAKE_AGY_SLEEP_MS: '5000' });
     const id = jobIdOf(started.stdout);
 
     const first = run(sb, ['wait', id, '--timeout', '1s']);
@@ -85,7 +85,7 @@ describe('wait', () => {
 
   test('failed job → exit 3 with the stored error', async () => {
     const sb = sandbox('wait-error');
-    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '' });
+    const started = run(sb, ['research', '--prompt', 'a topic'], { FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '' });
     const id = jobIdOf(started.stdout);
 
     const r = run(sb, ['wait', id]);
@@ -95,7 +95,7 @@ describe('wait', () => {
 
   test('canceled job → exit 4', async () => {
     const sb = sandbox('wait-cancel');
-    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_SLEEP_MS: '8000' });
+    const started = run(sb, ['research', '--prompt', 'a topic'], { FAKE_AGY_SLEEP_MS: '8000' });
     const id = jobIdOf(started.stdout);
     run(sb, ['cancel', id]);
 
@@ -107,7 +107,7 @@ describe('wait', () => {
     const sb = sandbox('wait-default');
     assert.equal(run(sb, ['wait', 'no-such-job']).code, 1);
 
-    const started = run(sb, ['research', 'a topic']);
+    const started = run(sb, ['research', '--prompt', 'a topic']);
     const id = jobIdOf(started.stdout);
     const r = run(sb, ['wait']);
     assert.equal(r.code, 0, r.stderr);

@@ -29,7 +29,7 @@ test('background job survives an instant worker (registered before spawn)', asyn
   const sb = sandbox('instant-worker');
   // No latency floor: with post-spawn registration this made the job record
   // vanish from state.json (~30% of runs); pre-spawn registration must hold.
-  const r = run(sb, ['research', 'quick task'], { FAKE_AGY_SLEEP_MS: '0' });
+  const r = run(sb, ['research', '--prompt', 'quick task'], { FAKE_AGY_SLEEP_MS: '0' });
   assert.equal(r.code, 0);
   const id = jobIdOf(r.stdout);
   const status = await waitForJob(sb, id);
