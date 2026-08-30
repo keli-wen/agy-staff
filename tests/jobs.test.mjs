@@ -18,7 +18,7 @@ import {
 describe('background job lifecycle', () => {
   test('status → result → cancel over one finished job', async () => {
     const sb = sandbox('lifecycle');
-    const started = run(sb, ['research', 'a topic']);
+    const started = run(sb, ['research', '--prompt', 'a topic']);
     assert.equal(started.code, 0, started.stderr);
     const id = jobIdOf(started.stdout);
 
@@ -69,10 +69,10 @@ describe('background job lifecycle', () => {
 describe('continue inherits the resumed mode default', () => {
   test('after ask, continue runs in the foreground', () => {
     const sb = sandbox('continue-ask');
-    const first = run(sb, ['ask', 'what is 2 plus 2?']);
+    const first = run(sb, ['ask', '--prompt', 'what is 2 plus 2?']);
     assert.equal(first.code, 0, first.stderr);
 
-    const cont = run(sb, ['continue', 'and what about 3 plus 3?']);
+    const cont = run(sb, ['continue', '--prompt', 'and what about 3 plus 3?']);
     assert.equal(cont.code, 0, cont.stderr);
     assert.match(cont.stdout, /fake answer/);
     assert.doesNotMatch(cont.stdout, /\[agy-staff\]/);
@@ -90,11 +90,11 @@ describe('continue inherits the resumed mode default', () => {
 
   test('after research, continue starts a background job', async () => {
     const sb = sandbox('continue-research');
-    const first = run(sb, ['research', 'a topic']);
+    const first = run(sb, ['research', '--prompt', 'a topic']);
     assert.equal(first.code, 0, first.stderr);
     await waitForJob(sb, jobIdOf(first.stdout));
 
-    const cont = run(sb, ['continue', 'dig into the second part']);
+    const cont = run(sb, ['continue', '--prompt', 'dig into the second part']);
     assert.equal(cont.code, 0, cont.stderr);
     assert.match(cont.stdout, /Started background research job\./);
     const secondId = jobIdOf(cont.stdout);
@@ -107,7 +107,7 @@ describe('continue inherits the resumed mode default', () => {
 
   test('continue with no follow-up text and no history fails', () => {
     const sb = sandbox('continue-empty');
-    const none = run(sb, ['continue', 'text with no history']);
+    const none = run(sb, ['continue', '--prompt', 'text with no history']);
     assert.notEqual(none.code, 0);
     assert.match(none.stderr, /no previous agy-staff conversation recorded/);
   });

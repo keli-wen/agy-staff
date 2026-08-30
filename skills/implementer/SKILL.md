@@ -14,8 +14,10 @@ Hand a coding task to the agy staffer. agy edits the real working tree under its
 This skill file lives at `<plugin-root>/skills/implementer/SKILL.md`; resolve the companion path relative to this skill directory:
 
 ```bash
-node "<skill-dir>/../../companion/agy-companion.mjs" implement [flags] "task description"
+node "<skill-dir>/../../companion/agy-companion.mjs" implement [flags] --prompt "task description"
 ```
+
+Pass the user's task description verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for long text.
 
 > [!IMPORTANT]
 > Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`. (The companion passes `--dangerously-skip-permissions` to agy in this mode — that is the unrestricted profile working as designed.)
@@ -39,7 +41,7 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 
 - `--restricted` / `--unrestricted` — permission profile. implement defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it can usually only propose rather than edit, and it needs the setup flow's evidence-gathering allowlist to be useful.
 - `--continue` (or `--conversation <id>`), `--model <id>` / `--effort low|medium|high` (default `gemini-3.7-flash-high`), `--timeout <dur>` (default 10m).
-- `--prompt-file <path>` / `--stdin` — task text from a file or stdin (long prompts).
+- `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
 
 ## Rules
 

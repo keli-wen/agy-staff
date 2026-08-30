@@ -113,20 +113,43 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 | `--restrict <modes\|none>` | (setup) per-repo policy: the listed modes default to restricted in this repository; `none` clears it. See [Per-repo policy](#per-repo-policy-setup---restrict) |
 | `--json` | (review) schema-enforced JSON findings; default is free-form markdown. Meant for the code-review flavor |
 | `--timeout <dur>` | agy `--print-timeout` (defaults: 10m staffer/research/implement, 5m review, 2m ask) |
+| `--prompt <text>` | the task text as one argument. Quote it; whatever is inside is opaque |
 | `--prompt-file <path>` | read the task text from a file — for long prompts, instead of shell quoting |
-| `--stdin` | read the task text from stdin. Exactly one task source per call: inline text, `--prompt-file`, or `--stdin` |
+| `--stdin` | read the task text from stdin. Exactly one task source per call: `--prompt`, `--prompt-file`, or `--stdin` |
 
 That table is the whole public surface. There is no flag for execution style — see the modes table above.
+
+## Task text
+
+This section is about the **companion CLI**, not about how you invoke a persona. You type your task as plain text after the slash command (`/agy:reviewer Review PR #730`); the skill reads it and composes the `--prompt` call below. You never type `--prompt` yourself.
+
+Every run command (`staffer`, `research`, `review`, `implement`, `ask`, `continue`) takes its task from **exactly one** of three sources:
+
+```
+ask       --prompt "what does git diff --check verify?"
+research  --prompt-file /tmp/task.md
+review    --stdin < /tmp/task.md
+```
+
+Giving two at once is an error (`task text given more than one way (…) — use exactly one`), and giving none is an error too.
+
+**The opacity guarantee.** The companion parses the shell's argv once, exactly as the shell delivered it: it re-splits no argument, interprets no quotes, and inspects no byte of a task value. Your task reaches agy byte for byte — whitespace, quotes and newlines included — and flag-like text inside it (`--check`, `--json`, `--timeout`, an unknown `--whatever`) is prompt content, never a companion option. The same holds for `--prompt-file` and `--stdin` contents.
+
+`--prompt` accepts a value that starts with `--` when it is a real sentence, meaning one that contains whitespace: `ask --prompt "--check means what?"` works. A flag-shaped value with no whitespace reads as a forgotten value and is rejected. `--` itself carries no special meaning; it parses as an unknown flag.
+
+Value flags (`--conversation`, `--model`, `--effort`, `--timeout`, `--restrict`, `--prompt`, `--prompt-file`) require a value. A missing one, an empty one, and — apart from the `--prompt` sentences above — a flag-shaped one are all errors, so `--model ""` is an error.
+
+Each flag is its own argument. Flags packed into a single quoted string (`review "--restricted Review PR #730"`) are an error that names the fix rather than a guess at where the flags end and the task begins.
 
 ## Review is prompt-based
 
 `review` takes a subject description and gathers the evidence itself with the tools it has (`gh pr view`/`gh pr diff` for PRs, `git diff`/`git log` for refs and the working tree, reading files for patches). There is no flag that hands it a diff; describe the subject in the prompt instead:
 
 ```
-review "Review PR #730"
-review "Review the current working tree"
-review "Review changes against master"
-review "Review the patch at /tmp/change.patch"
+review --prompt "Review PR #730"
+review --prompt "Review the current working tree"
+review --prompt "Review changes against master"
+review --prompt "Review the patch at /tmp/change.patch"
 ```
 
 An empty task string is an error — `review` needs a subject. If the subject is ambiguous, agy is instructed to report the ambiguity rather than guess at what you meant.
@@ -163,6 +186,7 @@ Automatic since 0.4: when the companion creates `.agy-staff/` for the first time
 - **"agy reported an error (status ERROR)"** — the companion relays agy's own error verbatim, and appends a cause hint only when the error text actually matches one (invalid model id → run `agy models`; expired auth → run `agy` interactively once to re-login; exhausted quota). If agy reported an error but still returned a complete response (e.g. one tool call timed out during wrap-up), the companion delivers the response anyway — exit 0, response on stdout, warning on stderr (`done_with_warnings`); only a run with no response fails.
 - **`operation not permitted` on `~/.gemini/...` / `bind: operation not permitted` / sudden "authentication failed" while `agy` works fine in your terminal** — agy was launched inside a harness command sandbox (typically Codex's workspace-write). agy cannot run sandboxed: it binds a localhost port for its internal language server and reads its OAuth token file, and sandbox secret-protection hides that token no matter which `writable_roots`/`network_access` knobs you open. Run companion commands unsandboxed — in Codex, grant the workspace full access or approve the command with escalated permissions.
 - **Empty response, "status SUCCESS"** — only happens on a restricted run (`--restricted`, or a project policy that restricts the mode): agy reports success even when every tool call was denied, so the content is empty and stderr carries a permission note. The companion detects this and tells you the fix: run `setup` once so the allowlist exists, or relax the profile (drop `--restricted`, or `setup --restrict none` if it came from the policy). Caveat baked into agy: some tools ignore allow-rules in headless mode entirely and only work with the skip flag — those always need an unrestricted run. (`ask` cannot hit this case; if it does, report a bug.)
+- **"unknown flag --X: the whole string … arrived as a single argument"** — several flags, and usually the task, are quoted into one argument. Each flag is its own argument; the task belongs in `--prompt`. See [Task text](#task-text).
 - **"task text exceeds the 200KB inline limit"** — the whole prompt travels to agy as one argv entry and macOS ARG_MAX is ~1MB (agy itself does not read stdin, so `--prompt-file`/`--stdin` only fix shell quoting, not this ceiling). Shorten the task text: point agy at the material (a PR number, a ref, a file path) and let it fetch the content itself instead of pasting it in.
 - **Never use agy's `--sandbox` for these modes** — it redirects execution into agy's own scratch workspace (`~/.gemini/antigravity-cli/scratch`) and cannot see your real working directory. The companion never passes it.
 - **Dirty workspace on implement** — `implement` can start even when the repo already has changes. The companion adds a capped status summary to agy's prompt so it knows those paths are pre-existing user work. If the task does not clearly include them, agy should ask before overwriting, cleaning, stashing, resetting, deleting, committing, pushing, or opening a PR with those changes.
@@ -180,9 +204,9 @@ Automatic since 0.4: when the companion creates `.agy-staff/` for the first time
 | `--strict` | `--restricted` | Old name still accepted for one release; it warns on stderr. Same semantics. |
 | `--loose` | `--unrestricted` | Old name still accepted for one release; it warns on stderr. Same semantics. |
 | profile names "strict"/"loose" in output | "restricted"/"unrestricted" | Cosmetic rename; the telemetry line (stderr) now prints `profile=restricted` / `profile=unrestricted`. |
-| `--diff-file <path>` | *(removed)* | Review is prompt-based: `review "Review the patch at /tmp/change.patch"`. |
-| `--pr <num>` | *(removed)* | `review "Review PR #730"`. |
-| `--target <ref>` | *(removed)* | `review "Review changes against master"`. |
+| `--diff-file <path>` | *(removed)* | Review is prompt-based: `review --prompt "Review the patch at /tmp/change.patch"`. |
+| `--pr <num>` | *(removed)* | `review --prompt "Review PR #730"`. |
+| `--target <ref>` | *(removed)* | `review --prompt "Review changes against master"`. |
 | `--background` / `--wait` | *(removed)* | Execution style is fixed per mode: `ask` is synchronous, `research`/`review`/`implement` return a job id. Manage them with `status`/`result`/`cancel`. |
 
 Removed flags fail fast with a message naming the replacement; the deprecated profile aliases keep working through this release and will be deleted in the next one.
@@ -200,6 +224,17 @@ Removed flags fail fast with a message naming the replacement; the deprecated pr
 | *(none)* | `/agy:staffer` | new general-purpose mode with a minimal prompt |
 | `/agy:status`, `/agy:wait`, `/agy:result`, `/agy:cancel`, `/agy:continue`, `/agy:setup` | the `jobs` skill (model-facing) | ask in natural language ("is the agy job done?"); the companion subcommands are unchanged |
 | manual `.git/info/exclude` step | automatic on first run | |
+
+## Migration from 0.4.4 (breaking)
+
+0.4.5 removes positional task text. The companion parses the shell's argv once and never re-splits an argument, which is what makes flag-like text inside a task safe (see [Task text](#task-text)). The price is that the task must arrive through an explicit source.
+
+| 0.4.4 | 0.4.5 | Notes |
+|---|---|---|
+| `ask "question"`, `review "Review PR #730"` (positional task text) | `ask --prompt "question"`, `review --prompt "Review PR #730"` | Positional text is removed, not deprecated: a positional argument on a run command is an error naming the three sources. `--prompt-file` and `--stdin` are unchanged. |
+| one big string, e.g. `review "--restricted Review PR #730"` | `review --restricted --prompt "Review PR #730"` | The companion no longer splits an argument into flags. A flag name that still contains whitespace gets an error naming this fix. |
+
+Management commands (`status`, `wait`, `result`, `cancel`, `setup`) are untouched: their positional arguments are ids and values, and `wait <id> --timeout 30s` works exactly as before.
 
 ## Upgrading
 

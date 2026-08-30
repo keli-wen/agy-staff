@@ -11,8 +11,8 @@
  *                                   run a task as a background job (staffer is
  *                                   the general-purpose mode: a minimal prompt
  *                                   with no role or output-format framing)
- *   ask <question>                  cheap zero-tool one-shot Q&A (foreground)
- *   continue <text>                 continue the most recent conversation (any mode)
+ *   ask --prompt <question>         cheap zero-tool one-shot Q&A (foreground)
+ *   continue --prompt <text>        continue the most recent conversation (any mode)
  *   status [job-id]                 list background jobs / show one job
  *   wait [job-id] [--timeout 100s]  block until the job finishes, then print
  *                                   its result (exit 2 = still running: call
@@ -37,8 +37,16 @@
  *                         default for research/review/implement)
  *   --json                (review) ask agy for schema-enforced JSON findings
  *   --timeout <dur>       agy --print-timeout, e.g. 5m, 90s
+ *   --prompt <text>       the task text as one opaque argv value
  *   --prompt-file <path>  read the task text from a file (long prompts)
  *   --stdin               read the task text from stdin
+ *
+ * Task text for the run commands (staffer/research/review/implement/ask and
+ * continue) comes from exactly one of --prompt, --prompt-file, or --stdin.
+ * argv is parsed once, exactly as the shell delivered it, and the task value
+ * travels whole: never re-split, never scanned. Flag-like text inside a task
+ * (`--check`, `--json`, an unknown `--whatever`) is therefore ordinary prompt
+ * content and reaches agy byte for byte.
  *
  * Permissions: all tool-using modes (staffer/research/review/implement) run
  * unrestricted by default, so they work out of the box with no setup;
@@ -322,39 +330,7 @@ function pidAlive(pid) {
   }
 }
 
-/** Shell-like tokenizer so `node companion.mjs review "$ARGUMENTS"` works
- *  whether the caller passes one big string or real argv entries. */
-function tokenize(argv) {
-  const tokens = [];
-  for (const raw of argv) {
-    if (!/\s/.test(raw)) {
-      tokens.push(raw);
-      continue;
-    }
-    let cur = '';
-    let quote = null;
-    let has = false;
-    for (const ch of raw) {
-      if (quote) {
-        if (ch === quote) quote = null;
-        else { cur += ch; }
-      } else if (ch === '"' || ch === "'") {
-        quote = ch;
-        has = true;
-      } else if (/\s/.test(ch)) {
-        if (cur || has) tokens.push(cur);
-        cur = '';
-        has = false;
-      } else {
-        cur += ch;
-      }
-    }
-    if (cur || has) tokens.push(cur);
-  }
-  return tokens.filter((t) => t !== '');
-}
-
-const VALUE_FLAGS = new Set(['conversation', 'model', 'effort', 'timeout', 'restrict', 'prompt-file']);
+const VALUE_FLAGS = new Set(['conversation', 'model', 'effort', 'timeout', 'restrict', 'prompt', 'prompt-file']);
 const BOOL_FLAGS = new Set(['continue', 'restricted', 'unrestricted', 'json', 'apply', 'dry-run', 'stdin']);
 
 // Flags dropped in 0.2. They get their own error instead of falling through to
@@ -370,7 +346,7 @@ function migrationDie(name) {
   if (REMOVED_REVIEW_FLAGS.has(name)) {
     die(
       `--${name} was removed in 0.2: review is prompt-based now. Describe the subject in the prompt, ` +
-        `e.g. \`review "Review PR #730"\` or \`review "Review changes against master"\`.`
+        `e.g. \`review --prompt "Review PR #730"\` or \`review --prompt "Review changes against master"\`.`
     );
   }
   die(
@@ -379,10 +355,52 @@ function migrationDie(name) {
   );
 }
 
-function parseFlags(tokens) {
+/** A flag name that still contains whitespace means the caller packed several
+ *  arguments (and usually the task) into one quoted string. The companion does
+ *  not split argument strings, so say so and name the fix. */
+function packedArgumentDie(name, raw) {
+  const first = name.split(/\s+/)[0] || '';
+  const shown = raw.length > 60 ? `${raw.slice(0, 60)}…` : raw;
+  die(
+    `unknown flag --${first}: the whole string "${shown}" arrived as a single argument. ` +
+      `agy-staff parses argv exactly as the shell delivers it and never splits an argument into flags — ` +
+      `pass each flag as its own argument and put the task text in --prompt, ` +
+      `e.g. \`review --restricted --prompt "Review PR #730"\`.`
+  );
+}
+
+/** Reject a value flag whose value is missing, empty, or itself flag-shaped.
+ *  An empty value is a caller mistake worth surfacing rather than a default
+ *  request, and a flag-shaped value almost always means the value was
+ *  forgotten (`ask --prompt --json`). The one exception is
+ *  --prompt with a value containing whitespace: that is a real sentence that
+ *  happens to start with `--`, and prompt bytes are never second-guessed. */
+function checkValue(name, v) {
+  if (v === undefined || v === '') die(`flag --${name} needs a value`);
+  if (!v.startsWith('--')) return;
+  if (name === 'prompt') {
+    if (/\s/.test(v)) return;
+    die(
+      `flag --prompt needs a value (if your prompt really starts with --, ` +
+        `quote the full sentence or use --prompt-file)`
+    );
+  }
+  die(`flag --${name} needs a value`);
+}
+
+/**
+ * Parse the shell's argv once. Values are taken verbatim: nothing is re-split,
+ * no quotes are interpreted, no byte of a value is inspected for flags.
+ *
+ * `taskCommand` only changes what a positional means. Run commands take their
+ * task from --prompt/--prompt-file/--stdin, so a positional there is a caller
+ * mistake and dies loudly. Management commands (status/wait/result/cancel/
+ * setup) keep collecting positionals as ids and values.
+ */
+function parseFlags(argv, { taskCommand = false } = {}) {
   const opts = { _: [] };
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i];
+  for (let i = 0; i < argv.length; i++) {
+    const t = argv[i];
     if (t.startsWith('--')) {
       let name = t.slice(2);
       if (REMOVED_REVIEW_FLAGS.has(name) || REMOVED_EXEC_FLAGS.has(name)) migrationDie(name);
@@ -394,14 +412,21 @@ function parseFlags(tokens) {
         name = FLAG_ALIASES[name];
       }
       if (VALUE_FLAGS.has(name)) {
-        const v = tokens[++i];
-        if (v === undefined) die(`flag --${name} needs a value`);
+        const v = argv[++i];
+        checkValue(name, v);
         opts[name] = v;
       } else if (BOOL_FLAGS.has(name)) {
         opts[name] = true;
+      } else if (/\s/.test(name)) {
+        packedArgumentDie(name, t);
       } else {
         die(`unknown flag --${name}`);
       }
+    } else if (taskCommand) {
+      die(
+        `positional task text was removed; pass the task with --prompt <text>, ` +
+          `--prompt-file <path>, or --stdin`
+      );
     } else {
       opts._.push(t);
     }
@@ -689,17 +714,19 @@ function resolveRun(mode, opts) {
   return { mode, model, profile, profileSource, background, timeout, conversation };
 }
 
-/** Task text comes from exactly one source: inline argv, --prompt-file, or
- *  --stdin. Long prompts should use the latter two instead of shell quoting. */
+/** Task text comes from exactly one source: --prompt, --prompt-file, or
+ *  --stdin. Long prompts should use the latter two instead of shell quoting.
+ *  Whatever the source, the contents are opaque here: already a single string
+ *  by the time they arrive, and never scanned for companion flags. */
 function taskText(opts) {
-  const inline = opts._.join(' ').trim();
   const sources = [
-    inline && 'inline text',
-    opts['prompt-file'] && '--prompt-file',
+    opts.prompt !== undefined && '--prompt',
+    opts['prompt-file'] !== undefined && '--prompt-file',
     opts.stdin && '--stdin',
   ].filter(Boolean);
   if (sources.length > 1) die(`task text given more than one way (${sources.join(', ')}) — use exactly one`);
-  if (opts['prompt-file']) {
+  if (opts.prompt !== undefined) return opts.prompt.trim();
+  if (opts['prompt-file'] !== undefined) {
     try {
       return fs.readFileSync(opts['prompt-file'], 'utf8').trim();
     } catch (e) {
@@ -713,7 +740,7 @@ function taskText(opts) {
       die(`cannot read task text from stdin: ${e.message}`);
     }
   }
-  return inline;
+  return '';
 }
 
 function buildPrompt(mode, opts) {
@@ -724,7 +751,7 @@ function buildPrompt(mode, opts) {
     if (mode === 'ask') die('ask needs a question');
     if (mode === 'review') {
       die(
-        'review needs a subject description, e.g. review "Review PR #730" or review "Review the current working tree"'
+        'review needs a subject description, e.g. review --prompt "Review PR #730" or review --prompt "Review the current working tree"'
       );
     }
     die(`${mode} needs a task description`);
@@ -1357,16 +1384,18 @@ function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd) {
     die(
-      'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|status|wait|result|cancel|setup> [flags] [task]\n' +
+      'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|status|wait|result|cancel|setup> [flags]\n' +
         'flags: --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
-        '--prompt-file <path> --stdin --conversation <id> --continue --json (review) ' +
+        '--prompt <text> --prompt-file <path> --stdin --conversation <id> --continue --json (review) ' +
         '--apply --restrict <modes|none> (setup)\n' +
+        'task text for staffer/research/review/implement/ask/continue comes from exactly one of ' +
+        '--prompt <text>, --prompt-file <path>, or --stdin.\n' +
         'staffer/research/review/implement run unrestricted by default (no setup needed); --restricted is the ' +
         'hardening opt-in that uses the evidence-gathering allowlist from `setup`. ask is always tool-free. ' +
         'Per-repo policy: `setup --restrict review,research` makes those modes restricted by default here.'
     );
   }
-  const opts = parseFlags(tokenize(rest));
+  const opts = parseFlags(rest, { taskCommand: MODES.includes(cmd) || cmd === 'continue' });
 
   if (MODES.includes(cmd)) return cmdRun(cmd, opts);
   switch (cmd) {

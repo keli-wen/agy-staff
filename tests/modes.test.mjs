@@ -33,7 +33,7 @@ const SKIP = '--dangerously-skip-permissions';
 describe('execution style is fixed per mode', () => {
   test('ask runs in the foreground and returns the answer synchronously', () => {
     const sb = sandbox('ask');
-    const r = run(sb, ['ask', 'what is 2 plus 2?']);
+    const r = run(sb, ['ask', '--prompt', 'what is 2 plus 2?']);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /fake answer/);
     assert.doesNotMatch(r.stdout, /Started background/);
@@ -42,7 +42,7 @@ describe('execution style is fixed per mode', () => {
 
   test('ask keeps the answer on stdout and the telemetry on stderr', () => {
     const sb = sandbox('ask-telemetry');
-    const r = run(sb, ['ask', 'what is 2 plus 2?']);
+    const r = run(sb, ['ask', '--prompt', 'what is 2 plus 2?']);
     assert.equal(r.code, 0, r.stderr);
 
     // stdout is the deliverable only — no plumbing for the user to read
@@ -65,7 +65,7 @@ describe('execution style is fixed per mode', () => {
   ]) {
     test(`${mode} starts a background job immediately`, () => {
       const sb = sandbox(`bg-${mode}`);
-      const r = run(sb, [mode, task]);
+      const r = run(sb, [mode, '--prompt', task]);
       assert.equal(r.code, 0, r.stderr);
       assert.match(r.stdout, new RegExp(`Started background ${mode} job\\.`));
       const id = jobIdOf(r.stdout);
@@ -93,7 +93,7 @@ describe('permission profile wiring reaches the agy argv', () => {
   ]) {
     test(`${mode} defaults to unrestricted → passes --dangerously-skip-permissions`, async () => {
       const sb = sandbox(`prof-${mode}`);
-      const r = run(sb, [mode, task]);
+      const r = run(sb, [mode, '--prompt', task]);
       assert.equal(r.code, 0, r.stderr);
       assert.match(r.stdout, /profile: unrestricted/);
       assert.doesNotMatch(r.stdout, /profile: restricted/);
@@ -104,7 +104,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
     test(`${mode} --restricted opts out → no --dangerously-skip-permissions`, async () => {
       const sb = sandbox(`prof-${mode}-restricted`);
-      const r = run(sb, [mode, '--restricted', task]);
+      const r = run(sb, [mode, '--restricted', '--prompt', task]);
       assert.equal(r.code, 0, r.stderr);
       assert.match(r.stdout, /profile: restricted/);
       await waitForJob(sb, jobIdOf(r.stdout));
@@ -115,7 +115,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
   test('research --unrestricted is redundant but still explicit', async () => {
     const sb = sandbox('prof-research-un');
-    const r = run(sb, ['research', '--unrestricted', 'a topic']);
+    const r = run(sb, ['research', '--unrestricted', '--prompt', 'a topic']);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /profile: unrestricted/);
     await waitForJob(sb, jobIdOf(r.stdout));
@@ -125,7 +125,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
   test('ask never gets --dangerously-skip-permissions', () => {
     const sb = sandbox('prof-ask');
-    const r = run(sb, ['ask', 'what is 2 plus 2?']);
+    const r = run(sb, ['ask', '--prompt', 'what is 2 plus 2?']);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stderr, /profile=restricted/);
     const [argv] = agyCalls(sb);
@@ -134,7 +134,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
   test('ask --unrestricted is ignored: note on stderr, still restricted', () => {
     const sb = sandbox('prof-ask-un');
-    const r = run(sb, ['ask', '--unrestricted', 'what is 2 plus 2?']);
+    const r = run(sb, ['ask', '--unrestricted', '--prompt', 'what is 2 plus 2?']);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stderr, /^agy-staff: ask is tool-free; --unrestricted ignored$/m);
     assert.match(r.stderr, /profile=restricted/);
@@ -145,7 +145,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
   test('a --restricted run coming back empty gets the reworded triage message', async () => {
     const sb = sandbox('restricted-empty');
-    const started = run(sb, ['research', '--restricted', 'a topic'], {
+    const started = run(sb, ['research', '--restricted', '--prompt', 'a topic'], {
       FAKE_AGY_RESPONSE: '',
     });
     assert.equal(started.code, 0, started.stderr);
@@ -167,7 +167,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
   test('an unrestricted empty response never suggests setup or --restricted', async () => {
     const sb = sandbox('unrestricted-empty');
-    const started = run(sb, ['research', 'a topic'], { FAKE_AGY_RESPONSE: '' });
+    const started = run(sb, ['research', '--prompt', 'a topic'], { FAKE_AGY_RESPONSE: '' });
     assert.equal(started.code, 0, started.stderr);
     const id = jobIdOf(started.stdout);
     assert.equal(await waitForJob(sb, id), 'error');
@@ -180,7 +180,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
   test('EPERM in agy stderr gets the harness-sandbox hint', async () => {
     const sb = sandbox('sandbox-eperm');
-    const started = run(sb, ['research', 'a topic'], {
+    const started = run(sb, ['research', '--prompt', 'a topic'], {
       FAKE_AGY_NO_JSON: '1',
       FAKE_AGY_STDERR:
         'ERROR: creating log file: opening /home/u/.gemini/antigravity-cli/log/cli.log: operation not permitted',
@@ -197,7 +197,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 
   test('a non-JSON crash without EPERM gets no sandbox hint', async () => {
     const sb = sandbox('crash-no-hint');
-    const started = run(sb, ['research', 'a topic'], {
+    const started = run(sb, ['research', '--prompt', 'a topic'], {
       FAKE_AGY_NO_JSON: '1',
       FAKE_AGY_STDERR: 'segfault somewhere unrelated',
     });
@@ -214,7 +214,7 @@ describe('permission profile wiring reaches the agy argv', () => {
 describe('tiered git guards: implement', () => {
   test('implement defaults to high effort Flash', async () => {
     const sb = sandbox('impl-default-model');
-    const started = run(sb, ['implement', 'a task']);
+    const started = run(sb, ['implement', '--prompt', 'a task']);
     assert.equal(started.code, 0, started.stderr);
     assert.match(started.stdout, /model: gemini-3\.7-flash-high/);
 
@@ -228,7 +228,7 @@ describe('tiered git guards: implement', () => {
     const sb = sandbox('dirty');
     fs.writeFileSync(path.join(sb.repo, 'dirty.txt'), 'uncommitted\n');
 
-    const r = run(sb, ['implement', 'a task']);
+    const r = run(sb, ['implement', '--prompt', 'a task']);
     assert.equal(r.code, 0, r.stderr);
     assert.doesNotMatch(r.stderr, /unrestricted profile refused/);
     assert.match(r.stdout, /Started background implement job\./);
@@ -248,7 +248,7 @@ describe('tiered git guards: implement', () => {
       fs.writeFileSync(path.join(sb.repo, `dirty-${String(i).padStart(3, '0')}.txt`), 'x\n');
     }
 
-    const r = run(sb, ['implement', 'a task']);
+    const r = run(sb, ['implement', '--prompt', 'a task']);
     assert.equal(r.code, 0, r.stderr);
     const id = jobIdOf(r.stdout);
     assert.equal(await waitForJob(sb, id), 'done');
@@ -265,7 +265,7 @@ describe('tiered git guards: implement', () => {
 
   test('implement outside a git repository warns and proceeds', async () => {
     const sb = sandbox('no-git', { git: false });
-    const r = run(sb, ['implement', 'a task']);
+    const r = run(sb, ['implement', '--prompt', 'a task']);
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stderr, /not a git repository/);
     assert.match(r.stderr, /cannot be reviewed or rolled back via git/);
@@ -290,7 +290,7 @@ describe('tiered git guards: implement', () => {
 
   test('implement reports the tree with the [unrestricted] prefix', async () => {
     const sb = sandbox('guard-report');
-    const started = run(sb, ['implement', 'a task']);
+    const started = run(sb, ['implement', '--prompt', 'a task']);
     assert.equal(started.code, 0, started.stderr);
     const id = jobIdOf(started.stdout);
     assert.equal(await waitForJob(sb, id), 'done');
@@ -309,7 +309,7 @@ describe('tiered git guards: implement', () => {
 
   test('implement reports edits agy made on the clean tree', async () => {
     const sb = sandbox('impl-touched');
-    const started = run(sb, ['implement', 'a task'], {
+    const started = run(sb, ['implement', '--prompt', 'a task'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-wrote.txt'),
     });
     assert.equal(started.code, 0, started.stderr);
@@ -324,13 +324,13 @@ describe('tiered git guards: implement', () => {
 
   test('implement continuation can build on its own dirty result', async () => {
     const sb = sandbox('impl-continue-dirty');
-    const first = run(sb, ['implement', 'write a file'], {
+    const first = run(sb, ['implement', '--prompt', 'write a file'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-wrote.txt'),
     });
     assert.equal(first.code, 0, first.stderr);
     assert.equal(await waitForJob(sb, jobIdOf(first.stdout)), 'done');
 
-    const cont = run(sb, ['continue', 'refine the same change']);
+    const cont = run(sb, ['continue', '--prompt', 'refine the same change']);
     assert.equal(cont.code, 0, cont.stderr);
     assert.match(cont.stdout, /Started background implement job\./);
     assert.equal(await waitForJob(sb, jobIdOf(cont.stdout)), 'done');
@@ -352,7 +352,7 @@ describe('tiered git guards: review / research are never blocked', () => {
       const sb = sandbox(`dirty-${mode}`);
       fs.writeFileSync(path.join(sb.repo, 'dirty.txt'), 'uncommitted\n');
 
-      const r = run(sb, [mode, task]);
+      const r = run(sb, [mode, '--prompt', task]);
       assert.equal(r.code, 0, r.stderr);
       assert.doesNotMatch(r.stderr, /working tree is not clean/);
       assert.match(r.stdout, new RegExp(`Started background ${mode} job\\.`));
@@ -368,7 +368,7 @@ describe('tiered git guards: review / research are never blocked', () => {
 
   test('review outside a git repository runs with no tree report', async () => {
     const sb = sandbox('review-no-git', { git: false });
-    const r = run(sb, ['review', 'Review the working tree']);
+    const r = run(sb, ['review', '--prompt', 'Review the working tree']);
     assert.equal(r.code, 0, r.stderr);
     const id = jobIdOf(r.stdout);
     assert.equal(await waitForJob(sb, id), 'done');
@@ -383,7 +383,7 @@ describe('tiered git guards: review / research are never blocked', () => {
 describe('working-tree delta report (review / research)', () => {
   test('review reports the file agy touched during the run', async () => {
     const sb = sandbox('delta-review');
-    const r = run(sb, ['review', 'Review PR #730'], {
+    const r = run(sb, ['review', '--prompt', 'Review PR #730'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'sneaky.txt'),
     });
     assert.equal(r.code, 0, r.stderr);
@@ -410,7 +410,7 @@ describe('working-tree delta report (review / research)', () => {
 
   test('the delta report is silent when agy touched nothing', async () => {
     const sb = sandbox('delta-review-clean');
-    const r = run(sb, ['review', 'Review PR #730']);
+    const r = run(sb, ['review', '--prompt', 'Review PR #730']);
     assert.equal(r.code, 0, r.stderr);
     const id = jobIdOf(r.stdout);
     assert.equal(await waitForJob(sb, id), 'done');
@@ -427,7 +427,7 @@ describe('working-tree delta report (review / research)', () => {
     const sb = sandbox('delta-review-dirty');
     fs.writeFileSync(path.join(sb.repo, 'pre-existing.txt'), 'was here first\n');
 
-    const r = run(sb, ['review', 'Review the working tree'], {
+    const r = run(sb, ['review', '--prompt', 'Review the working tree'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'sneaky.txt'),
     });
     assert.equal(r.code, 0, r.stderr);
@@ -442,7 +442,7 @@ describe('working-tree delta report (review / research)', () => {
 
   test('research reports the delta too', async () => {
     const sb = sandbox('delta-research');
-    const r = run(sb, ['research', 'a topic'], {
+    const r = run(sb, ['research', '--prompt', 'a topic'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'notes.txt'),
     });
     assert.equal(r.code, 0, r.stderr);
@@ -459,7 +459,7 @@ describe('working-tree delta report (review / research)', () => {
 
   test('a --restricted review reports no delta (guards are unrestricted-only)', async () => {
     const sb = sandbox('delta-restricted');
-    const r = run(sb, ['review', '--restricted', 'Review PR #730'], {
+    const r = run(sb, ['review', '--restricted', '--prompt', 'Review PR #730'], {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'sneaky.txt'),
     });
     assert.equal(r.code, 0, r.stderr);
@@ -477,7 +477,7 @@ describe('working-tree delta report (review / research)', () => {
 describe('kept and rejected flags', () => {
   test('review --json passes a schema to agy', async () => {
     const sb = sandbox('review-json');
-    const r = run(sb, ['review', '--json', 'Review PR #730']);
+    const r = run(sb, ['review', '--json', '--prompt', 'Review PR #730']);
     assert.equal(r.code, 0, r.stderr);
     await waitForJob(sb, jobIdOf(r.stdout));
     const [argv] = await waitForCalls(sb, 1);
@@ -488,7 +488,7 @@ describe('kept and rejected flags', () => {
 
   test('an undocumented flag is rejected as unknown', () => {
     const sb = sandbox('unknown-flag');
-    const r = run(sb, ['research', '--nope', 'a topic']);
+    const r = run(sb, ['research', '--nope', '--prompt', 'a topic']);
     assert.notEqual(r.code, 0);
     assert.match(r.stderr, /unknown flag --nope/);
   });
@@ -501,14 +501,14 @@ describe('review is prompt-based', () => {
     assert.notEqual(r.code, 0);
     assert.match(
       r.stderr,
-      /review needs a subject description, e\.g\. review "Review PR #730" or review "Review the current working tree"/
+      /review needs a subject description, e\.g\. review --prompt "Review PR #730" or review --prompt "Review the current working tree"/
     );
     assert.equal(agyCalls(sb).length, 0);
   });
 
-  test('review "Review PR #730" works with no flags and puts the task in the prompt', async () => {
+  test('review --prompt "Review PR #730" works with no other flags and puts the task in the prompt', async () => {
     const sb = sandbox('review-pr');
-    const r = run(sb, ['review', 'Review PR #730']);
+    const r = run(sb, ['review', '--prompt', 'Review PR #730']);
     assert.equal(r.code, 0, r.stderr);
     await waitForJob(sb, jobIdOf(r.stdout));
     const [argv] = await waitForCalls(sb, 1);

@@ -1,6 +1,6 @@
 # Composing a code-review task
 
-Read this when the review subject is code: a PR, a branch or ref, the working tree, a patch file, or specific files. The companion's template carries only the reviewer stance and guardrails; the code-review contract below travels in the task string. Compose the task as the user's request, verbatim, followed by this contract — adjusted only where the request explicitly overrides it. A composed task is usually long: pass it with `--prompt-file` or `--stdin`.
+Read this when the review subject is code: a PR, a branch or ref, the working tree, a patch file, or specific files. The companion's template carries only the reviewer stance and guardrails; the code-review contract below travels in the task string. Compose the task as the user's request, verbatim, followed by this contract — adjusted only where the request explicitly overrides it. A composed task is usually long: pass it with `--prompt-file` or `--stdin` rather than `--prompt` (the three are the only task sources, and exactly one per call).
 
 The standards and spec-alignment axes are adapted from `code-review` in [mattpocock/skills](https://github.com/mattpocock/skills) (MIT).
 

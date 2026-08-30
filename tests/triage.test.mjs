@@ -15,7 +15,7 @@ import { sandbox, run, jobIdOf, jobLog, waitForJob } from './helpers.mjs';
 describe('done_with_warnings: non-SUCCESS status with a complete response', () => {
   test('foreground (ask): exit 0, response intact on stdout, warning on stderr', () => {
     const sb = sandbox('triage-warn-fg');
-    const r = run(sb, ['ask', 'a question'], {
+    const r = run(sb, ['ask', '--prompt', 'a question'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: 'the full answer, produced before the failure',
     });
@@ -27,7 +27,7 @@ describe('done_with_warnings: non-SUCCESS status with a complete response', () =
 
   test('background (research): job ends done, wait exits 0 and prints the response', async () => {
     const sb = sandbox('triage-warn-bg');
-    const started = run(sb, ['research', 'a topic'], {
+    const started = run(sb, ['research', '--prompt', 'a topic'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: 'survey results',
     });
@@ -44,7 +44,7 @@ describe('done_with_warnings: non-SUCCESS status with a complete response', () =
 describe('cause hints are conditional on the error text', () => {
   test('an unrelated error (tool timeout) gets no model/auth/quota hint', () => {
     const sb = sandbox('triage-hint-none');
-    const r = run(sb, ['ask', 'a question'], {
+    const r = run(sb, ['ask', '--prompt', 'a question'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: '',
       FAKE_AGY_STDERR: 'grep: process timed out after 30s',
@@ -56,7 +56,7 @@ describe('cause hints are conditional on the error text', () => {
 
   test('a model-id error gets exactly the model hint', () => {
     const sb = sandbox('triage-hint-model');
-    const r = run(sb, ['ask', 'a question'], {
+    const r = run(sb, ['ask', '--prompt', 'a question'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: '',
       FAKE_AGY_ERROR: '--model gemini-3.7-flash requires --effort',

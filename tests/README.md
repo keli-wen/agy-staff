@@ -49,6 +49,11 @@ setup); the output split (the `[agy-staff]` telemetry line is asserted on stderr
 for foreground runs and in `jobs/<id>.log` for background ones, and asserted
 absent from stdout and from `jobs/<id>.result.md`); prompt-based `review`; job
 lifecycle (`status`/`result`/`cancel`);
+the task-source contract (task text comes from exactly one of `--prompt`,
+`--prompt-file`, or `--stdin`; positional task text is an error; task contents
+are opaque — flag-like text inside a task never becomes a companion option, and
+prompt bytes reach the fake `agy` verbatim; value flags reject missing, empty,
+and flag-shaped values; management commands keep their positional ids);
 `continue` mode inheritance; `setup`'s dry run and its optional-hardening
 framing; and the state-file robustness fixes (`state.test.mjs`).
 

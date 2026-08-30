@@ -70,7 +70,7 @@ If you cannot restart the session, call the companion of the freshly installed c
 
 ```bash
 AGY_ROOT=$(node -p 'require(process.env.HOME+"/.claude/plugins/installed_plugins.json").plugins["agy@agy-staff"][0].installPath')
-node "$AGY_ROOT/companion/agy-companion.mjs" ask "reply with OK"
+node "$AGY_ROOT/companion/agy-companion.mjs" ask --prompt "reply with OK"
 ```
 
 Resolve the root that way rather than globbing `cache/agy-staff/agy/*/`: superseded version directories are left behind after an upgrade, so the glob expands to several paths and the command fails with `unknown subcommand`. `installPath` is always the copy in use. (Codex's equivalent root is printed by `codex plugin list`.) A fallback pass still leaves the restart outstanding — report it as "installed and verified, restart Claude Code to use it".

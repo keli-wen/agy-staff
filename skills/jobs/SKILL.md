@@ -37,7 +37,7 @@ Delivering an exit-0 result: a short report (about a screenful) → verbatim; a 
 - **status `[job-id]`** — list jobs (render as a compact table) or show one job with a log tail; with an id it exits with the same codes as `wait`.
 - **result `[job-id]`** — re-print the stored output of a finished job (default: the most recent finished one). Deliver per "Collecting results".
 - **cancel `<job-id>`** — kill a running job and mark it canceled.
-- **continue `"follow-up text"`** — send a follow-up to the most recent agy conversation in this repo (any mode; quota-friendly — agy serves prior context from cache). `--conversation <id>` targets an older one; ids are tracked in `.agy-staff/state.json` and shown on the `[agy-staff]` stderr line. Execution style follows the resumed mode: a continued ask is foreground, everything else returns a job id.
+- **continue `--prompt "follow-up text"`** — send a follow-up to the most recent agy conversation in this repo (any mode; quota-friendly — agy serves prior context from cache). `--conversation <id>` targets an older one; ids are tracked in `.agy-staff/state.json` and shown on the `[agy-staff]` stderr line. Execution style follows the resumed mode: a continued ask is foreground, everything else returns a job id.
 - **setup `[--apply] [--restrict <modes|none>]`** — optional hardening for restricted runs. Read `references/setup.md` before running it.
 
 ## Rules
