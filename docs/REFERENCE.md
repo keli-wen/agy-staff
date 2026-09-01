@@ -14,7 +14,7 @@ Back to the [README](../README.md). 中文版见 [REFERENCE.zh-CN.md](REFERENCE.
 
 Execution style is fixed per mode and cannot be overridden by a flag. `continue` inherits the resolved mode's style (continuing an `ask` stays synchronous; continuing the others returns a job id).
 
-Both platforms surface the same personas under the `agy` plugin name, backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`). Invocation tokens: `/agy:<persona>` on Claude Code, `$agy:<persona>` on Codex. Job management (`wait`/`status`/`result`/`cancel`/`continue`/`setup`) lives in the model-facing `jobs` skill plus the companion CLI itself — ask for it in natural language ("is the agy job done?").
+Claude Code, Codex, and Pi surface the same personas, backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`). Invocation tokens: `/agy:<persona>` on Claude Code, `$agy:<persona>` on Codex, and `/skill:<persona>` on Pi. Pi discovers the shared `skills/` directory through the package's `pi.skills` manifest. Job management (`wait`/`status`/`result`/`cancel`/`continue`/`setup`) lives in the model-facing `jobs` skill plus the companion CLI itself — ask for it in natural language ("is the agy job done?").
 
 ## The two-profile permission model
 

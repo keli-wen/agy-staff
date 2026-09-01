@@ -14,7 +14,7 @@
 
 执行方式按模式固定，没有任何 flag 可以覆盖。`continue` 沿用解析出的模式的执行方式（续接 `ask` 仍是同步；续接其余模式返回 job id）。
 
-两个平台使用同一个插件名 `agy`，共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。调用写法：Claude Code 下是 `/agy:<persona>`，Codex 下是 `$agy:<persona>`。任务管理（`wait`/`status`/`result`/`cancel`/`continue`/`setup`）由面向模型的 `jobs` skill 加 companion CLI 承担——用自然语言即可（「agy 的 job 好了吗」）。
+Claude Code、Codex 和 Pi 使用同一组人格，共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。调用写法：Claude Code 下是 `/agy:<persona>`，Codex 下是 `$agy:<persona>`，Pi 下是 `/skill:<persona>`。Pi 通过 package 的 `pi.skills` manifest 发现共享的 `skills/` 目录。任务管理（`wait`/`status`/`result`/`cancel`/`continue`/`setup`）由面向模型的 `jobs` skill 加 companion CLI 承担——用自然语言即可（「agy 的 job 好了吗」）。
 
 ## 双权限档模型
 

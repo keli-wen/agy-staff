@@ -1,0 +1,14 @@
+{
+  "name": "agy-staff",
+  "version": "0.4.5",
+  "description": "Delegate work to Google's Antigravity CLI (agy) with fast Gemini access.",
+  "keywords": [
+    "pi-package"
+  ],
+  "license": "MIT",
+  "pi": {
+    "skills": [
+      "./skills"
+    ]
+  }
+}

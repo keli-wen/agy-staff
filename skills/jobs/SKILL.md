@@ -23,7 +23,7 @@ node "<skill-dir>/../../companion/agy-companion.mjs" <subcommand> [args]
 
 The job-start output prints the exact collect command — `wait <id> --timeout <n>m`, sized to outlive the job. That one call blocks until the job reaches a terminal state, prints the result, and exits with a machine-readable code. Never parse output to decide whether a job is done; branch on the exit code.
 
-- **One job → one background wait.** Run the printed `wait` through your harness's background command facility (Claude Code's background Bash, a Codex `unified_exec` session), started as soon as the job starts, and pick it up when it exits. While it runs, heartbeat lines on stderr (`still waiting on <id>…`) show liveness.
+- **One job → one background wait.** Run the printed `wait` through your harness's background command facility when one exists (Claude Code's background Bash, a Codex `unified_exec` session). Pi has no dedicated background-command tool, so use the foreground fallback below. While a background wait runs, heartbeat lines on stderr (`still waiting on <id>…`) show liveness.
 - **N jobs → N background waits, never one shell.** Do not wait for several ids serially in a single shell (`wait a; wait b`, a for-loop): it hides each job's completion behind the slowest predecessor and gives you nothing to react to. Start every job's own background `wait` the moment that job starts.
 - **Foreground fallback** (nothing else to do, single job): run `wait <id>` with its 100s default timeout and rerun it while it exits 2.
 

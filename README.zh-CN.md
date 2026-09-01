@@ -6,7 +6,7 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code** 和 **OpenAI Codex** 的「agy 员工」。
+把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex** 和 **Pi** 的「agy 员工」。
 
 ![agy-staff 设计图](assets/design.png)
 
