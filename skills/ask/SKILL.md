@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*)
 
 # agy ask
 
-The quick mode: one question in, one answer out, ~3 seconds on the default `gemini-3.7-flash-low`. Zero tools by design (restricted profile, question-only prompt), so it needs no setup and works on a fresh install — run it first as the smoke test: `ask --prompt "reply with OK"`.
+The quick mode: one question in, one answer out, ~3 seconds on the default `gemini-3.8-flash-low`. Zero tools by design (restricted profile, question-only prompt), so it needs no setup and works on a fresh install — run it first as the smoke test: `ask --prompt "reply with OK"`.
 
 ask is the only persona that runs in the foreground: the call blocks and the answer comes back on stdout. staffer, researcher, reviewer, and implementer instead return a background job id (see the jobs skill, `../jobs/SKILL.md`).
 
@@ -28,7 +28,7 @@ Pass the user's question verbatim via `--prompt`; use `--prompt-file <path>` or 
 
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the question, from exactly one of these three sources. Use file/stdin for a long question.
 - `--continue` — reuse the last ask conversation; `--conversation <id>` targets a specific one.
-- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.7-flash-low`.
+- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-low`.
 - `--timeout <dur>` — default 2m.
 
 ask is always restricted (it is tool-free, so there is nothing to unrestrict); `--unrestricted` is ignored with a note on stderr. That is fixed for ask alone — the tool-using personas default to unrestricted, where `--restricted` is an opt-in hardening flag. Execution style is likewise fixed per mode and no flag changes it.

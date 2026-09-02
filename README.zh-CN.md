@@ -2,7 +2,7 @@
 
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a></p>
 
-<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-7-flash.svg" height="20" alt="model: Gemini 3.7 Flash"></p>
+<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-8-flash.svg" height="20" alt="model: Gemini 3.8 Flash"></p>
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
@@ -12,7 +12,7 @@
 
 ## What & Why
 
-agy-staff 让主力 agent 把任务委托给 `agy`，后者运行速度很快的 Gemini 3.7 Flash。五个人格，两个平台用同一个插件名：`/agy:staffer`（通用任务）、`/agy:researcher`、`/agy:reviewer`（代码**和**方案/决策都能审）、`/agy:implementer`、`/agy:ask`——另有一个面向模型的 `jobs` skill 管理后台任务（`wait`/`status`/`result`/`cancel`/`continue`/`setup`）。
+agy-staff 让主力 agent 把任务委托给 `agy`，后者运行速度很快的 Gemini 3.8 Flash。五个人格，两个平台用同一个插件名：`/agy:staffer`（通用任务）、`/agy:researcher`、`/agy:reviewer`（代码**和**方案/决策都能审）、`/agy:implementer`、`/agy:ask`——另有一个面向模型的 `jobs` skill 管理后台任务（`wait`/`status`/`result`/`cancel`/`continue`/`setup`）。
 
 为什么需要它：GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。这些任务可以交给 agy：它几秒钟就能给出第二意见，调研和审查以 Flash 的速度完成，范围明确的实现任务放到后台执行，你继续做手头的事。另外，即使不追求速度，让另一个模型家族审同一份代码，也能发现主力 agent 自己发现不了的问题。
 

@@ -6,11 +6,11 @@ Back to the [README](../README.md). 中文版见 [REFERENCE.zh-CN.md](REFERENCE.
 
 | Persona (skill) | Companion mode | What it is | Default model | Profile | Execution |
 |---|---|---|---|---|---|
-| `ask` | `ask` | Cheap zero-tool one-shot Q&A (~3s); doubles as the post-install smoke test | `gemini-3.7-flash-low` | restricted (prompt-only) | synchronous — the answer comes back in the same call |
-| `staffer` | `staffer` | General-purpose delegation with a minimal prompt: no role, rules, or output format — the task text alone shapes the output | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
-| `researcher` | `research` | Deep survey with cited sources and explicit unverified-claims marking | `gemini-3.7-flash-high` | unrestricted | background job — returns a job id |
-| `reviewer` | `review` | Second-opinion verifier, two flavors routed by subject: code review (severity-ranked findings with `file:line` refs) and general review (multi-angle challenge of a plan, design, or decision) | `gemini-3.7-flash-medium` | unrestricted | background job — returns a job id |
-| `implementer` | `implement` | Well-scoped coding task; agy edits the working tree and can perform explicitly requested Git delivery | `gemini-3.7-flash-high` | unrestricted | background job — returns a job id |
+| `ask` | `ask` | Cheap zero-tool one-shot Q&A (~3s); doubles as the post-install smoke test | `gemini-3.8-flash-low` | restricted (prompt-only) | synchronous — the answer comes back in the same call |
+| `staffer` | `staffer` | General-purpose delegation with a minimal prompt: no role, rules, or output format — the task text alone shapes the output | `gemini-3.8-flash-medium` | unrestricted | background job — returns a job id |
+| `researcher` | `research` | Deep survey with cited sources and explicit unverified-claims marking | `gemini-3.8-flash-high` | unrestricted | background job — returns a job id |
+| `reviewer` | `review` | Second-opinion verifier, two flavors routed by subject: code review (severity-ranked findings with `file:line` refs) and general review (multi-angle challenge of a plan, design, or decision) | `gemini-3.8-flash-medium` | unrestricted | background job — returns a job id |
+| `implementer` | `implement` | Well-scoped coding task; agy edits the working tree and can perform explicitly requested Git delivery | `gemini-3.8-flash-high` | unrestricted | background job — returns a job id |
 
 Execution style is fixed per mode and cannot be overridden by a flag. `continue` inherits the resolved mode's style (continuing an `ask` stays synchronous; continuing the others returns a job id).
 
@@ -107,8 +107,8 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 |---|---|
 | `--conversation <id>` | resume a specific agy conversation |
 | `--continue` | reuse this mode's last conversation id from state |
-| `--model <id>` | explicit agy model (see `agy models`). Ids are effort-suffixed (`gemini-3.7-flash-low`); the companion normalizes bare families (`gemini-3.7-flash` + `--effort`) and the aliases `flash`/`pro`, and rejects unknown ids pre-flight |
-| `--effort low\|medium\|high` | shorthand for `gemini-3.7-flash-<effort>` |
+| `--model <id>` | explicit agy model (see `agy models`). Ids are effort-suffixed (`gemini-3.8-flash-low`); the companion normalizes bare families (`gemini-3.8-flash` + `--effort`) and the aliases `flash`/`pro`, and rejects unknown ids pre-flight |
+| `--effort low\|medium\|high` | shorthand for `gemini-3.8-flash-<effort>` |
 | `--restricted` / `--unrestricted` | permission profile override (ignored by `ask`). `unrestricted` is the default for `staffer`/`research`/`review`/`implement`, so `--restricted` is the flag you actually reach for |
 | `--restrict <modes\|none>` | (setup) per-repo policy: the listed modes default to restricted in this repository; `none` clears it. See [Per-repo policy](#per-repo-policy-setup---restrict) |
 | `--json` | (review) schema-enforced JSON findings; default is free-form markdown. Meant for the code-review flavor |
@@ -235,6 +235,12 @@ Removed flags fail fast with a message naming the replacement; the deprecated pr
 | one big string, e.g. `review "--restricted Review PR #730"` | `review --restricted --prompt "Review PR #730"` | The companion no longer splits an argument into flags. A flag name that still contains whitespace gets an error naming this fix. |
 
 Management commands (`status`, `wait`, `result`, `cancel`, `setup`) are untouched: their positional arguments are ids and values, and `wait <id> --timeout 30s` works exactly as before.
+
+## Migration from 0.4.5
+
+0.5.0 updates all persona defaults and the `flash` alias/`--effort` shorthand from Gemini 3.7 Flash to Gemini 3.8 Flash while preserving each persona effort tier (`ask`: low; `staffer` & `reviewer`: medium; `researcher` & `implementer`: high).
+
+If the installed `agy` CLI does not support Gemini 3.8 Flash, the companion fails clearly without silent fallback: it queries `agy models` and reports available models alongside the best same-effort compatible recommendation (e.g. `--model gemini-3.7-flash-high`), advising that updating `agy` is preferred to use the latest default.
 
 ## Upgrading
 
