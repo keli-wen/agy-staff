@@ -44,6 +44,31 @@ if (argvFile) {
   }
 }
 
+if (argv[0] === 'models' || argv.includes('models')) {
+  if (process.env.FAKE_AGY_MODELS_ERROR) {
+    process.stderr.write(process.env.FAKE_AGY_MODELS_ERROR + '\n');
+    process.exit(Number(process.env.FAKE_AGY_MODELS_EXIT || 1));
+  }
+  const defaultModels =
+    process.env.FAKE_AGY_MODELS_OUTPUT ??
+    [
+      'Fetching available models...',
+      'gemini-3.8-flash-high\tGemini 3.8 Flash (High)',
+      'gemini-3.8-flash-medium\tGemini 3.8 Flash (Medium)',
+      'gemini-3.8-flash-low\tGemini 3.8 Flash (Low)',
+      'gemini-3.7-flash-high\tGemini 3.7 Flash (High)',
+      'gemini-3.7-flash-medium\tGemini 3.7 Flash (Medium)',
+      'gemini-3.7-flash-low\tGemini 3.7 Flash (Low)',
+      'gemini-3.6-flash-high\tGemini 3.6 Flash (High)',
+      'gemini-3.6-flash-medium\tGemini 3.6 Flash (Medium)',
+      'gemini-3.6-flash-low\tGemini 3.6 Flash (Low)',
+      'gemini-3.1-pro-high\tGemini 3.1 Pro (High)',
+      'gemini-3.1-pro-low\tGemini 3.1 Pro (Low)',
+    ].join('\n');
+  process.stdout.write(defaultModels + '\n');
+  process.exit(0);
+}
+
 // Side effect knob: write a file while the "model" is working, i.e. strictly
 // between the companion's before/after `git status --porcelain` snapshots.
 const touch = process.env.FAKE_AGY_TOUCH_FILE;

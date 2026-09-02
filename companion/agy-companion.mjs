@@ -30,7 +30,7 @@
  *   --conversation <id>   resume a specific agy conversation
  *   --continue            reuse the last conversation id for this mode
  *   --model <id>          explicit agy model id (overrides --effort)
- *   --effort <l|m|h>      low|medium|high → gemini-3.7-flash-<effort>
+ *   --effort <l|m|h>      low|medium|high → gemini-3.8-flash-<effort>
  *   --restricted          hardening opt-in: keep agy's permission enforcement
  *                         on (wants setup's evidence-gathering allowlist)
  *   --unrestricted        pass --dangerously-skip-permissions (already the
@@ -98,11 +98,11 @@ const MODES = ['staffer', 'research', 'review', 'implement', 'ask'];
 
 const DEFAULTS = {
   model: {
-    staffer: 'gemini-3.7-flash-medium',
-    research: 'gemini-3.7-flash-high',
-    review: 'gemini-3.7-flash-medium',
-    implement: 'gemini-3.7-flash-high',
-    ask: 'gemini-3.7-flash-low',
+    staffer: 'gemini-3.8-flash-medium',
+    research: 'gemini-3.8-flash-high',
+    review: 'gemini-3.8-flash-medium',
+    implement: 'gemini-3.8-flash-high',
+    ask: 'gemini-3.8-flash-low',
   },
   // Every tool-using mode is unrestricted by default: headless agy denies
   // unlisted tool calls, so a restricted default made research/review come
@@ -122,9 +122,10 @@ const DEFAULTS = {
 };
 
 // agy only accepts effort-suffixed model ids; bare family names are rejected
-// with status ERROR ("--model gemini-3.7-flash requires --effort").
+// with status ERROR ("--model gemini-3.8-flash requires --effort").
 // Known ids from `agy models` (v1.1.13):
 const KNOWN_MODELS = new Set([
+  'gemini-3.8-flash-high', 'gemini-3.8-flash-medium', 'gemini-3.8-flash-low',
   'gemini-3.7-flash-high', 'gemini-3.7-flash-medium', 'gemini-3.7-flash-low',
   'gemini-3.6-flash-high', 'gemini-3.6-flash-medium', 'gemini-3.6-flash-low',
   'gemini-3.5-flash-high', 'gemini-3.5-flash-medium', 'gemini-3.5-flash-low',
@@ -132,12 +133,13 @@ const KNOWN_MODELS = new Set([
   'claude-sonnet-4-6', 'claude-opus-4-6-thinking', 'gpt-oss-120b-medium',
 ]);
 const MODEL_FAMILIES = {
+  'gemini-3.8-flash': ['low', 'medium', 'high'],
   'gemini-3.7-flash': ['low', 'medium', 'high'],
   'gemini-3.6-flash': ['low', 'medium', 'high'],
   'gemini-3.5-flash': ['low', 'medium', 'high'],
   'gemini-3.1-pro': ['low', 'high'],
 };
-const MODEL_ALIASES = { flash: 'gemini-3.7-flash', pro: 'gemini-3.1-pro' };
+const MODEL_ALIASES = { flash: 'gemini-3.8-flash', pro: 'gemini-3.1-pro' };
 
 /** Normalize a user-supplied --model value to an id agy accepts, or die
  *  pre-flight with a helpful message. Never lets a bare family reach agy. */
@@ -159,8 +161,8 @@ function normalizeModel(raw, effort) {
   if (/-(low|medium|high|thinking)$/.test(name)) return name;
   die(
     `unknown model id "${raw}". agy needs effort-suffixed ids, e.g. ` +
-      `gemini-3.7-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
-      `Aliases accepted here: "flash" (gemini-3.7-flash), "pro" (gemini-3.1-pro), ` +
+      `gemini-3.8-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
+      `Aliases accepted here: "flash" (gemini-3.8-flash), "pro" (gemini-3.1-pro), ` +
       `optionally combined with --effort. Run \`agy models\` for the full list.`
   );
 }
@@ -511,6 +513,125 @@ function collectTimeout(jobTimeout) {
   return `${Math.ceil(ms / 60_000)}m`;
 }
 
+function queryAgyModels() {
+  try {
+    const r = spawnSync(AGY_BIN, ['models'], {
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    if (r.error) {
+      return { ok: false, error: r.error.message };
+    }
+    if (r.status !== 0) {
+      return { ok: false, error: (r.stderr || '').trim() || `exit ${r.status}` };
+    }
+    const stdout = (r.stdout || '').trim();
+    if (!stdout) {
+      return { ok: false, error: 'empty output from `agy models`' };
+    }
+    const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+    const models = [];
+    for (const line of lines) {
+      if (/^fetching/i.test(line)) continue;
+      const parts = line.split(/\s+/);
+      const id = parts[0];
+      const desc = parts.slice(1).join(' ');
+      if (id) {
+        models.push({ id, desc });
+      }
+    }
+    if (models.length === 0) {
+      return { ok: false, error: 'no models found in `agy models` output' };
+    }
+    return { ok: true, models };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+function recommendCompatibleModel(requestedModel, availableModelIds) {
+  const effortMatch = requestedModel ? requestedModel.match(/-(low|medium|high)$/) : null;
+  const effort = effortMatch ? effortMatch[1] : null;
+
+  if (effort) {
+    const sameEffort = availableModelIds.filter((id) => id.endsWith(`-${effort}`));
+    if (sameEffort.length > 0) {
+      const flashOrder = [
+        `gemini-3.8-flash-${effort}`,
+        `gemini-3.7-flash-${effort}`,
+        `gemini-3.6-flash-${effort}`,
+        `gemini-3.5-flash-${effort}`,
+      ];
+      for (const candidate of flashOrder) {
+        if (sameEffort.includes(candidate) && candidate !== requestedModel) {
+          return candidate;
+        }
+      }
+      const otherFlash = sameEffort.find((id) => id.includes('flash') && id !== requestedModel);
+      if (otherFlash) return otherFlash;
+
+      const proOrder = [`gemini-3.1-pro-${effort}`];
+      for (const candidate of proOrder) {
+        if (sameEffort.includes(candidate) && candidate !== requestedModel) {
+          return candidate;
+        }
+      }
+      const otherSameEffort = sameEffort.find((id) => id !== requestedModel);
+      if (otherSameEffort) return otherSameEffort;
+    }
+  }
+
+  const anyFlash = availableModelIds.find((id) => id.includes('flash') && id !== requestedModel);
+  if (anyFlash) return anyFlash;
+
+  return availableModelIds.find((id) => id !== requestedModel) || null;
+}
+
+function isUnsupportedModelError(errText) {
+  if (!errText) return false;
+  if (/auth|login|credential|unauthorized|401|403/i.test(errText)) return false;
+  if (/quota|rate.?limit|resource.?exhausted|429/i.test(errText)) return false;
+  if (/network|econnrefused|enotfound|fetch failed|socket|eai_again/i.test(errText)) return false;
+  if (/requires --effort/i.test(errText)) return false;
+  return (
+    /not recognized as a known model/i.test(errText) ||
+    /unknown model/i.test(errText) ||
+    /unsupported model/i.test(errText) ||
+    /invalid model selection/i.test(errText) ||
+    /model .* (not found|is not supported|is not available|is not recognized)/i.test(errText)
+  );
+}
+
+function handleUnsupportedModel({ requestedModel, errText, originalError, convNote }) {
+  const discovery = queryAgyModels();
+  let msg = `agy reported an unsupported-model error for requested model "${requestedModel}".\n`;
+  if (originalError) {
+    msg += `agy error: ${originalError}\n`;
+  }
+
+  if (!discovery.ok) {
+    msg +=
+      `Model discovery via \`agy models\` failed (${discovery.error}).\n` +
+      `Please run \`agy models\` to check available models.\n` +
+      `Updating agy is preferred to use the latest default (gemini-3.8-flash).`;
+    die(msg + (convNote || ''));
+  }
+
+  const availableIds = discovery.models.map((m) => m.id);
+  const best = recommendCompatibleModel(requestedModel, availableIds);
+
+  msg +=
+    `Available models (from \`agy models\`):\n` +
+    discovery.models.map((m) => `  ${m.id}${m.desc ? `\t${m.desc}` : ''}`).join('\n') +
+    '\n\n';
+
+  if (best) {
+    msg += `Best same-effort compatible recommendation: --model ${best}\n`;
+  }
+  msg += `Updating agy is preferred to use the latest default (gemini-3.8-flash).`;
+  die(msg + (convNote || ''));
+}
+
 function runAgy({ prompt, model, timeout, conversation, unrestricted, jsonSchema }) {
   const args = ['-p', prompt, '--model', model, '--output-format', 'json', '--print-timeout', timeout];
   if (conversation) args.push('--conversation', conversation);
@@ -544,6 +665,14 @@ function runAgy({ prompt, model, timeout, conversation, unrestricted, jsonSchema
     }
   }
   if (!payload) {
+    const errText = `${stdout}\n${stderr}`;
+    if (isUnsupportedModelError(errText)) {
+      handleUnsupportedModel({
+        requestedModel: model,
+        errText,
+        originalError: stderr || stdout,
+      });
+    }
     let msg =
       `agy did not return parseable JSON (exit ${r.status}).\n` +
       `stdout: ${stdout.slice(0, 800) || '(empty)'}\n` +
@@ -578,7 +707,7 @@ function runAgy({ prompt, model, timeout, conversation, unrestricted, jsonSchema
  *                                    --restricted run gets the setup hint
  *                                    (unrestricted runs have no rules to fix).
  */
-function triageResult({ payload, stderr, exit }, mode, profile, profileSource) {
+function triageResult({ payload, stderr, exit }, mode, profile, profileSource, requestedModel) {
   const status = (payload.status || '').toUpperCase();
   const response = (payload.response || '').trim();
   const convNote = payload.conversation_id
@@ -604,13 +733,22 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource) {
       );
       return response;
     }
+    const errText = `${payload.error || ''}\n${stderr}`;
+    if (isUnsupportedModelError(errText)) {
+      handleUnsupportedModel({
+        requestedModel: requestedModel || DEFAULTS.model[mode],
+        errText,
+        originalError: payload.error || stderr,
+        convNote,
+      });
+    }
+
     let msg = `agy reported an error (status ${payload.status || 'unknown'}, exit ${exit}).`;
     if (payload.error) msg += `\nagy error: ${payload.error}`;
     if (stderr) msg += `\nagy stderr: ${stderr}`;
-    const errText = `${payload.error || ''}\n${stderr}`;
     const hints = [];
     if (/model|effort/i.test(errText)) {
-      hints.push('invalid model id (agy needs effort-suffixed ids, e.g. gemini-3.7-flash-low — run `agy models`)');
+      hints.push('invalid model id (agy needs effort-suffixed ids, e.g. gemini-3.8-flash-low — run `agy models`)');
     }
     if (/auth|login|credential|unauthorized|401|403/i.test(errText)) {
       hints.push('expired auth (run `agy` interactively once to re-login)');
@@ -672,7 +810,7 @@ function resolveRun(mode, opts) {
   if (opts.model) {
     model = normalizeModel(opts.model, opts.effort);
   } else if (opts.effort) {
-    model = `gemini-3.7-flash-${opts.effort}`;
+    model = `gemini-3.8-flash-${opts.effort}`;
   } else {
     model = DEFAULTS.model[mode];
   }
@@ -883,7 +1021,7 @@ function executeRun(resolved, prompt, opts) {
   const treeAfter = treeBefore ? porcelainSnapshot() : null;
   const payload = result.payload;
 
-  const response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource);
+  const response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model);
 
   // persist conversation id
   const state = loadState();

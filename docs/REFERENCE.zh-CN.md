@@ -6,11 +6,11 @@
 
 | 人格（skill） | companion 模式 | 说明 | 默认模型 | 权限档 | 执行方式 |
 |---|---|---|---|---|---|
-| `ask` | `ask` | 单轮问答，不用任何工具，成本低（约 3s）；兼作装后冒烟测试 | `gemini-3.7-flash-low` | restricted（仅 prompt） | 同步——同一次调用里直接拿到答案 |
-| `staffer` | `staffer` | 通用委托，最小化 prompt：不设角色、不设规则、不设输出格式——任务文本自己决定输出形状 | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
-| `researcher` | `research` | 深度调研：要求引用来源、显式标注未验证的结论 | `gemini-3.7-flash-high` | unrestricted | 后台任务——返回一个 job id |
-| `reviewer` | `review` | 第二意见式审查，按对象路由两个 flavor：代码审查（severity 分级 findings，带 `file:line` 引用）与通用审查（对方案/设计/决策的多角度 challenge） | `gemini-3.7-flash-medium` | unrestricted | 后台任务——返回一个 job id |
-| `implementer` | `implement` | 范围明确的编码任务；agy 直接修改工作区，也可以执行用户明确要求的 Git 交付 | `gemini-3.7-flash-high` | unrestricted | 后台任务——返回一个 job id |
+| `ask` | `ask` | 单轮问答，不用任何工具，成本低（约 3s）；兼作装后冒烟测试 | `gemini-3.8-flash-low` | restricted（仅 prompt） | 同步——同一次调用里直接拿到答案 |
+| `staffer` | `staffer` | 通用委托，最小化 prompt：不设角色、不设规则、不设输出格式——任务文本自己决定输出形状 | `gemini-3.8-flash-medium` | unrestricted | 后台任务——返回一个 job id |
+| `researcher` | `research` | 深度调研：要求引用来源、显式标注未验证的结论 | `gemini-3.8-flash-high` | unrestricted | 后台任务——返回一个 job id |
+| `reviewer` | `review` | 第二意见式审查，按对象路由两个 flavor：代码审查（severity 分级 findings，带 `file:line` 引用）与通用审查（对方案/设计/决策的多角度 challenge） | `gemini-3.8-flash-medium` | unrestricted | 后台任务——返回一个 job id |
+| `implementer` | `implement` | 范围明确的编码任务；agy 直接修改工作区，也可以执行用户明确要求的 Git 交付 | `gemini-3.8-flash-high` | unrestricted | 后台任务——返回一个 job id |
 
 执行方式按模式固定，没有任何 flag 可以覆盖。`continue` 沿用解析出的模式的执行方式（续接 `ask` 仍是同步；续接其余模式返回 job id）。
 
@@ -107,8 +107,8 @@ policy 写入 `<repo>/.agy-staff/config.json`，之后自动生效（运行时�
 |---|---|
 | `--conversation <id>` | 续接指定的 agy 会话 |
 | `--continue` | 复用 state 中该模式最近一次会话 id |
-| `--model <id>` | 显式指定 agy 模型（见 `agy models`）。id 必须带 effort 后缀（如 `gemini-3.7-flash-low`）；companion 会自动补全裸 family（`gemini-3.7-flash` + `--effort`）和别名 `flash`/`pro`，未知 id 在调用 agy 前直接报错 |
-| `--effort low\|medium\|high` | `gemini-3.7-flash-<effort>` 的简写 |
+| `--model <id>` | 显式指定 agy 模型（见 `agy models`）。id 必须带 effort 后缀（如 `gemini-3.8-flash-low`）；companion 会自动补全裸 family（`gemini-3.8-flash` + `--effort`）和别名 `flash`/`pro`，未知 id 在调用 agy 前直接报错 |
+| `--effort low\|medium\|high` | `gemini-3.8-flash-<effort>` 的简写 |
 | `--restricted` / `--unrestricted` | 覆盖权限档（`ask` 会忽略）。`staffer`/`research`/`review`/`implement` 默认就是 unrestricted，所以实际会用到的是 `--restricted` |
 | `--restrict <modes\|none>` | （setup）仓库级 policy：列出的模式在本仓库默认 restricted；`none` 清除。见[仓库级 policy](#仓库级-policysetup---restrict) |
 | `--json` | （review）按 schema 强制输出 JSON findings；默认是自由格式 markdown。面向代码审查 flavor |
@@ -235,6 +235,12 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 | 打包成一个大字符串，如 `review "--restricted Review PR #730"` | `review --restricted --prompt "Review PR #730"` | companion 不再把一个参数切分成多个 flag。若某个 flag 名里仍含空白，会得到一条指向此修法的错误。 |
 
 管理类命令（`status`、`wait`、`result`、`cancel`、`setup`）不受影响：它们的 positional 参数是 id 和取值，`wait <id> --timeout 30s` 与之前完全一致。
+
+## 从 0.4.5 迁移
+
+0.5.0 将所有人格默认模型以及 `flash` 别名/`--effort` 简写从 Gemini 3.7 Flash 升级为 Gemini 3.8 Flash，并保持各人格的 effort 档位不变（`ask`：low；`staffer` 与 `reviewer`：medium；`researcher` 与 `implementer`：high）。
+
+若安装的 `agy` CLI 尚不支持 Gemini 3.8 Flash，companion 会明确报错并拒绝静默回退：它会查询 `agy models`，列出可用模型并给出相同 effort 档位的最佳兼容推荐（例如 `--model gemini-3.7-flash-high`），同时提示建议更新 `agy` 以使用最新的默认模型。
 
 ## 升级
 
