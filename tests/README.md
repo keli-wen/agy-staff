@@ -14,6 +14,8 @@ Pi packaging checks run in the standard suite (`pi-packaging.test.mjs`). They ch
 
 With Pi installed, `npm run test:pi` exercises its real package loader, skill-command expansion, and Bash tool, using disposable settings and fake agy. The suite discovers Pi from PATH, or accepts `AGY_PI_PACKAGE_ROOT`. It never reads credentials or calls a model. See [the Pi guide](../docs/PI.md) for the separate manual/live acceptance steps; offline success does not prove LLM behavior.
 
+GitHub CI only runs `npm run check:pi` to detect generated-file drift. Full regression and Pi integration tests remain available locally through the commands above; CI does not install Pi or run a Node version matrix.
+
 Note: `node --test tests/` does **not** work on Node >= 22 — positional
 arguments are glob patterns there, and a bare directory matches the directory
 itself. Node 24.7 verified.

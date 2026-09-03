@@ -42,7 +42,7 @@ npm run test:pi
 
 The standard suite checks generated-file drift, namespace/path rewriting, release-version consistency, and the actual npm archive. It runs the archived companion against `tests/fake-agy.mjs` to exercise `ask`, dispatch, and wait.
 
-The optional Pi suite requires an installed Pi CLI (initial target: 0.84.4). It resolves the installed package through the `pi` executable, or `AGY_PI_PACKAGE_ROOT=/absolute/path/to/pi-coding-agent`, and uses Pi's real resource loader, skill-command expansion, and Bash tool. It tests local installation, namespace coexistence, and the packed artifact with isolated settings and fake agy. It does not log into a provider or change your normal Pi config. This is a harness integration test, not a live LLM evaluation. CI pins the tested Pi version; other versions may need test-adapter updates if Pi's SDK paths change.
+The optional local Pi suite requires an installed Pi CLI (initial target: 0.84.4). It resolves the installed package through the `pi` executable, or `AGY_PI_PACKAGE_ROOT=/absolute/path/to/pi-coding-agent`, and uses Pi's real resource loader, skill-command expansion, and Bash tool. It tests local installation, namespace coexistence, and the packed artifact with isolated settings and fake agy. It does not log into a provider or change your normal Pi config. This is a harness integration test, not a live LLM evaluation. Other Pi versions may need test-adapter updates if SDK paths change. GitHub CI runs only `npm run check:pi`; full regression and Pi integration tests remain local commands.
 
 ## One source of truth
 
