@@ -1,3 +1,5 @@
+<!-- Generated from skills/jobs/references/setup.md; run npm run generate:pi. Do not edit here. -->
+
 # setup — optional hardening for restricted runs
 
 staffer, research, review, and implement default to unrestricted and work with no setup. Run setup only when the user wants restricted runs — per call (`--restricted`) or by default in this repository. Restricted runs agy WITHOUT `--dangerously-skip-permissions`, so agy can only use tools explicitly allowlisted in its settings (ask is tool-free and needs nothing either way).

@@ -12,7 +12,7 @@
 
 ## What & Why
 
-agy-staff 让主力 agent 把任务委托给 `agy`，后者运行速度很快的 Gemini 3.8 Flash。五个人格：staffer（通用任务）、researcher、reviewer（代码和方案审查）、implementer、ask，另有 jobs 管理后台任务。Claude Code 用 `/agy:<persona>`，Codex 用 `$agy:<persona>`，Pi 用 `/skill:agy-<persona>`；三者共享 companion 和 prompt 模板。
+agy-staff 让主力 agent 把任务委托给 `agy`，后者运行速度很快的 Gemini 3.8 Flash。五个人格：staffer（通用任务）、researcher、reviewer（代码和方案审查）、implementer、ask，另有 jobs 管理后台任务。Claude Code 用 `/agy:<persona>`，Codex 用 `$agy:<persona>`。
 
 为什么需要它：GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。这些任务可以交给 agy：它几秒钟就能给出第二意见，调研和审查以 Flash 的速度完成，范围明确的实现任务放到后台执行，你继续做手头的事。另外，即使不追求速度，让另一个模型家族审同一份代码，也能发现主力 agent 自己发现不了的问题。
 
@@ -50,11 +50,16 @@ codex plugin marketplace add https://github.com/keli-wen/agy-staff
 codex plugin add agy@agy-staff
 ```
 
-```bash
-pi install git:github.com/keli-wen/agy-staff
-```
+<details>
+<summary>使用 Pi？</summary>
 
-装完重启 Claude Code/Codex；Pi 可重启或运行 `/reload`。首次运行：Claude Code 用 `/agy:ask reply with OK`，Codex 用 `$agy:ask reply with OK`，Pi 用 `/skill:agy-ask reply with OK`。Ask 不用工具、不需要 setup。Pi 自己仍需配置主模型服务，登录 agy 不等于登录 Pi。测试尚未 push 的分支请使用 [Pi 本地测试指南](docs/PI.md)，不要安装远端 Git 版本。
+安装：`pi install git:github.com/keli-wen/agy-staff`。
+技能带 `agy-` 前缀调用：`/skill:agy-<persona>`（例如 `/skill:agy-ask reply with OK`），任务管理使用 `/skill:agy-jobs`。
+更新使用 `pi update --extension git:github.com/keli-wen/agy-staff`，随后在 Pi 中运行 `/reload`。
+
+</details>
+
+装完重启 Claude Code 或 Codex。首次运行：Claude Code 用 `/agy:ask reply with OK`，Codex 用 `$agy:ask reply with OK`。Ask 不用工具、不需要 setup。
 
 > [!IMPORTANT]
 > **没有必须先做的 setup 步骤。** `staffer`、`researcher`、`reviewer`、`implementer` 默认以 **unrestricted** 档运行：agy 可以自己看仓库、跑命令、改文件。agy-staff 靠一层会看当前仓库状态的 prompt 来约束它。比如 `implementer` 遇到 dirty workspace 时，companion 会告诉 agy 哪些文件本来就有改动，并提醒它不要覆盖或交付无关的用户改动。只有任务明确要求 commit、push 或 PR 时，agy 才做对应交付；否则它只留下工作区 diff 供你审查。
@@ -84,11 +89,9 @@ codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then resta
 
 Claude Code 和 Codex 按版本号目录缓存插件，只有插件版本号变了升级才会落地，之后还要重启 harness。改动没出现时见[升级](docs/REFERENCE.zh-CN.md#升级)——那里有强制刷新的命令。
 
-Pi 的 Git 安装用 `pi update --extension git:github.com/keli-wen/agy-staff` 更新，再 `/reload`；固定 ref 不会自动换成新 ref。本地路径安装直接读取 checkout，改完重新生成 Pi skills 并 `/reload` 即可，无需 push。详见 [Pi 开发与验证](docs/PI.md)。
-
 ### 典型场景（CUJ）
 
-下面示例用 Claude Code 的 `/agy:…` 写法；Codex 用 `$agy:…`，Pi 用 `/skill:agy-…`（例如 `/skill:agy-reviewer`）。Pi 也向模型提供这些 skills 以供按需发现，任务管理入口是 `agy-jobs`。派生 skills 附加统一兼容说明：用等价方法替代不可用的工具，不丢弃原要求；无法确定等价时，明确向用户求助。
+下面示例用 Claude Code 的 `/agy:…` 写法；Codex 用 `$agy:…` 写法。
 
 | 使用场景 | 调用 |
 |---|---|
@@ -118,11 +121,12 @@ Pi 的 Git 安装用 `pi update --extension git:github.com/keli-wen/agy-staff` �
 
 欢迎贡献——提 issue、报 bug、发 PR 都可以。
 
-发 PR 之前有三件事需要知道：
+发 PR 之前有几件事需要知道：
 
 - **跑测试**：`node --test tests/*.test.mjs`。这些是黑盒测试，跑在一次性的仓库和 HOME 里，用假的 `agy`（`tests/fake-agy.mjs`）替代真实二进制，所以不会联网、也不会碰你真实的配置。请保持这个性质：测试永远不要调用真的 `agy`。
 - **文档是成对的**：`README.md` / `README.zh-CN.md`、`docs/REFERENCE.md` / `docs/REFERENCE.zh-CN.md` 保持同步。改了一份，就要改它的对应版本。
 - **行为都在一个文件里**：`companion/agy-companion.mjs` 承载全部逻辑，skills 只是转发的薄壳，护栏写在 `templates/` 的 prompt 模板里。
+- **Skills 以 canonical 为单一来源**：修改人格请编辑 `skills/`，不要直接修改 `pi-skills/`。运行 `npm run generate:pi` 自动生成 Pi 入口，用 `npm run check:pi` 校验一致性。
 
 新增模式或 flag 会改变对外接口，请先开 issue 讨论形态，再动手。
 

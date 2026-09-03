@@ -10,9 +10,9 @@ node --test tests/*.test.mjs      # from the repo root
 node --test                       # equivalent: walks the repo for *.test.mjs
 ```
 
-Pi packaging checks run in the standard suite (`pi-packaging.test.mjs`). They check generated adapters and references, version alignment, and an actual npm archive, then run its companion with fake agy. Run `npm run generate:pi` after changing canonical skills; `npm run check:pi` is read-only and fails on drift.
+Pi packaging checks run in the standard suite (`pi-packaging.test.mjs`). They check generated entrypoints and references, version alignment, and an actual npm archive, then run its companion with fake agy. Run `npm run generate:pi` after changing canonical skills; `npm run check:pi` is read-only and fails on drift.
 
-With Pi installed, `npm run test:pi` exercises its real package loader, skill-command expansion, and Bash tool, using disposable settings and fake agy. The suite discovers Pi from PATH, or accepts `AGY_PI_PACKAGE_ROOT`. It never reads credentials or calls a model. See [the Pi guide](../docs/PI.md) for the separate manual/live acceptance steps; offline success does not prove LLM behavior.
+With Pi installed, `npm run test:pi` exercises its real package loader, skill-command expansion, and Bash tool, using disposable settings and fake agy. The suite discovers Pi from PATH, or accepts `AGY_PI_PACKAGE_ROOT`. It never reads credentials or calls a model; offline success does not prove LLM behavior. For manual testing in Pi, use `pi -e /path/to/checkout` (temporary session) or `pi install /path/to/checkout`. After editing canonical skills in `skills/`, re-run `npm run generate:pi` and run `/reload` in Pi.
 
 GitHub CI only runs `npm run check:pi` to detect generated-file drift. Full regression and Pi integration tests remain available locally through the commands above; CI does not install Pi or run a Node version matrix.
 

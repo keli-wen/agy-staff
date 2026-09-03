@@ -14,9 +14,7 @@
 
 执行方式按模式固定，没有任何 flag 可以覆盖。`continue` 沿用解析出的模式的执行方式（续接 `ask` 仍是同步；续接其余模式返回 job id）。
 
-Claude Code、Codex 和 Pi 使用同一组人格，共用 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和 prompt 模板（`templates/`）。调用写法：Claude Code 用 `/agy:<persona>`，Codex 用 `$agy:<persona>`，Pi 用 `/skill:agy-<persona>`。Pi manifest 只暴露 `pi-skills/`，它由 canonical `skills/` 自动生成，带 `agy-` 前缀并改写 sibling 路径。任务管理由 `jobs`（Pi 下为 `agy-jobs`）和 companion CLI 承担，用自然语言即可（「agy 的 job 好了吗」）。详见 [Pi 本地开发与验证](PI.md)。
-
-Pi 派生 skills 保留原始工作流，并附加 `adapters/harness-compatibility.md`。指令引用不可用的工具时，宿主应使用等价方法，同时保留授权、确认、结果交付和停止条件；无法实现等价结果或无法确认等价时，须明确向用户求助。生成器不匹配或替换工作流段落，Claude/Codex 原始 skills 保持不变。前台 `wait` 是后台 Bash 的一种可能替代方式，模型是否正确适配仍需实测。
+Claude Code、Codex 和 Pi 使用同一组人格，共用 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和 prompt 模板（`templates/`）。调用写法：Claude Code 用 `/agy:<persona>`，Codex 用 `$agy:<persona>`，Pi 用 `/skill:agy-<persona>`。Pi manifest 只暴露 `pi-skills/`，通过 `npm run generate:pi` 机械派生自 canonical `skills/`，带 `agy-` 前缀、改写 sibling 路径并附加 `templates/harness-compatibility.md`（引导宿主用等价方法替代不可用的工具且不丢弃原要求，无法确定时向用户求助）。任务管理由 `jobs`（Pi 下为 `agy-jobs`）和 companion CLI 承担，用自然语言即可（「agy 的 job 好了吗」）。
 
 ## 双权限档模型
 
@@ -253,18 +251,18 @@ Claude Code 和 Codex 按**版本号**目录缓存插件（如 `cache/agy-staff/
 
 想确认实际装的是哪个 commit：看 `~/.claude/plugins/installed_plugins.json` 里的 `gitCommitSha`，和 `git -C ~/.claude/plugins/marketplaces/agy-staff log -1` 拉到的 commit 对比。
 
-Pi 的未固定 Git 安装用 `pi update --extension git:github.com/keli-wen/agy-staff` 更新，再 `/reload`。本地开发则在 checkout 重新生成 Pi skills，再 `/reload`，不需要 push。详见 [Pi 本地测试](PI.md)。
+Pi 的未固定 Git 安装用 `pi update --extension git:github.com/keli-wen/agy-staff` 更新，再 `/reload`。本地开发则在 checkout 重新生成 Pi skills（`npm run generate:pi`）并运行 `/reload`，不需要 push。
 
 ## 仓库结构
 
 ```
 companion/agy-companion.mjs   所有逻辑都在这里（各模式、任务、setup）
-templates/                    共享 prompt 模板（staffer/ask/research/review/implement）
+templates/                    共享 prompt 模板（staffer/ask/research/review/implement）及 harness-compatibility.md
 .claude-plugin/               Claude Code 插件 + 自托管 marketplace manifest
 .codex-plugin/plugin.json     Codex 插件 manifest
 .agents/plugins/              Codex marketplace manifest
 pi-skills/                    自动生成的 Pi agy-* 入口及资源，不要手工编辑
-scripts/generate-pi-skills.mjs 生成 Pi adapter 并检查漂移
+scripts/generate-pi-skills.mjs 生成 Pi 技能并检查漂移
 package.json                  Pi manifest、npm 文件白名单、验证命令
 skills/                       canonical 人格 + jobs（Claude/Codex 入口；
                               reviewer/ 与 jobs/ 附带按需加载的 references/）

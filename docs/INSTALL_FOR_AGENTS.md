@@ -62,17 +62,21 @@ Then the user must restart the app — Codex caches plugins per version. Upgrade
 
 ## 2c. Pi — install / upgrade / local development
 
-Run `pi --version` first. Pi needs its own configured model provider, separate from agy's login; if missing, ask the user to run `/login` in Pi.
+Install (use the local checkout path if provided):
 
 ```bash
 pi install git:github.com/keli-wen/agy-staff
 ```
 
-If the user supplied an unpushed checkout, use `pi install /absolute/path/to/checkout` instead; it registers the directory without copying. For a temporary interactive trial without changing installed-package settings, use `pi -e /absolute/path/to/checkout`. The package manifest must point at generated `pi-skills/`, not canonical `skills/`. Run `npm run check:pi` in a development checkout and regenerate with `npm run generate:pi` if needed.
+For local development checkouts, use `pi install /absolute/path/to/checkout` (or `pi -e /absolute/path/to/checkout` for a temporary session). Run `npm run generate:pi` in the checkout if canonical skills were modified.
 
-For an unpinned Git install, upgrade with `pi update --extension git:github.com/keli-wen/agy-staff`. Pinned Git tags/commits remain pinned; install a new ref explicitly to move them. For a local-path install, regenerate in the checkout after edits. Restart Pi or run `/reload` afterwards.
+To upgrade an existing Git install:
 
-Verify with `pi list`, then confirm `/skill:agy-ask`, `/skill:agy-staffer`, `/skill:agy-researcher`, `/skill:agy-reviewer`, `/skill:agy-implementer`, and `/skill:agy-jobs` are available. Pi's skill names are global; do not separately register canonical `skills/` or an older copy of this package. See [Pi local testing](PI.md) for offline and live checks.
+```bash
+pi update --extension git:github.com/keli-wen/agy-staff
+```
+
+Restart Pi or run `/reload` afterwards. Use `pi list` to verify the package is registered, then check Pi's skill picker for `agy-ask`, `agy-staffer`, `agy-researcher`, `agy-reviewer`, `agy-implementer`, and `agy-jobs`.
 
 ## 3. Smoke test
 

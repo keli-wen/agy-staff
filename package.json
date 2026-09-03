@@ -18,9 +18,7 @@
     "companion/",
     "templates/",
     "scripts/generate-pi-skills.mjs",
-    "adapters/harness-compatibility.md",
     "docs/INSTALL_FOR_AGENTS.md",
-    "docs/PI.md",
     "docs/REFERENCE*.md",
     "README.zh-CN.md"
   ],

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
-export const COMPATIBILITY_CONTEXT = fs.readFileSync(new URL('../adapters/harness-compatibility.md', import.meta.url), 'utf8');
+export const COMPATIBILITY_CONTEXT = fs.readFileSync(new URL('../templates/harness-compatibility.md', import.meta.url), 'utf8');
 
 function filesUnder(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -37,8 +37,10 @@ export function piFiles(root = ROOT) {
             .replaceAll(`../${peer}/`, `../agy-${peer}/`)
             .replaceAll(`<plugin-root>/skills/${peer}/`, `<plugin-root>/pi-skills/agy-${peer}/`);
         }
+        const canonicalRel = path.relative(root, file).split(path.sep).join('/');
+        const notice = `<!-- Generated from ${canonicalRel}; run npm run generate:pi. Do not edit here. -->`;
+        const match = /^---\n([\s\S]*?)\n---\n/.exec(content);
         if (path.basename(file) === 'SKILL.md') {
-          const match = /^---\n([\s\S]*?)\n---\n/.exec(content);
           if (!match || !match[1].split('\n').includes(`name: ${name}`)) {
             throw new Error(`Expected name: ${name} in ${file}`);
           }
@@ -46,8 +48,12 @@ export function piFiles(root = ROOT) {
             // These are Claude-specific UI/permission fields, not Pi policy.
             .filter(line => !/^(allowed-tools|argument-hint|user-invocable):/.test(line))
             .map(line => line === `name: ${name}` ? `name: agy-${name}` : line).join('\n');
-          content = `---\n${frontmatter}\n---\n\n<!-- Generated from skills/${name}/SKILL.md; run npm run generate:pi. Do not edit here. -->\n`
+          content = `---\n${frontmatter}\n---\n\n${notice}\n`
             + content.slice(match[0].length) + '\n' + COMPATIBILITY_CONTEXT;
+        } else if (match) {
+          content = `---\n${match[1]}\n---\n\n${notice}\n` + content.slice(match[0].length);
+        } else {
+          content = `${notice}\n\n${content}`;
         }
         content = Buffer.from(content);
       }
@@ -74,7 +80,9 @@ export function generatePiSkills({ root = ROOT, check = false } = {}) {
       fs.writeFileSync(target, content);
     }
   }
-  if (check && changed.length) throw new Error(`Stale Pi skills; run npm run generate:pi:\n${changed.join('\n')}`);
+  if (check && changed.length) {
+    throw new Error(`Stale Pi skills; edit canonical sources in skills/ (do not edit pi-skills/) and run npm run generate:pi:\n${changed.join('\n')}`);
+  }
   return { count: expected.size, changed };
 }
 

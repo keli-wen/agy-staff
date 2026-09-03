@@ -50,6 +50,26 @@ test('generation is deterministic, copies assets, detects drift and rejects stal
   assert.throws(() => generatePiSkills({ root }), /symlinks/);
 });
 
+test('reference notices preserve frontmatter and direct output edits fail without being overwritten', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-pi-reference-notice-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.cpSync(path.join(ROOT, 'skills'), path.join(root, 'skills'), { recursive: true });
+  const source = path.join(root, 'skills', 'ask', 'references', 'guide.md');
+  fs.mkdirSync(path.dirname(source), { recursive: true });
+  const frontmatter = '---\ntitle: Reference guide\n---\n';
+  const body = '\n# Guide\nKeep this content and its permissions intact.\n';
+  fs.writeFileSync(source, frontmatter + body);
+  generatePiSkills({ root });
+  const output = path.join(root, 'pi-skills', 'agy-ask', 'references', 'guide.md');
+  const notice = '<!-- Generated from skills/ask/references/guide.md; run npm run generate:pi. Do not edit here. -->';
+  assert.equal(fs.readFileSync(output, 'utf8'), frontmatter + '\n' + notice + '\n' + body);
+  const handEdited = fs.readFileSync(output, 'utf8') + '\nA direct edit to generated output.\n';
+  fs.writeFileSync(output, handEdited);
+  assert.throws(() => generatePiSkills({ root, check: true }), /edit canonical.*do not edit pi-skills/);
+  assert.equal(fs.readFileSync(output, 'utf8'), handEdited, 'check mode must not discard hand edits');
+  assert.equal(fs.readFileSync(source, 'utf8'), frontmatter + body, 'canonical reference is unchanged');
+});
+
 test('Pi manifest exposes only branded skills and stays aligned with plugin versions', () => {
   const manifest = json(path.join(ROOT, 'package.json'));
   assert.deepEqual(manifest.pi, { skills: ['./pi-skills'] });
@@ -81,7 +101,10 @@ test('generation preserves canonical prose and adds only shared compatibility co
     assert.equal(rendered.split(COMPATIBILITY_CONTEXT).length, 2, 'append context exactly once');
   }
   const setup = fs.readFileSync(path.join(root, 'pi-skills', 'agy-jobs', 'references', 'setup.md'), 'utf8');
-  assert.equal(setup, fs.readFileSync(path.join(root, 'skills', 'jobs', 'references', 'setup.md'), 'utf8'));
+  const canonicalSetup = fs.readFileSync(path.join(root, 'skills', 'jobs', 'references', 'setup.md'), 'utf8');
+  assert.equal(canonicalSetup, fs.readFileSync(path.join(ROOT, 'skills', 'jobs', 'references', 'setup.md'), 'utf8'), 'canonical source unchanged');
+  assert.match(setup, /^<!-- Generated from skills\/jobs\/references\/setup\.md; run npm run generate:pi\. Do not edit here\. -->\n\n/);
+  assert.equal(setup.replace(/^<!-- Generated[^\n]+-->\n\n/, ''), canonicalSetup, 'reference body intact');
   const source = path.join(root, 'skills', 'staffer', 'SKILL.md');
   const newBody = fs.readFileSync(source, 'utf8').replace('## Collecting the result', '## Entirely revised workflow') + '\nUse FutureTool to do a new operation; ask for permission first.\n';
   fs.writeFileSync(source, newBody);
@@ -115,9 +138,11 @@ test('actual npm archive contains resources and runs ask + detached job collecti
   const { metadata, dir } = pack(sb.root);
   const packed = new Set(metadata.files.map(file => file.path));
   for (const file of piFiles().keys()) assert.ok(packed.has(file), `not packed: ${file}`);
-  for (const file of ['companion/agy-companion.mjs', 'templates/ask.md', 'templates/staffer.md', 'adapters/harness-compatibility.md', 'docs/PI.md', 'LICENSE']) {
+  for (const file of ['companion/agy-companion.mjs', 'templates/ask.md', 'templates/staffer.md', 'templates/harness-compatibility.md', 'LICENSE']) {
     assert.ok(packed.has(file), `not packed: ${file}`);
   }
+  assert.ok(!packed.has('adapters/harness-compatibility.md'), 'adapters should not be packed');
+  assert.ok(!packed.has('docs/PI.md'), 'docs/PI.md should not be packed');
   assert.equal([...packed].some(file => /^(tests|assets|\.agy-staff|\.github)\//.test(file)), false);
   // Read the same command template the host sees, resolve from the installed
   // skill directory, then execute that installed companion from another cwd.

@@ -1,3 +1,5 @@
+<!-- Generated from skills/reviewer/references/general-review.md; run npm run generate:pi. Do not edit here. -->
+
 # Composing a general review task
 
 Read this when the review subject is not code: a decision, a plan, a design, a document, or a set of claims. The companion's template carries the reviewer stance (find real problems, no speculative findings) and the guardrails — nothing else. The task string defines everything specific, including the output's shape.

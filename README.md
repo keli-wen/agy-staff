@@ -12,7 +12,7 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ## What & Why
 
-agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.8 Flash. Five personas: staffer (general-purpose), researcher, reviewer (code **and** plans/decisions), implementer, and ask — plus a model-facing jobs skill. Claude Code uses `/agy:<persona>`, Codex uses `$agy:<persona>`, and Pi uses `/skill:agy-<persona>`. All share the same companion and prompt templates.
+agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.8 Flash. Five personas: staffer (general-purpose), researcher, reviewer (code **and** plans/decisions), implementer, and ask — plus a model-facing jobs skill. Claude Code uses `/agy:<persona>` and Codex uses `$agy:<persona>`.
 
 If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
 
@@ -50,11 +50,16 @@ codex plugin marketplace add https://github.com/keli-wen/agy-staff
 codex plugin add agy@agy-staff
 ```
 
-```bash
-pi install git:github.com/keli-wen/agy-staff
-```
+<details>
+<summary>Using Pi?</summary>
 
-Restart Claude Code/Codex afterwards; in Pi, restart or run `/reload`. First run: `/agy:ask reply with OK` (Claude Code), `$agy:ask reply with OK` (Codex), or `/skill:agy-ask reply with OK` (Pi). Ask is tool-free and needs no setup. Pi needs its own configured model provider as the host; logging into agy does not log into Pi. For testing an unpushed checkout, use the [local Pi guide](docs/PI.md), not the Git install command.
+Install: `pi install git:github.com/keli-wen/agy-staff`.
+Skills are prefixed as `/skill:agy-<persona>` (e.g. `/skill:agy-ask reply with OK`), with `/skill:agy-jobs` for job management.
+Update with `pi update --extension git:github.com/keli-wen/agy-staff`, then run `/reload`.
+
+</details>
+
+Restart Claude Code or Codex afterwards. First run: `/agy:ask reply with OK` (Claude Code) or `$agy:ask reply with OK` (Codex). Ask is tool-free and needs no setup.
 
 > [!IMPORTANT]
 > **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy can inspect the repo, run commands, and edit files. agy-staff keeps that practical with prompts that adapt to the current repo state. For example, when `implementer` starts in a dirty workspace, the companion tells agy which files already had changes and reminds it not to overwrite or deliver unrelated user work. If the task asks for a commit, push, or PR, agy can do that delivery; otherwise it leaves a working-tree diff for review.
@@ -84,11 +89,9 @@ codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then resta
 
 Claude Code and Codex cache per version directory, so an upgrade lands only if the plugin version changed; restart the harness afterwards. If a fix does not show up, see [upgrading](docs/REFERENCE.md#upgrading) — it has the force-refresh command.
 
-Pi Git installs update with `pi update --extension git:github.com/keli-wen/agy-staff`, then `/reload`. Pinned refs stay pinned. Local-path installs read the checkout directly: regenerate Pi skills after edits, then `/reload`; no push is needed. See [Pi development and verification](docs/PI.md).
-
 ### CUJs
 
-Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, and in Pi use `/skill:agy-…` (for example `/skill:agy-reviewer`). Pi also advertises these skills for model-driven discovery. Its job-management entry is `agy-jobs`. Generated skills append a shared compatibility note: adapt unavailable tools to equivalent methods without dropping requirements, or explicitly ask for help.
+Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 | Use case | Invocation |
 |---|---|
@@ -118,11 +121,12 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, and in Pi 
 
 Contributions are welcome — issues, bug reports and pull requests all help.
 
-Three things worth knowing before you open a PR:
+A few things worth knowing before you open a PR:
 
 - **Run the tests**: `node --test tests/*.test.mjs`. They are black-box tests against a fake `agy` (`tests/fake-agy.mjs`) in a throwaway repo and HOME, so they never hit the network or your real settings. Keep it that way — a test must never invoke the real binary.
 - **Docs come in pairs**: `README.md` / `README.zh-CN.md` and `docs/REFERENCE.md` / `docs/REFERENCE.zh-CN.md` are kept in sync. Change one, change its counterpart.
 - **Behaviour lives in one place**: `companion/agy-companion.mjs` holds all of it. The skills are thin shells that call it, and the prompt templates in `templates/` carry the guardrails.
+- **Canonical skills are the source of truth**: edit personas in `skills/`, never in `pi-skills/`. Run `npm run generate:pi` to generate Pi entrypoints, and `npm run check:pi` to verify consistency.
 
 Adding a mode or a flag changes the public surface, so please open an issue first and we can agree on the shape.
 
