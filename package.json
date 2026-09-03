@@ -1,14 +1,39 @@
 {
   "name": "agy-staff",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "description": "Delegate work to Google's Antigravity CLI (agy) with fast Gemini access.",
   "keywords": [
     "pi-package"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keli-wen/agy-staff.git"
+  },
+  "homepage": "https://github.com/keli-wen/agy-staff",
+  "bugs": "https://github.com/keli-wen/agy-staff/issues",
+  "files": [
+    "skills/",
+    "pi-skills/",
+    "companion/",
+    "templates/",
+    "scripts/generate-pi-skills.mjs",
+    "adapters/harness-compatibility.md",
+    "docs/INSTALL_FOR_AGENTS.md",
+    "docs/PI.md",
+    "docs/REFERENCE*.md",
+    "README.zh-CN.md"
+  ],
+  "scripts": {
+    "generate:pi": "node scripts/generate-pi-skills.mjs",
+    "check:pi": "node scripts/generate-pi-skills.mjs --check",
+    "test": "node --test tests/*.test.mjs",
+    "test:pi": "node --test tests/pi.integration.mjs",
+    "prepack": "npm run check:pi"
+  },
   "pi": {
     "skills": [
-      "./skills"
+      "./pi-skills"
     ]
   }
 }

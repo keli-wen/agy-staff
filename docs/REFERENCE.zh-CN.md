@@ -14,7 +14,9 @@
 
 执行方式按模式固定，没有任何 flag 可以覆盖。`continue` 沿用解析出的模式的执行方式（续接 `ask` 仍是同步；续接其余模式返回 job id）。
 
-Claude Code、Codex 和 Pi 使用同一组人格，共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。调用写法：Claude Code 下是 `/agy:<persona>`，Codex 下是 `$agy:<persona>`，Pi 下是 `/skill:<persona>`。Pi 通过 package 的 `pi.skills` manifest 发现共享的 `skills/` 目录。任务管理（`wait`/`status`/`result`/`cancel`/`continue`/`setup`）由面向模型的 `jobs` skill 加 companion CLI 承担——用自然语言即可（「agy 的 job 好了吗」）。
+Claude Code、Codex 和 Pi 使用同一组人格，共用 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和 prompt 模板（`templates/`）。调用写法：Claude Code 用 `/agy:<persona>`，Codex 用 `$agy:<persona>`，Pi 用 `/skill:agy-<persona>`。Pi manifest 只暴露 `pi-skills/`，它由 canonical `skills/` 自动生成，带 `agy-` 前缀并改写 sibling 路径。任务管理由 `jobs`（Pi 下为 `agy-jobs`）和 companion CLI 承担，用自然语言即可（「agy 的 job 好了吗」）。详见 [Pi 本地开发与验证](PI.md)。
+
+Pi 派生 skills 保留原始工作流，并附加 `adapters/harness-compatibility.md`。指令引用不可用的工具时，宿主应使用等价方法，同时保留授权、确认、结果交付和停止条件；无法实现等价结果或无法确认等价时，须明确向用户求助。生成器不匹配或替换工作流段落，Claude/Codex 原始 skills 保持不变。前台 `wait` 是后台 Bash 的一种可能替代方式，模型是否正确适配仍需实测。
 
 ## 双权限档模型
 
@@ -244,12 +246,14 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 
 ## 升级
 
-两个 harness 都按**版本号**目录缓存插件（如 `cache/agy-staff/agy/0.4.0`），并且只用版本号判断「是不是最新」，不看 commit。所以不改版本号的推送永远到不了已有安装——对维护者而言这也是一条规则：**任何用户可见的改动都要提升版本号**，否则没人拿得到。
+Claude Code 和 Codex 按**版本号**目录缓存插件（如 `cache/agy-staff/agy/0.4.0`），只用版本号判断是否最新，不看 commit。准备发布时，两个 plugin manifest 和 `package.json` 应一起提升版本号。Pi 的 Git 安装跟随配置的 ref；本地路径安装则直接读取 checkout。
 
 - **Claude Code**——`claude plugin marketplace update agy-staff` 更新 marketplace clone，再用 `claude plugin update agy@agy-staff` 重新拷贝进缓存。`install` **不是**升级命令：对已安装的插件它一律回答「已安装」然后什么都不做，跟版本号无关。而 `update` 只在版本号变了才动——版本号没变时它回答「已是最新版本」，旧 commit 原地不动。这时用 `claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff` 强制装入当前 commit。两种情况之后都要重启 Claude Code——技能在会话启动时注册。
 - **Codex**——先提升版本号，运行 `codex plugin marketplace upgrade`（或移除后重新添加 marketplace 条目），再重启应用。
 
 想确认实际装的是哪个 commit：看 `~/.claude/plugins/installed_plugins.json` 里的 `gitCommitSha`，和 `git -C ~/.claude/plugins/marketplaces/agy-staff log -1` 拉到的 commit 对比。
+
+Pi 的未固定 Git 安装用 `pi update --extension git:github.com/keli-wen/agy-staff` 更新，再 `/reload`。本地开发则在 checkout 重新生成 Pi skills，再 `/reload`，不需要 push。详见 [Pi 本地测试](PI.md)。
 
 ## 仓库结构
 
@@ -259,7 +263,10 @@ templates/                    共享 prompt 模板（staffer/ask/research/review
 .claude-plugin/               Claude Code 插件 + 自托管 marketplace manifest
 .codex-plugin/plugin.json     Codex 插件 manifest
 .agents/plugins/              Codex marketplace manifest
-skills/                       人格 + jobs（只做转发，两个平台共用；
+pi-skills/                    自动生成的 Pi agy-* 入口及资源，不要手工编辑
+scripts/generate-pi-skills.mjs 生成 Pi adapter 并检查漂移
+package.json                  Pi manifest、npm 文件白名单、验证命令
+skills/                       canonical 人格 + jobs（Claude/Codex 入口；
                               reviewer/ 与 jobs/ 附带按需加载的 references/）
 assets/                       设计图 + logo + 徽章
 docs/                         本参考文档 + INSTALL_FOR_AGENTS.md

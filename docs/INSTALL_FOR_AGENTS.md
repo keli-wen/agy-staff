@@ -16,9 +16,10 @@ You normally know which product you are. If unsure, check:
 
 - **Claude Code** — you have `/plugin` slash commands, project instructions arrive via `CLAUDE.md`, and your Bash tool typically has `CLAUDECODE=1` in the environment. → Follow section 2a.
 - **Codex** — you invoke skills with `$name` syntax, follow `AGENTS.md`, and plugins are managed through the `codex` CLI. → Follow section 2b.
-- **Anything else** — this plugin only ships Claude Code and Codex skills. Say so and stop.
+- **Pi** — you invoke skills with `/skill:name` and manage packages with `pi install`. → Follow section 2c.
+- **Anything else** — this package documents Claude Code, Codex, and Pi. Report the unsupported harness and stop.
 
-Follow exactly one of the two sections below.
+Follow exactly one of the three sections below.
 
 ## 2a. Claude Code — install / upgrade
 
@@ -59,12 +60,27 @@ Then the user must restart the app — Codex caches plugins per version. Upgrade
 > [!IMPORTANT]
 > Codex's command sandbox cannot run agy. agy binds a localhost port for its internal language server and reads its OAuth token file; the workspace-write sandbox blocks the bind and hides the token (secret protection — no `writable_roots`/`network_access` config opens it). Every companion command must run **unsandboxed**: the workspace needs full access, or each companion command needs escalated approval. The failure signature is `operation not permitted` on `~/.gemini/antigravity-cli/...` followed by empty output or a bogus "authentication failed".
 
+## 2c. Pi — install / upgrade / local development
+
+Run `pi --version` first. Pi needs its own configured model provider, separate from agy's login; if missing, ask the user to run `/login` in Pi.
+
+```bash
+pi install git:github.com/keli-wen/agy-staff
+```
+
+If the user supplied an unpushed checkout, use `pi install /absolute/path/to/checkout` instead; it registers the directory without copying. For a temporary interactive trial without changing installed-package settings, use `pi -e /absolute/path/to/checkout`. The package manifest must point at generated `pi-skills/`, not canonical `skills/`. Run `npm run check:pi` in a development checkout and regenerate with `npm run generate:pi` if needed.
+
+For an unpinned Git install, upgrade with `pi update --extension git:github.com/keli-wen/agy-staff`. Pinned Git tags/commits remain pinned; install a new ref explicitly to move them. For a local-path install, regenerate in the checkout after edits. Restart Pi or run `/reload` afterwards.
+
+Verify with `pi list`, then confirm `/skill:agy-ask`, `/skill:agy-staffer`, `/skill:agy-researcher`, `/skill:agy-reviewer`, `/skill:agy-implementer`, and `/skill:agy-jobs` are available. Pi's skill names are global; do not separately register canonical `skills/` or an older copy of this package. See [Pi local testing](PI.md) for offline and live checks.
+
 ## 3. Smoke test
 
 Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
 
 - Claude Code: `/agy:ask "reply with OK"` — **after the restart**, otherwise you are testing the old copy or nothing at all
 - Codex: `$agy:ask reply with OK`
+- Pi: `/skill:agy-ask reply with OK` — after restart or `/reload`
 
 If you cannot restart the session, call the companion of the freshly installed copy directly from the shell. It is the same code path the skill takes, so a pass here means the install is sound:
 

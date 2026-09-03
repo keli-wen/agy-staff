@@ -1,9 +1,9 @@
 ---
-name: jobs
+name: agy-jobs
 description: Manage agy staffer background jobs - collect results, check status, cancel, follow-up conversation, and setup. Use when an agy job needs collecting, when the user asks "is the agy job done", "show agy's result", "cancel the agy job", "continue the agy conversation", or "set up agy". This is the orchestrator's skill; the persona skills (staffer/researcher/reviewer/implementer) point here.
-user-invocable: false
-allowed-tools: Bash(node:*), AskUserQuestion
 ---
+
+<!-- Generated from skills/jobs/SKILL.md; run npm run generate:pi. Do not edit here. -->
 
 # agy jobs
 
@@ -13,7 +13,7 @@ staffer, research, review, and implement always start a background job and retur
 
 ## Locating the companion
 
-This skill file lives at `<plugin-root>/skills/jobs/SKILL.md`; resolve the companion path relative to this skill directory:
+This skill file lives at `<plugin-root>/pi-skills/agy-jobs/SKILL.md`; resolve the companion path relative to this skill directory:
 
 ```bash
 node "<skill-dir>/../../companion/agy-companion.mjs" <subcommand> [args]
@@ -51,3 +51,9 @@ Delivering an exit-0 result: a short report (about a screenful) → verbatim; a 
 - If the companion exits with an error, quote its error message verbatim, add one line of your own diagnosis and the suggested next step, then stop — do not retry with different flags unless the error itself names one.
 - `operation not permitted` on `~/.gemini/...` or `bind: operation not permitted` means the companion ran inside a command sandbox, where agy cannot work. See `references/troubleshooting.md`; rerun unsandboxed instead of retrying as-is.
 - Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.
+
+## Host compatibility
+
+When this skill or its referenced instructions require a tool that the current environment does not provide, use available capabilities to achieve an equivalent result. Adapt only the tool-specific execution method; preserve the task goal, authorization requirements, explicit confirmation steps, result delivery, and stopping conditions.
+
+If an equivalent result cannot be achieved, or you cannot establish that an alternative is equivalent, explain the missing capability and its impact, and ask the user for help. Do not silently skip requirements or bypass the environment's restrictions.

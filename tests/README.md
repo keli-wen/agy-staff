@@ -1,7 +1,7 @@
 # Companion regression tests
 
 Black-box tests for `companion/agy-companion.mjs` against the 0.3.1 interface.
-Zero dependencies (`node:test` + `node:assert`), no `package.json`, no network.
+Zero test dependencies (`node:test` + `node:assert`), no network. Packaging tests also use npm and tar. The optional Pi integration suite uses a separately installed Pi CLI, never a model provider.
 
 ## Run
 
@@ -9,6 +9,10 @@ Zero dependencies (`node:test` + `node:assert`), no `package.json`, no network.
 node --test tests/*.test.mjs      # from the repo root
 node --test                       # equivalent: walks the repo for *.test.mjs
 ```
+
+Pi packaging checks run in the standard suite (`pi-packaging.test.mjs`). They check generated adapters and references, version alignment, and an actual npm archive, then run its companion with fake agy. Run `npm run generate:pi` after changing canonical skills; `npm run check:pi` is read-only and fails on drift.
+
+With Pi installed, `npm run test:pi` exercises its real package loader, skill-command expansion, and Bash tool, using disposable settings and fake agy. The suite discovers Pi from PATH, or accepts `AGY_PI_PACKAGE_ROOT`. It never reads credentials or calls a model. See [the Pi guide](../docs/PI.md) for the separate manual/live acceptance steps; offline success does not prove LLM behavior.
 
 Note: `node --test tests/` does **not** work on Node >= 22 — positional
 arguments are glob patterns there, and a bare directory matches the directory

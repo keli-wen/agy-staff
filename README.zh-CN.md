@@ -12,7 +12,7 @@
 
 ## What & Why
 
-agy-staff 让主力 agent 把任务委托给 `agy`，后者运行速度很快的 Gemini 3.8 Flash。五个人格，两个平台用同一个插件名：`/agy:staffer`（通用任务）、`/agy:researcher`、`/agy:reviewer`（代码**和**方案/决策都能审）、`/agy:implementer`、`/agy:ask`——另有一个面向模型的 `jobs` skill 管理后台任务（`wait`/`status`/`result`/`cancel`/`continue`/`setup`）。
+agy-staff 让主力 agent 把任务委托给 `agy`，后者运行速度很快的 Gemini 3.8 Flash。五个人格：staffer（通用任务）、researcher、reviewer（代码和方案审查）、implementer、ask，另有 jobs 管理后台任务。Claude Code 用 `/agy:<persona>`，Codex 用 `$agy:<persona>`，Pi 用 `/skill:agy-<persona>`；三者共享 companion 和 prompt 模板。
 
 为什么需要它：GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。这些任务可以交给 agy：它几秒钟就能给出第二意见，调研和审查以 Flash 的速度完成，范围明确的实现任务放到后台执行，你继续做手头的事。另外，即使不追求速度，让另一个模型家族审同一份代码，也能发现主力 agent 自己发现不了的问题。
 
@@ -50,7 +50,11 @@ codex plugin marketplace add https://github.com/keli-wen/agy-staff
 codex plugin add agy@agy-staff
 ```
 
-装完**重启 harness**，技能才会加载。首次运行：`/agy:ask "reply with OK"`——ask 不用任何工具、不需要 setup，装完就能用。
+```bash
+pi install git:github.com/keli-wen/agy-staff
+```
+
+装完重启 Claude Code/Codex；Pi 可重启或运行 `/reload`。首次运行：Claude Code 用 `/agy:ask reply with OK`，Codex 用 `$agy:ask reply with OK`，Pi 用 `/skill:agy-ask reply with OK`。Ask 不用工具、不需要 setup。Pi 自己仍需配置主模型服务，登录 agy 不等于登录 Pi。测试尚未 push 的分支请使用 [Pi 本地测试指南](docs/PI.md)，不要安装远端 Git 版本。
 
 > [!IMPORTANT]
 > **没有必须先做的 setup 步骤。** `staffer`、`researcher`、`reviewer`、`implementer` 默认以 **unrestricted** 档运行：agy 可以自己看仓库、跑命令、改文件。agy-staff 靠一层会看当前仓库状态的 prompt 来约束它。比如 `implementer` 遇到 dirty workspace 时，companion 会告诉 agy 哪些文件本来就有改动，并提醒它不要覆盖或交付无关的用户改动。只有任务明确要求 commit、push 或 PR 时，agy 才做对应交付；否则它只留下工作区 diff 供你审查。
@@ -68,7 +72,7 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 #### 升级
 
-两个 harness 装的都是**拷贝**，所以新版本要你主动拉一次才会生效：
+Claude Code 和 Codex 装的都是**拷贝**，所以新版本要你主动拉一次才会生效：
 
 ```bash
 claude plugin marketplace update agy-staff && claude plugin update agy@agy-staff
@@ -78,11 +82,13 @@ claude plugin marketplace update agy-staff && claude plugin update agy@agy-staff
 codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then restart Codex
 ```
 
-两个 harness 都按版本号目录缓存插件，只有插件版本号变了升级才会落地，之后还要重启 harness。改动没出现时见[升级](docs/REFERENCE.zh-CN.md#升级)——那里有强制刷新的命令。
+Claude Code 和 Codex 按版本号目录缓存插件，只有插件版本号变了升级才会落地，之后还要重启 harness。改动没出现时见[升级](docs/REFERENCE.zh-CN.md#升级)——那里有强制刷新的命令。
+
+Pi 的 Git 安装用 `pi update --extension git:github.com/keli-wen/agy-staff` 更新，再 `/reload`；固定 ref 不会自动换成新 ref。本地路径安装直接读取 checkout，改完重新生成 Pi skills 并 `/reload` 即可，无需 push。详见 [Pi 开发与验证](docs/PI.md)。
 
 ### 典型场景（CUJ）
 
-调用永远是显式的：命令由你亲手输入，插件不会因为对话里出现某些词就自行触发。示例用 Claude Code 的 `/agy:…` 写法；Codex 里同一批 skill 写作 `$agy:…`。
+下面示例用 Claude Code 的 `/agy:…` 写法；Codex 用 `$agy:…`，Pi 用 `/skill:agy-…`（例如 `/skill:agy-reviewer`）。Pi 也向模型提供这些 skills 以供按需发现，任务管理入口是 `agy-jobs`。派生 skills 附加统一兼容说明：用等价方法替代不可用的工具，不丢弃原要求；无法确定等价时，明确向用户求助。
 
 | 使用场景 | 调用 |
 |---|---|
