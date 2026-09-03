@@ -216,12 +216,12 @@ describe('tiered git guards: implement', () => {
     const sb = sandbox('impl-default-model');
     const started = run(sb, ['implement', '--prompt', 'a task']);
     assert.equal(started.code, 0, started.stderr);
-    assert.match(started.stdout, /model: gemini-3\.7-flash-high/);
+    assert.match(started.stdout, /model: gemini-3\.8-flash-high/);
 
     const id = jobIdOf(started.stdout);
     assert.equal(await waitForJob(sb, id), 'done');
     const [argv] = await waitForCalls(sb, 1);
-    assert.equal(argv[argv.indexOf('--model') + 1], 'gemini-3.7-flash-high');
+    assert.equal(argv[argv.indexOf('--model') + 1], 'gemini-3.8-flash-high');
   });
 
   test('implement on a dirty tree injects workspace context instead of refusing', async () => {
