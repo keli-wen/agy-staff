@@ -14,7 +14,7 @@ Back to the [README](../README.md). 中文版见 [REFERENCE.zh-CN.md](REFERENCE.
 
 Execution style is fixed per mode and cannot be overridden by a flag. `continue` inherits the resolved mode's style (continuing an `ask` stays synchronous; continuing the others returns a job id).
 
-Both platforms surface the same personas under the `agy` plugin name, backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`). Invocation tokens: `/agy:<persona>` on Claude Code, `$agy:<persona>` on Codex. Job management (`wait`/`status`/`result`/`cancel`/`continue`/`setup`) lives in the model-facing `jobs` skill plus the companion CLI itself — ask for it in natural language ("is the agy job done?").
+Claude Code, Codex, and Pi surface the same personas, backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`). Invocation tokens: `/agy:<persona>` on Claude Code, `$agy:<persona>` on Codex, and `/skill:agy-<persona>` on Pi. Pi's manifest exposes only `pi-skills/`, generated mechanically from canonical `skills/` via `npm run generate:pi`. Generated skills use `agy-` prefixes, rewrite sibling references, and append `templates/harness-compatibility.md` (directing the host to adapt missing tools to equivalent methods without dropping requirements, or ask for help). Job management (`wait`/`status`/`result`/`cancel`/`continue`/`setup`) lives in `jobs` (`agy-jobs` on Pi) plus the companion CLI — ask for it in natural language ("is the agy job done?").
 
 ## The two-profile permission model
 
@@ -245,10 +245,11 @@ If the installed `agy` CLI does not support Gemini 3.8 Flash, the companion fail
 
 ## Upgrading
 
-Both harnesses cache the plugin under a per-**version** directory (e.g. `cache/agy-staff/agy/0.4.0`) and key "is it current?" on that version string, not on the commit. A push that does not bump the version therefore never reaches an existing install, in either harness — which also makes this a rule for maintainers: **bump the version for every user-visible change**, or nobody gets it.
+Claude Code and Codex cache the plugin under a per-**version** directory (e.g. `cache/agy-staff/agy/0.4.0`) and key "is it current?" on that version string, not on the commit. Bump their manifests and `package.json` together when preparing a release. Pi's Git source instead follows the configured ref; local sources read the checkout directly.
 
 - **Claude Code** — `claude plugin marketplace update agy-staff` refreshes the marketplace clone, then `claude plugin update agy@agy-staff` re-copies it into the cache. `install` is **not** the upgrade command: on an already-installed plugin it answers "already installed" and does nothing, whatever the version. And `update` only moves if the version string changed — on an unchanged version it answers "already at the latest version" and leaves the old commit in place. Force the current commit in with `claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff`. Restart Claude Code afterwards either way — skills are registered at session start.
 - **Codex** — bump the version, run `codex plugin marketplace upgrade` (or remove and re-add the marketplace entry), then restart the app.
+- **Pi** — for an unpinned Git install, run `pi update --extension git:github.com/keli-wen/agy-staff`, then `/reload`. For local development, regenerate Pi skills (`npm run generate:pi`) and run `/reload`; no push is needed.
 
 You can check which commit is actually installed: the `gitCommitSha` in `~/.claude/plugins/installed_plugins.json`, versus `git -C ~/.claude/plugins/marketplaces/agy-staff log -1` for what the marketplace clone has fetched.
 
@@ -256,11 +257,14 @@ You can check which commit is actually installed: the `gitCommitSha` in `~/.clau
 
 ```
 companion/agy-companion.mjs   the single brain (all modes, jobs, setup)
-templates/                    shared prompt templates (staffer/ask/research/review/implement)
+templates/                    shared prompt templates (staffer/ask/research/review/implement) and harness-compatibility.md
 .claude-plugin/               Claude Code plugin + self-hosting marketplace manifests
 .codex-plugin/plugin.json     Codex plugin manifest
 .agents/plugins/              Codex marketplace manifest
-skills/                       the personas + jobs (thin shells, shared by both platforms;
+pi-skills/                    generated agy-* entrypoints/resources for Pi; do not hand-edit
+scripts/generate-pi-skills.mjs generates Pi skills and checks for drift
+package.json                  Pi manifest, npm file allowlist, and verification commands
+skills/                       canonical personas + jobs (Claude/Codex entrypoints;
                               reviewer/ and jobs/ carry references/ for on-demand detail)
 assets/                       design diagram + logo + badges
 docs/                         this reference + INSTALL_FOR_AGENTS.md

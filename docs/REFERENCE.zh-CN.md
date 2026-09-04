@@ -14,7 +14,7 @@
 
 执行方式按模式固定，没有任何 flag 可以覆盖。`continue` 沿用解析出的模式的执行方式（续接 `ask` 仍是同步；续接其余模式返回 job id）。
 
-两个平台使用同一个插件名 `agy`，共用一个 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和共享的 prompt 模板（`templates/`）。调用写法：Claude Code 下是 `/agy:<persona>`，Codex 下是 `$agy:<persona>`。任务管理（`wait`/`status`/`result`/`cancel`/`continue`/`setup`）由面向模型的 `jobs` skill 加 companion CLI 承担——用自然语言即可（「agy 的 job 好了吗」）。
+Claude Code、Codex 和 Pi 使用同一组人格，共用 companion 脚本（`companion/agy-companion.mjs`，仅依赖 Node 标准库）和 prompt 模板（`templates/`）。调用写法：Claude Code 用 `/agy:<persona>`，Codex 用 `$agy:<persona>`，Pi 用 `/skill:agy-<persona>`。Pi manifest 只暴露 `pi-skills/`，通过 `npm run generate:pi` 机械派生自 canonical `skills/`，带 `agy-` 前缀、改写 sibling 路径并附加 `templates/harness-compatibility.md`（引导宿主用等价方法替代不可用的工具且不丢弃原要求，无法确定时向用户求助）。任务管理由 `jobs`（Pi 下为 `agy-jobs`）和 companion CLI 承担，用自然语言即可（「agy 的 job 好了吗」）。
 
 ## 双权限档模型
 
@@ -245,22 +245,27 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 
 ## 升级
 
-两个 harness 都按**版本号**目录缓存插件（如 `cache/agy-staff/agy/0.4.0`），并且只用版本号判断「是不是最新」，不看 commit。所以不改版本号的推送永远到不了已有安装——对维护者而言这也是一条规则：**任何用户可见的改动都要提升版本号**，否则没人拿得到。
+Claude Code 和 Codex 按**版本号**目录缓存插件（如 `cache/agy-staff/agy/0.4.0`），只用版本号判断是否最新，不看 commit。准备发布时，两个 plugin manifest 和 `package.json` 应一起提升版本号。Pi 的 Git 安装跟随配置的 ref；本地路径安装则直接读取 checkout。
 
 - **Claude Code**——`claude plugin marketplace update agy-staff` 更新 marketplace clone，再用 `claude plugin update agy@agy-staff` 重新拷贝进缓存。`install` **不是**升级命令：对已安装的插件它一律回答「已安装」然后什么都不做，跟版本号无关。而 `update` 只在版本号变了才动——版本号没变时它回答「已是最新版本」，旧 commit 原地不动。这时用 `claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff` 强制装入当前 commit。两种情况之后都要重启 Claude Code——技能在会话启动时注册。
 - **Codex**——先提升版本号，运行 `codex plugin marketplace upgrade`（或移除后重新添加 marketplace 条目），再重启应用。
 
 想确认实际装的是哪个 commit：看 `~/.claude/plugins/installed_plugins.json` 里的 `gitCommitSha`，和 `git -C ~/.claude/plugins/marketplaces/agy-staff log -1` 拉到的 commit 对比。
 
+Pi 的未固定 Git 安装用 `pi update --extension git:github.com/keli-wen/agy-staff` 更新，再 `/reload`。本地开发则在 checkout 重新生成 Pi skills（`npm run generate:pi`）并运行 `/reload`，不需要 push。
+
 ## 仓库结构
 
 ```
 companion/agy-companion.mjs   所有逻辑都在这里（各模式、任务、setup）
-templates/                    共享 prompt 模板（staffer/ask/research/review/implement）
+templates/                    共享 prompt 模板（staffer/ask/research/review/implement）及 harness-compatibility.md
 .claude-plugin/               Claude Code 插件 + 自托管 marketplace manifest
 .codex-plugin/plugin.json     Codex 插件 manifest
 .agents/plugins/              Codex marketplace manifest
-skills/                       人格 + jobs（只做转发，两个平台共用；
+pi-skills/                    自动生成的 Pi agy-* 入口及资源，不要手工编辑
+scripts/generate-pi-skills.mjs 生成 Pi 技能并检查漂移
+package.json                  Pi manifest、npm 文件白名单、验证命令
+skills/                       canonical 人格 + jobs（Claude/Codex 入口；
                               reviewer/ 与 jobs/ 附带按需加载的 references/）
 assets/                       设计图 + logo + 徽章
 docs/                         本参考文档 + INSTALL_FOR_AGENTS.md
