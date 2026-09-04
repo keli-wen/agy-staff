@@ -4,6 +4,8 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   sandbox,
   run,
@@ -110,5 +112,68 @@ describe('continue inherits the resumed mode default', () => {
     const none = run(sb, ['continue', '--prompt', 'text with no history']);
     assert.notEqual(none.code, 0);
     assert.match(none.stderr, /no previous agy-staff conversation recorded/);
+  });
+});
+
+describe('cross-context liveness checks (issue #11)', () => {
+  test('pidAlive=false without result warns of permission/sandbox context mismatch and recovers when pid is visible', () => {
+    const sb = sandbox('simulated-pid-liveness');
+    const started = run(sb, ['research', '--prompt', 'a topic'], { FAKE_AGY_SLEEP_MS: '15000' });
+    assert.equal(started.code, 0, started.stderr);
+    const id = jobIdOf(started.stdout);
+
+    const stateFile = path.join(sb.repo, '.agy-staff', 'state.json');
+    const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    const job = state.jobs.find((j) => j.id === id);
+    const realPid = job.pid;
+
+    try {
+      // Simulate collector running in a sandbox/permission context where worker PID is not visible
+      job.pid = 99999999;
+      fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+
+      const expectedWarning =
+        /The worker pid is not visible from this process\. If the job may have been started from a different harness permission or sandbox context, rerun wait\/status\/result from the same unsandboxed context before treating it as crashed\./;
+
+      // 1. status <id>
+      const statusRes = run(sb, ['status', id]);
+      assert.equal(statusRes.code, 3);
+      assert.match(statusRes.stdout, /"status": "crashed"/);
+      assert.match(statusRes.stdout, expectedWarning);
+
+      // 2. status (list form)
+      const listRes = run(sb, ['status']);
+      assert.equal(listRes.code, 0);
+      assert.match(listRes.stdout, expectedWarning);
+
+      // 3. wait <id>
+      const waitRes = run(sb, ['wait', id]);
+      assert.equal(waitRes.code, 3);
+      assert.match(waitRes.stdout, /finished with status crashed and no stored result/);
+      assert.match(waitRes.stdout, expectedWarning);
+
+      // 4. result <id>
+      const resultRes = run(sb, ['result', id]);
+      assert.notEqual(resultRes.code, 0);
+      assert.match(resultRes.stderr, /has no stored result/);
+      assert.match(resultRes.stderr, expectedWarning);
+
+      // 5. Recovery when rerun from unsandboxed context where worker PID is visible
+      const stateAfter = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+      const rec = stateAfter.jobs.find((j) => j.id === id);
+      rec.pid = process.pid; // test runner process is alive
+      fs.writeFileSync(stateFile, JSON.stringify(stateAfter, null, 2));
+
+      const recoveredStatus = run(sb, ['status', id]);
+      assert.equal(recoveredStatus.code, 2, 'recovers to running when pid is visible');
+      assert.match(recoveredStatus.stdout, /"status": "running"/);
+      assert.match(recoveredStatus.stdout, /Still running/);
+    } finally {
+      if (realPid) {
+        try {
+          process.kill(realPid, 'SIGKILL');
+        } catch {}
+      }
+    }
   });
 });

@@ -32,7 +32,7 @@ staffer always runs as a background job: the call returns a job id immediately a
 
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job — and deliver the printed result when it exits 0. Everything else about job management (status, result, cancel, continue, failure protocol, waiting on several jobs at once) is in the jobs skill: `../jobs/SKILL.md`.
+The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed result when it exits 0. Everything else about job management (status, result, cancel, continue, failure protocol, waiting on several jobs at once) is in the jobs skill: `../jobs/SKILL.md`.
 
 ## Flags (all optional)
 
