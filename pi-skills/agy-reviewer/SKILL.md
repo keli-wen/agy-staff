@@ -37,7 +37,7 @@ review always runs as a background job: the call returns a job id immediately. T
 
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job — and deliver the printed review when it exits 0: short (about a screenful) verbatim; long as the verdict/key points plus the result-file path, expanding sections on request. Everything else about job management is in the jobs skill: `../agy-jobs/SKILL.md`.
+The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed review when it exits 0: short (about a screenful) verbatim; long as the verdict/key points plus the result-file path, expanding sections on request. Everything else about job management is in the jobs skill: `../agy-jobs/SKILL.md`.
 
 ## Flags (all optional)
 

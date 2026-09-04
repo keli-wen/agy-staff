@@ -1174,6 +1174,9 @@ function workerMain(jobId) {
 // jobs: status / result / cancel
 // ---------------------------------------------------------------------------
 
+const CRASH_SANDBOX_HINT =
+  'The worker pid is not visible from this process. If the job may have been started from a different harness permission or sandbox context, rerun wait/status/result from the same unsandboxed context before treating it as crashed.';
+
 function refreshJobs(state) {
   for (const job of state.jobs || []) {
     if (job.status === 'running' && !pidAlive(job.pid)) {
@@ -1181,6 +1184,14 @@ function refreshJobs(state) {
       const hasResult = fs.existsSync(job.result_file);
       job.status = hasResult ? 'done' : 'crashed';
       job.finished_at = job.finished_at || new Date().toISOString();
+    } else if (job.status === 'crashed') {
+      if (fs.existsSync(job.result_file)) {
+        job.status = 'done';
+      } else if (pidAlive(job.pid)) {
+        // worker is actually alive (e.g. previous check was from a sandboxed collector)
+        job.status = 'running';
+        delete job.finished_at;
+      }
     }
   }
   saveState(state);
@@ -1191,7 +1202,7 @@ function refreshJobs(state) {
  *  read-modify-write of state.json and could clobber it (see tests/README.md,
  *  "State-file races"). */
 function liveJobStatus(job) {
-  if (job.status !== 'running') return job.status;
+  if (job.status === 'done' || job.status === 'canceled' || job.status === 'error') return job.status;
   if (pidAlive(job.pid)) return 'running';
   return fs.existsSync(job.result_file) ? 'done' : 'crashed';
 }
@@ -1215,6 +1226,8 @@ function cmdStatus(opts) {
       process.stdout.write(`\nStill running. Log tail:\n`);
       const log = fs.existsSync(job.log_file) ? fs.readFileSync(job.log_file, 'utf8') : '';
       process.stdout.write(log.split('\n').slice(-10).join('\n') + '\n');
+    } else if (job.status === 'crashed' && !fs.existsSync(job.result_file)) {
+      process.stdout.write(`\n${CRASH_SANDBOX_HINT}\n`);
     }
     // machine-readable outcome so callers never have to parse the JSON
     process.exitCode = JOB_EXIT_CODES[job.status] ?? 1;
@@ -1230,6 +1243,9 @@ function cmdStatus(opts) {
     process.stdout.write(`${j.id} | ${j.mode} | ${j.status} | ${j.started_at} | ${j.finished_at || '-'}\n`);
   }
   process.stdout.write('\nDetails: `status <id>`   Output: `result <id>`\n');
+  if (jobs.slice(-20).some((j) => j.status === 'crashed' && !fs.existsSync(j.result_file))) {
+    process.stdout.write(`\n${CRASH_SANDBOX_HINT}\n`);
+  }
 }
 
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -1294,6 +1310,9 @@ async function cmdWait(opts) {
     process.stdout.write(
       `Job ${job.id} (${job.mode}) finished with status ${status} and no stored result. Log: ${job.log_file}\n`
     );
+    if (status === 'crashed') {
+      process.stdout.write(`\n${CRASH_SANDBOX_HINT}\n`);
+    }
   }
   process.exitCode = JOB_EXIT_CODES[status] ?? 1;
 }
@@ -1314,7 +1333,11 @@ function cmdResult(opts) {
     die(`job ${job.id} is still running — collect it with \`wait ${job.id}\` or peek with \`status ${job.id}\``);
   }
   if (!fs.existsSync(job.result_file)) {
-    die(`job ${job.id} (${job.status}) has no stored result. Log: ${job.log_file}`);
+    let msg = `job ${job.id} (${job.status}) has no stored result. Log: ${job.log_file}`;
+    if (job.status === 'crashed') {
+      msg += `\n\n${CRASH_SANDBOX_HINT}`;
+    }
+    die(msg);
   }
   process.stdout.write(`# Job ${job.id} (${job.mode}, ${job.status})\n\n`);
   process.stdout.write(fs.readFileSync(job.result_file, 'utf8'));

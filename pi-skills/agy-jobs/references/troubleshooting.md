@@ -8,6 +8,12 @@ agy cannot run inside a harness command sandbox (e.g. Codex workspace-write): it
 
 Fix: run the companion command **unsandboxed**. In Codex, request escalated permissions for the command or have the user grant the workspace full access. Do not retry the command as-is; the sandbox will block it the same way every time.
 
+## False crash reports across permission or sandbox contexts
+
+If a background job was started unsandboxed but a management command (`wait`, `status`, `result`) is later run from a sandboxed or different permission context, the collector process may not see the running worker process. Because the liveness check fails and no result file has been written yet, the command reports the job as `crashed` with no stored result.
+
+Fix: run job management commands (`wait`, `status`, `result`, `cancel`) in the same unsandboxed permission context as the job start. Rerunning `wait`/`status`/`result` from the unsandboxed context sees the live worker PID and resumes waiting or reporting normal running status.
+
 ## Empty response with status SUCCESS
 
 The fail-closed signature of a restricted run: headless agy auto-denies every unlisted tool call, so agy finishes "successfully" with nothing to say. The companion's error message carries the exact guidance — run `setup` once to install the evidence-gathering allowlist (see `setup.md`), or drop `--restricted` (unrestricted is the default). Note that some agy tools ignore allow-rules in headless mode entirely, so even a complete allowlist cannot make them work; those need an unrestricted run. An empty response from an *unrestricted* run is not a permission issue — report it.

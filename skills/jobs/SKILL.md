@@ -26,6 +26,7 @@ The job-start output prints the exact collect command — `wait <id> --timeout <
 - **One job → one background wait.** Run the printed `wait` through your harness's background command facility (Claude Code's background Bash, a Codex `unified_exec` session), started as soon as the job starts, and pick it up when it exits. While it runs, heartbeat lines on stderr (`still waiting on <id>…`) show liveness.
 - **N jobs → N background waits, never one shell.** Do not wait for several ids serially in a single shell (`wait a; wait b`, a for-loop): it hides each job's completion behind the slowest predecessor and gives you nothing to react to. Start every job's own background `wait` the moment that job starts.
 - **Foreground fallback** (nothing else to do, single job): run `wait <id>` with its 100s default timeout and rerun it while it exits 2.
+- **Match the permission context.** Run `wait`, `status`, `result`, and `cancel` in the same unsandboxed permission context as the corresponding job start. If collected from a different sandbox or permission context, the collector may not see the worker process and can falsely report a running job as crashed.
 
 Exit codes (`wait`, and `status <id>`): **0** = done — the result is already printed; **2** = still running when the wait's own timeout expired — run the same `wait <id>` again; **3** = error/crashed; **4** = canceled; **1** = generic companion error (e.g. unknown id).
 
@@ -50,4 +51,5 @@ Delivering an exit-0 result: a short report (about a screenful) → verbatim; a 
 
 - If the companion exits with an error, quote its error message verbatim, add one line of your own diagnosis and the suggested next step, then stop — do not retry with different flags unless the error itself names one.
 - `operation not permitted` on `~/.gemini/...` or `bind: operation not permitted` means the companion ran inside a command sandbox, where agy cannot work. See `references/troubleshooting.md`; rerun unsandboxed instead of retrying as-is.
+- If `wait`/`status`/`result` reports a job as crashed with no stored result, check whether the management command ran in a different permission or sandbox context from the job start. Rerun from the same unsandboxed context before treating the job as crashed.
 - Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.

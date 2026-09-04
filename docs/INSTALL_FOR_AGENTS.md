@@ -58,7 +58,7 @@ codex plugin add agy@agy-staff
 Then the user must restart the app — Codex caches plugins per version. Upgrades reach the app only after the plugin version is bumped **and** `codex plugin marketplace upgrade` is run, followed by a restart.
 
 > [!IMPORTANT]
-> Codex's command sandbox cannot run agy. agy binds a localhost port for its internal language server and reads its OAuth token file; the workspace-write sandbox blocks the bind and hides the token (secret protection — no `writable_roots`/`network_access` config opens it). Every companion command must run **unsandboxed**: the workspace needs full access, or each companion command needs escalated approval. The failure signature is `operation not permitted` on `~/.gemini/antigravity-cli/...` followed by empty output or a bogus "authentication failed".
+> Codex's command sandbox cannot run agy. agy binds a localhost port for its internal language server and reads its OAuth token file; the workspace-write sandbox blocks the bind and hides the token (secret protection — no `writable_roots`/`network_access` config opens it). Every companion command (both job dispatch and management commands such as `wait`, `status`, `result`) must run **unsandboxed**: the workspace needs full access, or each companion command needs escalated approval. The failure signature is `operation not permitted` on `~/.gemini/antigravity-cli/...` followed by empty output or a bogus "authentication failed".
 
 ## 2c. Pi — install / upgrade / local development
 
