@@ -118,7 +118,7 @@ describe('task text is opaque: flag-like content is never parsed (issue #3)', ()
     const [argv] = await waitForCalls(sb, 1);
     assert.ok(promptOf(argv).includes(task), `prompt lost the task text: ${promptOf(argv)}`);
     assert.ok(!argv.includes('--json-schema'), '--json inside the task must not enable the schema');
-    assert.equal(argv[argv.indexOf('--print-timeout') + 1], '5m', "review's default timeout must hold");
+    assert.equal(argv[argv.indexOf('--print-timeout') + 1], '60m', "review explicitly sets AGY's response budget");
   });
 
   test('--prompt-file content containing companion flags is never scanned', async () => {
@@ -156,7 +156,7 @@ describe('task text is opaque: flag-like content is never parsed (issue #3)', ()
     await waitForJob(sb, jobIdOf(r.stdout));
     const [argv] = await waitForCalls(sb, 1);
     assert.ok(argv.includes('--json-schema'), 'the real --json flag must enable the schema');
-    assert.equal(argv[argv.indexOf('--print-timeout') + 1], '90s');
+    assert.equal(argv[argv.indexOf('--print-timeout') + 1], '60m');
     assert.ok(promptOf(argv).includes(task));
   });
 

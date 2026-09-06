@@ -28,7 +28,7 @@ research always runs as a background job: the call returns a job id immediately,
 
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed report when it exits 0: a short report (about a screenful) verbatim; a long report as the key points plus the result-file path, expanding sections on request. Everything else about job management is in the jobs skill: `../jobs/SKILL.md`.
+The job-start output prints the exact collect command (`` `wait <id> --timeout 10m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed report when it exits 0: a short report (about a screenful) verbatim; a long report as the key points plus the result-file path, expanding sections on request. Everything else about job management is in the jobs skill: `../jobs/SKILL.md`.
 
 ## Flags (all optional)
 
@@ -36,7 +36,7 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-high`.
 - `--restricted` / `--unrestricted` — permission profile. research defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy runs without `--dangerously-skip-permissions` and may only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
-- `--timeout <dur>` — default 10m.
+- `--timeout <dur>` — default/max 60m hard execution limit.
 
 ## Rules
 
@@ -45,3 +45,5 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 - Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, commands that burn paid API quota); that default opens only when the request itself asks for the operation — so keep "run the e2e tests" or "call the staging API" in the prompt instead of trimming it.
 - If a `--restricted` run reports an empty response due to denied permissions, relay the companion's guidance: run the setup flow once (see `../jobs/references/setup.md`), or drop `--restricted`.
 - On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../jobs/SKILL.md`.
+
+On wait exit 2, inspect the attached observation snapshot and decide whether to wait again, inspect bounded excerpts of the referenced files, or cancel. The worker keeps running; ordinary activity does not end a wait early. Use `observe <id>` for an immediate snapshot. A hard timeout is terminal and includes recovery information; use the jobs skill for explicit continuation/restart. Bash + skills cannot wake an idle orchestrator universally: use one independent background wait per job where supported, or shorter waits supported by the host.

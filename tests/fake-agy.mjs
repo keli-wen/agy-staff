@@ -27,6 +27,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 
 const argv = process.argv.slice(2);
 
@@ -78,9 +79,23 @@ if (touch) {
   fs.writeFileSync(target, 'written by fake agy\n');
 }
 
+const streaming = argv[argv.indexOf('--output-format') + 1] === 'stream-json';
+if (streaming && !process.env.FAKE_AGY_NO_JSON) {
+  process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: process.env.FAKE_AGY_CONVERSATION_ID || 'conv-1' } }) + '\n');
+  if (process.env.FAKE_AGY_EVENTS) {
+    for (const event of JSON.parse(process.env.FAKE_AGY_EVENTS)) process.stdout.write(JSON.stringify(event) + '\n');
+  }
+}
+
+if (process.env.FAKE_AGY_CHILD_PID_FILE) {
+  const child = spawn(process.execPath, ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"], { detached: true, stdio: 'ignore' });
+  fs.writeFileSync(process.env.FAKE_AGY_CHILD_PID_FILE, String(child.pid));
+}
+if (process.env.FAKE_AGY_IGNORE_TERM) process.on('SIGTERM', () => {});
+
 const sleepMs = Number(process.env.FAKE_AGY_SLEEP_MS || 0);
 if (sleepMs > 0) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, sleepMs);
+  await new Promise((resolve) => setTimeout(resolve, sleepMs));
 }
 
 // Crash knob: emulate agy dying before it can print JSON (e.g. blocked by a
@@ -101,5 +116,5 @@ const payload = {
 if (process.env.FAKE_AGY_ERROR) payload.error = process.env.FAKE_AGY_ERROR;
 
 if (process.env.FAKE_AGY_STDERR) process.stderr.write(process.env.FAKE_AGY_STDERR + '\n');
-process.stdout.write(JSON.stringify(payload) + '\n');
+process.stdout.write(JSON.stringify(streaming ? { event: 'result', result: payload } : payload) + '\n');
 process.exit(Number(process.env.FAKE_AGY_EXIT || 0));

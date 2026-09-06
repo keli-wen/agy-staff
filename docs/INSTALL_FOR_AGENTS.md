@@ -7,7 +7,7 @@ You are a coding agent that has been asked to install and verify the **agy-staff
 
 ## 0. Prerequisites
 
-1. **`agy` binary** — run `agy --version`. Any recent version works (tested with v1.1.15). If it is missing, do **not** install it yourself: give the user the official install page <https://antigravity.google/docs/cli/install> (macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh | bash`) and wait for them to install and authenticate (`agy` run interactively once handles login).
+1. **`agy` binary** — run `agy --version`. Use a version supporting `stream-json` (lifecycle smoke tests use v1.1.27). If it is missing, do **not** install it yourself: give the user the official install page <https://antigravity.google/docs/cli/install> (macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh | bash`) and wait for them to install and authenticate (`agy` run interactively once handles login).
 2. **Node.js** — run `node --version`. The companion script uses only the Node standard library.
 
 ## 1. Detect which harness you are running in
@@ -125,10 +125,12 @@ If the user is security-sensitive and the machine-wide scope is unacceptable, te
 
 ## 5. The execution model
 
-`ask` returns its answer synchronously. `staffer`, `research`, `review` and `implement` return a job id, and the job-start output prints the exact collect command (`wait <id> --timeout <n>m`). Run that as a background command — one background wait per job — and deliver the result when it exits; exit code 2 means still running, so run the same `wait` again (`cancel <id>` stops the job). Do not leave a started job unreported.
+`ask` returns its answer synchronously. `staffer`, `research`, `review` and `implement` return a job id, and the job-start output prints the exact collect command (`wait <id> --timeout 10m`). Run that as a background command — one background wait per job — and deliver the result when it exits; exit code 2 means still running, so run the same `wait` again (`cancel <id>` stops the job). Do not leave a started job unreported.
 
 Per-repo state lives in `<repo>/.agy-staff/`; the companion git-ignores it automatically on first use (via `.git/info/exclude` — the tracked `.gitignore` is never touched).
 
 ## 6. Report back
 
 Tell the user, in **their** language: whether install succeeded (name the version and whether it came from the GitHub slug or a local checkout), the smoke-test result, whether a restart is still needed before the skills load, and whether the optional setup allowlist was applied, declined, or never offered (the default unrestricted profile does not need it).
+
+On wait exit 2, inspect the attached snapshot before deciding whether to wait again, inspect bounded log excerpts or cancel. `observe <id>` is immediate. The worker has a separate 60m hard limit; its error report contains explicit job-linked recovery commands. The host controls tool-result delivery and future model invocations; use shorter waits if it cannot deliver background completion.

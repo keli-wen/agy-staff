@@ -112,7 +112,7 @@ policy 写入 `<repo>/.agy-staff/config.json`，之后自动生效（运行时�
 | `--restricted` / `--unrestricted` | 覆盖权限档（`ask` 会忽略）。`staffer`/`research`/`review`/`implement` 默认就是 unrestricted，所以实际会用到的是 `--restricted` |
 | `--restrict <modes\|none>` | （setup）仓库级 policy：列出的模式在本仓库默认 restricted；`none` 清除。见[仓库级 policy](#仓库级-policysetup---restrict) |
 | `--json` | （review）按 schema 强制输出 JSON findings；默认是自由格式 markdown。面向代码审查 flavor |
-| `--timeout <dur>` | agy 的 `--print-timeout`（默认：staffer/research/implement 10m，review 5m，ask 2m） |
+| `--timeout <dur>` | 后台 worker 硬上限（默认/最大 60m，可缩短）；显式传给 AGY 的响应预算为 60m。同步 ask 的响应超时默认 2m |
 | `--prompt <text>` | 任务正文，作为**一个**参数传入。请加引号；引号里的内容一律不透明 |
 | `--prompt-file <path>` | 从文件读任务文本——长 prompt 用它，不用跟 shell 引号搏斗 |
 | `--stdin` | 从 stdin 读任务文本。每次调用只允许一个任务来源：`--prompt`、`--prompt-file` 或 `--stdin` |
@@ -160,22 +160,24 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 
 **输出分流。** stdout 承载结果本身，以及关于工作区的 guard 警告；`[agy-staff]` telemetry 行（mode、profile、model、duration、tokens、conversation id）走 stderr，后台任务则写进 `jobs/<id>.log`。telemetry 是给调用方 agent 看的元信息，不属于交付内容，也不会写进 `jobs/<id>.result.md`。
 
-`staffer`、`research`、`review`、`implement` 不阻塞，会立刻返回一个 job id，并且任务启动输出里就印着确切的收取命令——`wait <id> --timeout <n>m`，时长足以覆盖任务本身。结果通过任务生命周期取回：
+`staffer`、`research`、`review`、`implement` 立即返回稳定的 job id。独立 worker 持续读取并保存 AGY `stream-json`，无需观察者在线，也不增加 daemon 或调度器。
 
-- `wait [id] [--timeout <dur>]` — 阻塞到任务（默认最近一个）进入终态，然后直接打印结果。这是首选的取结果方式：一条命令，替代手写轮询循环。等待期间每约 15s 在 stderr 打一条心跳，长等待可观测。
-- `status` — 列出任务／查看某个任务的状态（`running`、`done`、`error`、`crashed`、`canceled`）。
-- `result <id>` — （再次）打印已完成任务的输出。
-- `cancel <id>` — 终止运行中的任务。
+- `wait [id] [--timeout <dur>]`：完成时交付原结果；软等待到期时直接返回 JSON 快照，worker 继续运行。普通活动不会提前结束等待。裸 wait 默认 100s，skills 建议显式传 10m。
+- `observe [id]`：立即返回同样的快照或终态结果/报告，不重置期限，不消耗其他观察者的历史。
+- `status [id]`：列出任务或显示状态和有界日志尾部。`result [id]`：重印已存结果。
+- `cancel <id>`：停止属于该 job 的执行进程；中断 wait 不会取消 worker。
+- `continue --job <id> --prompt "..."`：按原 conversation、mode、model、profile 续接，创建关联的新 job。`--conversation <id>` 同样从已知会话解析配置，不使用无关的最近模式。
+- `restart <id>`：显式用原任务和配置重新开始，关联原 job，不复用 conversation。续接或重启前先用 `git status`、`git diff` 检查部分改动。
 
-`status <id>` 和 `wait` 用机器可读的退出码表达结果，调用方不需要解析任何输出：**0** done、**2** running、**3** error/crashed、**4** canceled（1 仍是通用错误，比如 job id 不存在）。`wait` 自己的 `--timeout` 默认 100s——刻意低于常见 harness 的单命令超时——但**没有上限**：标准姿势是把启动输出里印的那条长时长 `wait` 作为后台命令运行，**一个 job 一个后台 wait**（绝不要在一个 shell 里串行等多个 id——每个完成都会被最慢的前序挡住）。到时不算失败：退出码 2 表示任务还在跑，再执行一次同样的 `wait` 即可。发起任务的 agent 有责任在启动时告诉你 job id，并用 `wait` 把任务跟到结束，而不是丢着不管。
+wait/observe/status（带 id）退出码：**0** done、**2** running、**3** error/crashed、**4** canceled、**1** 命令错误。终态结果和警告交付保留原契约。运行中快照含时间戳、已运行时长、最近 5 次工具活动（参数/输出节选）及按 step 合并的最新文本。未知状态、未完成文本和截断均有标记；工具完成不代表有用进展。UTF-8 JSON 预算：每活动 1 KiB、文本 2 KiB、整体 8 KiB；更多详情通过 `details` 路径限量读取或搜索。
 
-按仓库存储的状态位于 `<repo>/.agy-staff/`：
+worker 显式给 AGY `--print-timeout 60m`，并独立执行包括初始化在内的 60 分钟总上限。启动 `--timeout` 可缩短硬上限，wait/observe 不能续期。达到上限后报告 `status=error`、`reason=hard_timeout`、最后快照、日志、已知 conversation ID、原配置和恢复入口。显式恢复创建拥有新预算的关联 job，旧终态记录保留；companion 不自动重试。
 
-- `state.json` — 各模式最近一次会话 id + 任务注册表。
-- `config.json` — 仓库级权限档 policy（用 `setup --restrict` 设置过才存在）。
-- `jobs/<id>.log`、`jobs/<id>.spec.json`、`jobs/<id>.result.md` — 每个后台任务一组。
+宿主支持时每个 job 启动独立的后台 wait，不要在同一 shell 串行等多个 job。其他宿主使用其工具时限允许的短等待。完成会结束正在执行的 wait，但模型何时收到结果由外层 harness 决定。Bash + skills 无法保证唤醒空闲模型，仅写定时指令也不会调度下一轮调用。
 
-后台任务就是普通的 detached 进程（companion 以 worker 身份重新拉起自己；没有 daemon）。`status` 通过 pid 存活探测识别崩溃的 worker；`cancel` 直接 kill pid。会话续接（`--continue`、`continue`）很省额度：agy 的历史上下文大部分由缓存承担（`cache_read_tokens`）。
+状态位于 `<repo>/.agy-staff/`。`state.json` 保存会话和生命周期，写入使用短事务锁；观察保持只读。`config.json` 保存可选权限策略。每个 job 有 spec、诊断日志、结果、终态 sidecar、原始 stdout（`.events.jsonl`）和原子发布的快照（`.progress.json`）。原始记录可能包含未知或无效事件。旧 job 没有活动文件时仍可读取状态/结果。
+
+成功且无警告时，先持久化结果及元数据，再清理 stream/snapshot；失败、取消、硬超时和带警告完成保留中间记录。结果、诊断日志、会话元数据和 AGY 自身会话存储保留。读取与清理竞争时重新检查终态并返回结果。无结果崩溃报告包含 dispatch/worker 启动证据、进程 ID、日志是否存在及大小和后续检查/恢复命令，不复制完整 prompt 或环境变量。
 
 ### 让 `.agy-staff/` 不进 git
 

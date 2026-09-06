@@ -1,7 +1,7 @@
 # Companion regression tests
 
 Black-box tests for `companion/agy-companion.mjs` against the 0.3.1 interface.
-Zero test dependencies (`node:test` + `node:assert`), no network. Packaging tests also use npm and tar. The optional Pi integration suite uses a separately installed Pi CLI, never a model provider.
+Zero test dependencies (`node:test` + `node:assert`), no network. Run unsandboxed when the host restricts process inspection/signals: lifecycle tests use `ps` to verify detached descendant cleanup. Packaging tests also use npm and tar. The optional Pi integration suite uses a separately installed Pi CLI, never a model provider.
 
 ## Run
 
@@ -79,6 +79,16 @@ part of 0.2, since background-first made them the default path:
 
 `state.test.mjs` pins both. The other suites still wait read-only for the
 worker's result file and give the fake `agy` a 300 ms latency floor
-(`FAKE_AGY_SLEEP_MS`) — a residual lost-update window remains when two processes
-read-modify-write `state.json` at the same instant (full fix would need file
-locking, out of scope).
+(`FAKE_AGY_SLEEP_MS`) — since 0.6.0, lifecycle writes use a crash-recoverable lock around read-modify-write, while observers stay read-only. `streaming.test.mjs` also starts three jobs concurrently to verify that registrations, conversations and terminal states survive contention.
+
+## Streaming lifecycle (0.6.0)
+
+`observation.test.mjs` checks UTF-8/parser boundaries, malformed and oversized records, merged and late tool/text updates, serialized byte budgets and explicit truncation. `streaming.test.mjs` checks short soft/hard deadlines, wait interruption, multiple observers, process cleanup, concurrent dispatch, recovery configuration/linkage, warning retention, crash packets and terminal cleanup races. No model calls are made by these tests.
+
+The optional real AGY suite requires an authenticated AGY installation and incurs model usage:
+
+```sh
+AGY_REAL_SMOKE=1 node tests/real-agy.integration.mjs
+```
+
+Run it unsandboxed in the same permission context as AGY. It creates disposable directories, validates real streaming and structured review output, then cancels and hard-stops jobs after their shell tools start. It records observed process IDs, checks for surviving processes and unintended completion markers, and prints the retained evidence directory. It never changes global settings. The shortened hard deadline exercises the worker timer; it does not claim a full-hour endurance test.

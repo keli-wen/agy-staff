@@ -112,7 +112,7 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 | `--restricted` / `--unrestricted` | permission profile override (ignored by `ask`). `unrestricted` is the default for `staffer`/`research`/`review`/`implement`, so `--restricted` is the flag you actually reach for |
 | `--restrict <modes\|none>` | (setup) per-repo policy: the listed modes default to restricted in this repository; `none` clears it. See [Per-repo policy](#per-repo-policy-setup---restrict) |
 | `--json` | (review) schema-enforced JSON findings; default is free-form markdown. Meant for the code-review flavor |
-| `--timeout <dur>` | agy `--print-timeout` (defaults: 10m staffer/research/implement, 5m review, 2m ask) |
+| `--timeout <dur>` | Background worker hard limit (default/max 60m; may be shortened). AGY response budget is explicitly 60m. For synchronous ask: AGY response timeout, default 2m |
 | `--prompt <text>` | the task text as one argument. Quote it; whatever is inside is opaque |
 | `--prompt-file <path>` | read the task text from a file — for long prompts, instead of shell quoting |
 | `--stdin` | read the task text from stdin. Exactly one task source per call: `--prompt`, `--prompt-file`, or `--stdin` |
@@ -160,22 +160,24 @@ The review template itself is a neutral skeleton (reviewer stance, evidence disc
 
 **Output split.** stdout carries the result and any guard warning about the working tree; the `[agy-staff]` telemetry line (mode, profile, model, duration, tokens, conversation id) goes to stderr, and for background jobs into `jobs/<id>.log`. Telemetry is metadata for the calling agent — it is not part of the deliverable and is not stored in `jobs/<id>.result.md`.
 
-`staffer`, `research`, `review` and `implement` return a job id immediately instead of blocking, and the job-start output prints the exact collect command — `wait <id> --timeout <n>m`, sized to outlive the job. Results are collected through the job lifecycle:
+`staffer`, `research`, `review` and `implement` return stable job handles promptly. Each detached worker continuously drains AGY `stream-json`, even with no observers. There is no additional daemon or scheduler.
 
-- `wait [id] [--timeout <dur>]` — block until the job (default: the most recent) reaches a terminal state, then print its result. The preferred collection path: one command instead of a hand-rolled poll loop. While waiting, heartbeat lines on stderr show liveness every ~15s.
-- `status` — list jobs / show one job's state (`running`, `done`, `error`, `crashed`, `canceled`).
-- `result <id>` — print a finished job's output (again).
-- `cancel <id>` — kill a running job.
+- `wait [id] [--timeout <dur>]` waits for completion or its attention interval. Completion delivers the existing result; soft expiry returns a JSON observation snapshot directly and leaves execution running. Ordinary tool activity does not end the wait early. Bare wait defaults to 100s; skills recommend an explicit 10m attention interval.
+- `observe [id]` immediately returns the same snapshot or terminal result/report, without resetting any deadline or consuming another observer's history.
+- `status [id]` lists jobs or shows state and a bounded diagnostic log tail. `result [id]` reprints stored output.
+- `cancel <id>` stops execution belonging to that job; interrupting a wait has no such effect.
+- `continue --job <id> --prompt "..."` resumes the known conversation with its original mode/model/profile and a linked new job. `continue --conversation <id>` also resolves configuration from that known conversation, never an unrelated last mode.
+- `restart <id>` explicitly relaunches the original task/configuration without a conversation, linked to the original job. Inspect partial workspace changes with `git status` and `git diff` before either recovery action.
 
-`status <id>` and `wait` exit with a machine-readable code so callers never parse output to branch: **0** done, **2** running, **3** error/crashed, **4** canceled (1 stays the generic error, e.g. unknown id). `wait`'s own `--timeout` defaults to 100s — deliberately under a typical harness per-command limit — but has no upper bound: the canonical pattern is the printed long-timeout `wait` run as a background command, **one background wait per job** (never several ids serially in one shell — that hides each completion behind the slowest predecessor). Expiring is not a failure: exit 2 means the job is still running, and you simply run the same `wait` again. The agent that started a job is expected to see it through with `wait` (and to tell you the job id when it starts one) rather than leave the run dangling.
+Exit codes for wait/observe/status-with-id: **0** done, **2** running, **3** error/crashed, **4** canceled, **1** command error. Final results and warning delivery keep their existing contract. A running snapshot contains timestamps, elapsed time, the latest five tool activities with input/output excerpts and the latest response text merged by step. Unknown states, incomplete text and truncation are labeled; a tool finishing is not proof of useful progress. UTF-8 JSON budgets are 1 KiB per activity, 2 KiB for text and 8 KiB total. Use bounded reads/searches of the `details` paths for more context.
 
-Per-repository state lives in `<repo>/.agy-staff/`:
+The worker explicitly passes AGY `--print-timeout 60m` and enforces its own 60-minute overall limit, including initialization. A launch `--timeout` can shorten this hard limit. Wait/observe cannot renew it. Hard expiry produces `status=error`, `reason=hard_timeout`, the last snapshot, retained logs, known conversation ID, original configuration and recovery commands. Explicit recovery creates a linked new job with a fresh budget, preserving the old terminal record; the companion never retries automatically.
 
-- `state.json` — last conversation id per mode + a jobs registry.
-- `config.json` — the per-repo profile policy, if you set one with `setup --restrict`.
-- `jobs/<id>.log`, `jobs/<id>.spec.json`, `jobs/<id>.result.md` — one triple per background job.
+Use one independent background wait per job where the harness supports it, never serialize multiple jobs in one shell. Otherwise use shorter waits within the host's tool-call limit. Completion ends an outstanding wait, but the outer harness controls when the model receives it. Bash + skills cannot universally wake an idle model; a timer instruction alone does not schedule another invocation.
 
-Background jobs are plain detached processes (the companion re-spawns itself as a worker; no daemon). `status` detects crashed workers by pid liveness; `cancel` kills the pid. Conversation continuation (`--continue`, `continue`) is cheap: agy serves prior context largely from cache (`cache_read_tokens`).
+Per-repository state lives in `<repo>/.agy-staff/`. `state.json` stores conversations and lifecycle records, protected by short write transactions; observation reads remain read-only. `config.json` holds optional permission policy. Each job has a spec, diagnostic log, result, final status sidecar, raw stdout (`.events.jsonl`) and atomically published bounded snapshot (`.progress.json`). Raw records may include unknown/malformed events. Missing activity files on legacy jobs yield a status-only snapshot.
+
+After warning-free success, results and metadata become durable before the raw stream/snapshot are deleted. Failures, cancellation, hard timeout and warning results retain intermediates. Results, diagnostic logs, conversation metadata and AGY's own conversation storage are retained. Readers racing with cleanup recheck terminal state and return the result. Crash-without-result reports include dispatch/worker-start evidence, process IDs, log existence/size and next-inspection/recovery commands without copying prompts or environment values.
 
 ### Keeping `.agy-staff/` out of git
 

@@ -75,7 +75,7 @@ describe('wait', () => {
 
     const first = run(sb, ['wait', id, '--timeout', '1s']);
     assert.equal(first.code, 2, `${first.stdout}${first.stderr}`);
-    assert.match(first.stdout, /still running after 1s/);
+    assert.equal(JSON.parse(first.stdout).status, 'running');
     assert.doesNotMatch(first.stdout, /fake answer/, 'a timed-out wait must not print a result');
 
     const second = run(sb, ['wait', id]);

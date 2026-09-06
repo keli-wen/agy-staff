@@ -32,14 +32,14 @@ staffer always runs as a background job: the call returns a job id immediately a
 
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed result when it exits 0. Everything else about job management (status, result, cancel, continue, failure protocol, waiting on several jobs at once) is in the jobs skill: `../agy-jobs/SKILL.md`.
+The job-start output prints the exact collect command (`` `wait <id> --timeout 10m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed result when it exits 0. Everything else about job management (status, result, cancel, continue, failure protocol, waiting on several jobs at once) is in the jobs skill: `../agy-jobs/SKILL.md`.
 
 ## Flags (all optional)
 
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts instead of shell quoting.
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-medium`.
 - `--restricted` / `--unrestricted` — permission profile; staffer defaults to unrestricted like the other tool-using personas, `--restricted` is the opt-in hardening path.
-- `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 10m).
+- `--continue` (or `--conversation <id>`), `--timeout <dur>` (default/max 60m hard execution limit).
 
 ## Rules
 
@@ -47,6 +47,8 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 - Pass the user's explicit authorizations through verbatim. The template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, paid-quota commands); that default opens only when the task itself asks for the operation.
 - A general task may legitimately edit files. The companion reports any working-tree delta with the result — inspect it (`git diff`) and confirm it is what the task asked for before building on it.
 - On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../agy-jobs/SKILL.md`.
+
+On wait exit 2, inspect the attached observation snapshot and decide whether to wait again, inspect bounded excerpts of the referenced files, or cancel. The worker keeps running; ordinary activity does not end a wait early. Use `observe <id>` for an immediate snapshot. A hard timeout is terminal and includes recovery information; use the jobs skill for explicit continuation/restart. Bash + skills cannot wake an idle orchestrator universally: use one independent background wait per job where supported, or shorter waits supported by the host.
 
 ## Host compatibility
 

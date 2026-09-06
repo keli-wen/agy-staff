@@ -109,7 +109,7 @@ Claude Code 和 Codex 按版本号目录缓存插件，只有插件版本号变�
 
 `staffer` 还能解锁 agy 的原生工具中没有专职人格覆盖的部分——最值得一提的是**图像生成**（`generate_image`；在 agy v1.1.15 上实测，约 30 秒产出 1024×1024 PNG）。
 
-`ask` 在同一次调用里返回答案。其余人格作为后台任务运行：调用立即返回 job id，并打印确切的收取命令（`wait <id> --timeout <n>m`）；你的 agent 把它作为后台命令运行——一个 job 一个 wait——完成时交付结果。
+`ask` 在同一次调用里返回答案。其余人格作为后台任务运行：调用立即返回 job id，并打印确切的收取命令（`wait <id> --timeout 10m`）；你的 agent 把它作为后台命令运行——一个 job 一个 wait——完成时交付结果。
 
 **完整参考 →** [docs/REFERENCE.zh-CN.md](docs/REFERENCE.zh-CN.md)（flags、权限模型、任务/状态、疑难排查、升级）。**Release notes →** [docs/releases/](docs/releases/)。
 
@@ -133,3 +133,5 @@ Claude Code 和 Codex 按版本号目录缓存插件，只有插件版本号变�
 ## 许可证
 
 MIT — 见 [LICENSE](LICENSE)。
+
+0.6.0 增加流式观察：`observe <id>` 展示最近 5 次工具活动和响应文本；10 分钟等待到期直接返回同样的快照，worker 继续执行。任务另有 60 分钟硬上限和按 job 关联的显式恢复入口，详见[参考文档](docs/REFERENCE.zh-CN.md)。
