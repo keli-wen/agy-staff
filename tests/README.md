@@ -92,3 +92,5 @@ AGY_REAL_SMOKE=1 node tests/real-agy.integration.mjs
 ```
 
 Run it unsandboxed in the same permission context as AGY. It creates disposable directories, validates real streaming and structured review output, then cancels and hard-stops jobs after their shell tools start. It records observed process IDs, checks for surviving processes and unintended completion markers, and prints the retained evidence directory. It never changes global settings. The shortened hard deadline exercises the worker timer; it does not claim a full-hour endurance test.
+
+`terminal-observation.test.mjs` verifies bounded JSON for done/error/canceled/crashed and legacy jobs, terminal-sidecar races, nested recovery metadata, and observe alongside a pending wait with a large report. Observe never consumes or duplicates full result delivery.

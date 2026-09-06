@@ -116,5 +116,5 @@ const payload = {
 if (process.env.FAKE_AGY_ERROR) payload.error = process.env.FAKE_AGY_ERROR;
 
 if (process.env.FAKE_AGY_STDERR) process.stderr.write(process.env.FAKE_AGY_STDERR + '\n');
-process.stdout.write(JSON.stringify(streaming ? { event: 'result', result: payload } : payload) + '\n');
+await new Promise((resolve) => process.stdout.write(JSON.stringify(streaming ? { event: 'result', result: payload } : payload) + '\n', resolve));
 process.exit(Number(process.env.FAKE_AGY_EXIT || 0));

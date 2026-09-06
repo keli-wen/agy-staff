@@ -31,6 +31,25 @@ export function boundSnapshot(snapshot) {
     out.truncated = true;
     out.details_truncated = true;
   }
+  // Terminal observations add nested recovery/configuration strings. Budget
+  // those too; a long path must not bypass the same 8 KiB response ceiling.
+  if (bytes(out) + 1 > 8192) {
+    const trim = (value, limit) => {
+      if (typeof value === 'string') return excerpt(value, limit).text;
+      if (Array.isArray(value)) return value.map((item) => trim(item, limit));
+      if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, trim(item, limit)]));
+      return value;
+    };
+    out.truncated = true;
+    out.details_truncated = true;
+    for (const limit of [256, 128, 64]) {
+      const compact = trim(out, limit);
+      if (bytes(compact) + 1 <= 8192) return compact;
+    }
+    return { job_id: excerpt(out.job_id || '', 256).text, status: out.status,
+      result_file: excerpt(out.result_file || out.details?.result || '', 512).text,
+      truncated: true, details_truncated: true };
+  }
   return out;
 }
 

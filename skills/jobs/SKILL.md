@@ -18,7 +18,7 @@ node "<skill-dir>/../../companion/agy-companion.mjs" <command> [args]
 ## Collect the result
 
 1. Keep the returned job id. Start `wait <id> --timeout 10m` in the background, using the same unsandboxed context as launch. Use a separate wait for each job; never wait for several jobs serially in one shell.
-2. Branch on the exit code:
+2. For **wait**, branch on the exit code:
 
 | Code | Meaning | Next action |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ node "<skill-dir>/../../companion/agy-companion.mjs" <command> [args]
 
 For a user progress question or a mid-run update, call `observe <id>` before reporting progress, even if a wait is already running. Report changed tool activity, response text or an actionable warning; do not repeat an unchanged snapshot. Do not call observe again just to duplicate the snapshot returned by a soft-expired wait.
 
-Keep the pending wait open while observing. Host command collectors (for example, Codex `write_stdin`) only collect that command's output; they do not call observe or read AGY progress for you. Prefer background completion delivery; when polling is required, use a substantial supported wait (typically 30–60s), not repeated 1s empty polls. An outer `functions.wait` resumes a yielded `functions.exec` call, not an AGY job.
+Keep the pending wait open while observing. Host command collectors (for example, Codex `write_stdin`) only collect that command's output; they do not call observe or read AGY progress for you. Prefer background completion delivery; when polling is required, use a substantial supported wait (typically 30–60s), not repeated 1s empty polls. An outer `functions.wait` resumes a yielded `functions.exec` call, not an AGY job. During silent waiting the session has no output; only completion or soft expiry produces the result/snapshot for its collector. Observe reads job state independently, not wait’s output.
 
 A wait expires without stopping the worker. Cancel only when the task calls for stopping; a quiet period alone is not a reason. If progress leaves a specific question unanswered, read only the relevant part of the file named in `details`, such as the last 4 KiB of its diagnostic log. Do not load an entire stream by default.
 
@@ -42,7 +42,7 @@ Follow through to a result unless the user asked only to launch. If the host can
 
 | Command | Purpose |
 | --- | --- |
-| `observe [id]` | Immediately show current progress, or the terminal result/report. |
+| `observe [id]` | Always return bounded JSON: progress while running, terminal metadata and result/recovery pointers when finished. Never return report text. |
 | `status [id]` | List jobs or show one job's state and log tail. |
 | `result [id]` | Reprint stored output; default to the latest finished job. |
 | `cancel <id>` | Stop that job's execution. Interrupting wait does not cancel it. |
@@ -51,7 +51,7 @@ Follow through to a result unless the user asked only to launch. If the host can
 | `restart <id>` | Start the original task/configuration again without its conversation; create a linked new job. |
 | `setup [--apply] [--restrict <modes\|none>]` | Optional permission setup; read `references/setup.md` first. |
 
-Wait/observe default to the latest job; observe and status-with-id use the same exit codes as wait. A continued ask remains synchronous.
+Wait/observe default to the latest job. Observe uses the same status exit codes, but exit 0 means **finished, not full result delivered**. Collect the existing wait session, or use `result <id>` if none is pending; do not start another wait or expect observe to consume the pending session. Failed/canceled observations provide bounded recovery metadata; wait/result deliver the full report. A continued ask remains synchronous.
 
 ## Progress and recovery
 

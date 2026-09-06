@@ -13,7 +13,7 @@
  *                                   with no role or output-format framing)
  *   ask --prompt <question>         cheap zero-tool one-shot Q&A (foreground)
  *   continue --prompt <text>        continue the most recent conversation (any mode)
- *   observe [job-id]                immediate running snapshot or terminal result
+ *   observe [job-id]                immediate bounded snapshot in every job state
  *   restart <job-id>                explicitly relaunch the stored task
  *   status [job-id]                 list background jobs / show one job
  *   wait [job-id] [--timeout 100s]  block until the job finishes, then print
@@ -1378,7 +1378,42 @@ function diagnosticPacket(job) {
   };
 }
 
-function renderJobResponse(initial) {
+/** Observation never reads the result body, even when completion races a read.
+ *  A separate wait/result owns delivery; observers cannot consume its output. */
+function readTerminalObservation(job, status) {
+  // A result sidecar may be visible just before the shared registry commit.
+  let final = {};
+  try { final = JSON.parse(fs.readFileSync(job.result_file + '.status.json', 'utf8')); } catch {}
+  const finishedAt = job.finished_at || final.finished_at || null;
+  const snapshot = {
+    job_id: job.id, mode: job.mode, status,
+    started_at: job.started_at, finished_at: finishedAt, observed_at: new Date().toISOString(),
+    elapsed_seconds: Math.max(0, Math.round(((Date.parse(finishedAt) || Date.now()) - Date.parse(job.started_at)) / 1000)),
+    result_file: job.result_file, result_available: fs.existsSync(job.result_file),
+    collection: {
+      command: `result ${job.id}`,
+      instruction: 'Collect the existing wait session if one is pending; otherwise use result for the full output.',
+    },
+  };
+  if (status !== 'done') {
+    const packet = diagnosticPacket(job);
+    const reason = job.reason || final.reason || (status === 'crashed' ? 'worker_crashed' : status === 'canceled' ? 'canceled' : 'job_error');
+    Object.assign(snapshot, {
+      reason,
+      summary: reason === 'hard_timeout' ? 'Execution stopped at its hard limit.' : `Job ${status}; inspect the retained report and diagnostics.`,
+      conversation_id: job.conversation_id || null, model: job.model || null, profile: job.profile || null,
+      worker_started_at: job.worker_started_at || null, pid: job.pid, agy_pid: job.agy_pid || null,
+      log_state: packet.log_state, log_bytes: packet.log_bytes,
+      details: { diagnostics: job.log_file, raw_output: job.events_file || null, snapshot: job.progress_file || null },
+      recovery: packet.recovery,
+    });
+    if (status === 'crashed') snapshot.liveness_note = CRASH_SANDBOX_HINT;
+  }
+  // Intermediate tool errors remain internal when the overall job succeeds.
+  return boundSnapshot(snapshot);
+}
+
+function renderJobResponse(initial, { observeOnly = false } = {}) {
   let job = findJob(initial.id);
   let status = liveJobStatus(job);
   if (status === 'running') {
@@ -1391,6 +1426,11 @@ function renderJobResponse(initial) {
       process.exitCode = 2;
       return;
     }
+  }
+  if (observeOnly) {
+    process.stdout.write(JSON.stringify(readTerminalObservation(job, status)) + '\n');
+    process.exitCode = JOB_EXIT_CODES[status] ?? 1;
+    return;
   }
   if (fs.existsSync(job.result_file)) {
     process.stdout.write(`# Job ${job.id} (${job.mode}, ${status})\n\n`);
@@ -1673,7 +1713,7 @@ function main() {
     case 'restart':
       return cmdRestart(opts);
     case 'observe':
-      return renderJobResponse(findJob(opts._[0]));
+      return renderJobResponse(findJob(opts._[0]), { observeOnly: true });
     case 'status':
       return cmdStatus(opts);
     case 'wait':

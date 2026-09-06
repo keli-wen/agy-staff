@@ -27,9 +27,10 @@ test('soft expiry includes observation; independent observers and interrupted wa
   assert.ok(alive(job(sb, id).agy_pid));
   assert.ok(fs.existsSync(first.details.raw_output));
   assert.equal(run(sb, ['wait', id]).code, 0);
+  for (let i = 0; i < 20 && fs.existsSync(first.details.raw_output); i++) await pause(50);
   assert.equal(fs.existsSync(first.details.raw_output), false);
   assert.equal(fs.existsSync(job(sb, id).progress_file), false);
-  assert.match(run(sb, ['observe', id]).stdout, /fake answer/);
+  assert.equal(JSON.parse(run(sb, ['observe', id]).stdout).status, 'done');
 });
 
 test('hard deadline keeps init metadata and recovery configuration despite unrelated state.last', async () => {
@@ -108,11 +109,11 @@ test('crash reports distinguish missing logs and restart links a fresh job', () 
   fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ jobs: [{ id: 'legacy', mode: 'research', status: 'running', pid: 99999999, started_at: new Date().toISOString(), log_file: path.join(dir, 'missing.log'), result_file: path.join(dir, 'missing.result') }] }));
   const report = run(sb, ['observe', 'legacy']);
   assert.equal(report.code, 3);
-  assert.match(report.stdout, /"log_state": "missing"/);
-  assert.match(report.stdout, /"worker_started_at": null/);
+  assert.equal(JSON.parse(report.stdout).log_state, 'missing');
+  assert.equal(JSON.parse(report.stdout).worker_started_at, null);
   const id = jobIdOf(run(sb, ['staffer', '--prompt', 'test'], { FAKE_AGY_NO_JSON: '1' }).stdout);
   assert.equal(run(sb, ['wait', id]).code, 3);
-  assert.match(run(sb, ['observe', id]).stdout, /"worker_started_at": "/);
+  assert.ok(JSON.parse(run(sb, ['observe', id]).stdout).worker_started_at);
   const restarted = jobIdOf(run(sb, ['restart', id]).stdout);
   assert.equal(run(sb, ['wait', restarted]).code, 0);
   assert.equal(job(sb, restarted).parent_job_id, id);
@@ -132,13 +133,17 @@ test('hard stop escalates for a SIGTERM-resistant CLI and detached descendant', 
   assert.equal(alive(pid), false);
 });
 
-test('observe racing success cleanup always yields a valid snapshot or final result', async () => {
+test('observe racing success cleanup always yields a bounded JSON snapshot', async () => {
   const sb = sandbox('cleanup-race');
   const id = jobIdOf(run(sb, ['staffer', '--prompt', 'test'], { FAKE_AGY_SLEEP_MS: '200' }).stdout);
   let done = false;
   for (let i = 0; i < 30; i++) {
     const result = run(sb, ['observe', id]);
-    if (result.code === 0) { assert.match(result.stdout, /fake answer/); done = true; break; }
+    if (result.code === 0) {
+      assert.equal(JSON.parse(result.stdout).status, 'done');
+      assert.doesNotMatch(result.stdout, /fake answer/);
+      done = true; break;
+    }
     assert.equal(result.code, 2, result.stdout + result.stderr);
     assert.equal(JSON.parse(result.stdout).job_id, id);
     await pause(20);

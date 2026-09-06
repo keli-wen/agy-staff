@@ -134,3 +134,5 @@ Per-repo state lives in `<repo>/.agy-staff/`; the companion git-ignores it autom
 Tell the user, in **their** language: whether install succeeded (name the version and whether it came from the GitHub slug or a local checkout), the smoke-test result, whether a restart is still needed before the skills load, and whether the optional setup allowlist was applied, declined, or never offered (the default unrestricted profile does not need it).
 
 On wait exit 2, inspect the attached snapshot before deciding whether to wait again, inspect bounded log excerpts or cancel. `observe <id>` is immediate. The worker has a separate 60m hard limit; its error report contains explicit job-linked recovery commands. The host controls tool-result delivery and future model invocations; use shorter waits if it cannot deliver background completion.
+
+`observe <id>` always returns bounded JSON, including after completion. Its exit 0 means the job finished; collect the existing wait session or use `result <id>` to obtain the full report. Observation does not consume the waiting command’s output.

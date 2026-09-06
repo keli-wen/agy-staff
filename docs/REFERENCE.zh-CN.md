@@ -163,13 +163,13 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 `staffer`、`research`、`review`、`implement` 立即返回稳定的 job id。独立 worker 持续读取并保存 AGY `stream-json`，无需观察者在线，也不增加 daemon 或调度器。
 
 - `wait [id] [--timeout <dur>]`：完成时交付原结果；软等待到期时直接返回 JSON 快照，worker 继续运行。普通活动不会提前结束等待。裸 wait 默认 100s，skills 建议显式传 10m。
-- `observe [id]`：立即返回同样的快照或终态结果/报告，不重置期限，不消耗其他观察者的历史。
+- `observe [id]`：始终返回最多 8 KiB 的 JSON。运行中给进展；完成后给终态、结果路径/可用性和收取提示；失败、取消、崩溃时附有界诊断及恢复信息，不返回报告全文。它独立读取 job，不观察 wait 的输出，也不重置期限或消耗其他观察者的历史。
 - `status [id]`：列出任务或显示状态和有界日志尾部。`result [id]`：重印已存结果。
 - `cancel <id>`：停止属于该 job 的执行进程；中断 wait 不会取消 worker。
 - `continue --job <id> --prompt "..."`：按原 conversation、mode、model、profile 续接，创建关联的新 job。`--conversation <id>` 同样从已知会话解析配置，不使用无关的最近模式。
 - `restart <id>`：显式用原任务和配置重新开始，关联原 job，不复用 conversation。续接或重启前先用 `git status`、`git diff` 检查部分改动。
 
-wait/observe/status（带 id）退出码：**0** done、**2** running、**3** error/crashed、**4** canceled、**1** 命令错误。终态结果和警告交付保留原契约。运行中快照含时间戳、已运行时长、最近 5 次工具活动（参数/输出节选）及按 step 合并的最新文本。未知状态、未完成文本和截断均有标记；工具完成不代表有用进展。UTF-8 JSON 预算：每活动 1 KiB、文本 2 KiB、整体 8 KiB；更多详情通过 `details` 路径限量读取或搜索。
+wait/observe/status（带 id）退出码：**0** done、**2** running、**3** error/crashed、**4** canceled、**1** 命令错误。observe 的退出码 0 表示任务完成，不表示全文已交付；优先收取已有 wait session，没有待收取的 wait 时再调用 result。wait/result 保持全文交付契约。中间工具错误保留供内部诊断，不自动升级为成功交付时的用户警告。运行中快照含时间戳、已运行时长、最近 5 次工具活动（参数/输出节选）及按 step 合并的最新文本。未知状态、未完成文本和截断均有标记；工具完成不代表有用进展。UTF-8 JSON 预算：每活动 1 KiB、文本 2 KiB、整体 8 KiB；更多详情通过 `details` 路径限量读取或搜索。
 
 worker 显式给 AGY `--print-timeout 60m`，并独立执行包括初始化在内的 60 分钟总上限。启动 `--timeout` 可缩短硬上限，wait/observe 不能续期。达到上限后报告 `status=error`、`reason=hard_timeout`、最后快照、日志、已知 conversation ID、原配置和恢复入口。显式恢复创建拥有新预算的关联 job，旧终态记录保留；companion 不自动重试。
 
@@ -179,7 +179,7 @@ wait 在完成或软到期之前保持安静。用户询问进度或主 agent �
 
 状态位于 `<repo>/.agy-staff/`。`state.json` 保存会话和生命周期，写入使用短事务锁；观察保持只读。`config.json` 保存可选权限策略。每个 job 有 spec、诊断日志、结果、终态 sidecar、原始 stdout（`.events.jsonl`）和原子发布的快照（`.progress.json`）。原始记录可能包含未知或无效事件。旧 job 没有活动文件时仍可读取状态/结果。
 
-成功且无警告时，先持久化结果及元数据，再清理 stream/snapshot；失败、取消、硬超时和带警告完成保留中间记录。结果、诊断日志、会话元数据和 AGY 自身会话存储保留。读取与清理竞争时重新检查终态并返回结果。无结果崩溃报告包含 dispatch/worker 启动证据、进程 ID、日志是否存在及大小和后续检查/恢复命令，不复制完整 prompt 或环境变量。
+成功且无警告时，先持久化结果及元数据，再清理 stream/snapshot；失败、取消、硬超时和带警告完成保留中间记录。结果、诊断日志、会话元数据和 AGY 自身会话存储保留。读取与清理竞争时重新检查终态：observe 返回终态元信息，wait 返回结果。observe 在终态不读取结果文件正文。无结果崩溃报告包含 dispatch/worker 启动证据、进程 ID、日志是否存在及大小和后续检查/恢复命令，不复制完整 prompt 或环境变量。
 
 ### 让 `.agy-staff/` 不进 git
 

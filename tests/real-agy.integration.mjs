@@ -51,13 +51,19 @@ try {
     }
     await pause(1200);
     result = run(cwd, ['observe', id]);
+    const terminalObservation = JSON.parse(result.stdout);
+    assert.ok(Buffer.byteLength(result.stdout) <= 8192);
+    assert.notEqual(terminalObservation.status, 'running');
+    const delivery = run(cwd, ['wait', id]);
+    assert.equal(delivery.code, result.code);
     const job = getJob(cwd, id);
     if (fs.existsSync(path.join(cwd, 'smoke-tool.pid'))) observed.push(Number(fs.readFileSync(path.join(cwd, 'smoke-tool.pid'), 'utf8').trim()));
     const survivors = [...new Set(observed)].filter(isAlive);
     const record = { kind, job_id: id, code: result.code, elapsed_ms: Date.now() - startTime, observed_processes: [...new Set(observed)], survivors, tool_seen: samples.some((s) => s.recent_activities.length), sample_count: samples.length, conversation_id: job.conversation_id, status: job.status, reason: job.reason, warnings: job.warnings };
     summary.cases.push(record);
     fs.writeFileSync(path.join(cwd, 'observations.json'), JSON.stringify(samples, null, 2));
-    fs.writeFileSync(path.join(cwd, 'delivery.txt'), result.stdout);
+    fs.writeFileSync(path.join(cwd, 'terminal-observation.json'), JSON.stringify(terminalObservation, null, 2));
+    fs.writeFileSync(path.join(cwd, 'delivery.txt'), delivery.stdout);
     console.log(JSON.stringify(record));
     assert.equal(result.code, kind === 'cancel' ? 4 : kind === 'hard_timeout' ? 3 : 0, result.stdout + result.stderr);
     assert.equal(survivors.length, 0, `surviving execution processes: ${survivors}`);
@@ -68,8 +74,8 @@ try {
       assert.ok(fs.existsSync(path.join(cwd, 'smoke-tool.pid')), 'a real tool must have started before stopping');
       if (kind === 'cancel') assert.ok(canceled);
       else assert.equal(job.reason, 'hard_timeout');
-    } else if (kind === 'normal') assert.match(result.stdout, /STREAM_SMOKE_OK/);
-    else assert.match(result.stdout, /"verdict"\s*:\s*"approve"/);
+    } else if (kind === 'normal') assert.match(delivery.stdout, /STREAM_SMOKE_OK/);
+    else assert.match(delivery.stdout, /"verdict"\s*:\s*"approve"/);
   }
 } finally {
   fs.writeFileSync(path.join(root, 'summary.json'), JSON.stringify(summary, null, 2));
