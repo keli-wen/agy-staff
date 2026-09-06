@@ -28,6 +28,10 @@ node "<skill-dir>/../../companion/agy-companion.mjs" <command> [args]
 | 4 | Canceled | Report cancellation. |
 | 1 | Invalid command or other command error | Quote the error and correct the named problem. |
 
+For a user progress question or a mid-run update, call `observe <id>` before reporting progress, even if a wait is already running. Report changed tool activity, response text or an actionable warning; do not repeat an unchanged snapshot. Do not call observe again just to duplicate the snapshot returned by a soft-expired wait.
+
+Keep the pending wait open while observing. Host command collectors (for example, Codex `write_stdin`) only collect that command's output; they do not call observe or read AGY progress for you. Prefer background completion delivery; when polling is required, use a substantial supported wait (typically 30–60s), not repeated 1s empty polls. An outer `functions.wait` resumes a yielded `functions.exec` call, not an AGY job.
+
 A wait expires without stopping the worker. Cancel only when the task calls for stopping; a quiet period alone is not a reason. If progress leaves a specific question unanswered, read only the relevant part of the file named in `details`, such as the last 4 KiB of its diagnostic log. Do not load an entire stream by default.
 
 Deliver short results verbatim; summarize long results with their file path. Keep quoted verdicts, numbers and errors exact. For implement, also report the workspace state and inspect changes with `git diff`; verify any Git delivery that the user explicitly requested.

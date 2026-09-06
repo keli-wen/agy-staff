@@ -33,7 +33,7 @@ review is prompt-based: the user's request plus the flavor's framing is the task
 
 ## Collecting the result
 
-The command returns a job id. Read `../jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress.
+The command returns a job id. Read `../jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress. To answer a progress question or give a mid-run update, call `observe <id>` as described in the jobs skill.
 
 ## Flags (all optional)
 

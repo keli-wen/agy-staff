@@ -83,6 +83,22 @@ describe('wait', () => {
     assert.match(second.stdout, /fake answer/);
   });
 
+  test('wait stays silent past the former 15s heartbeat and still delivers progress/result', () => {
+    const sb = sandbox('wait-silent');
+    const started = run(sb, ['staffer', '--prompt', 'a quiet task'], { FAKE_AGY_SLEEP_MS: '21000' });
+    const id = jobIdOf(started.stdout);
+
+    const first = run(sb, ['wait', id, '--timeout', '16s']);
+    assert.equal(first.code, 2, first.stdout + first.stderr);
+    assert.equal(first.stderr, '', 'soft waiting must not emit liveness heartbeats');
+    assert.equal(JSON.parse(first.stdout).status, 'running', 'stdout contains only the expiry snapshot');
+
+    const final = run(sb, ['wait', id]);
+    assert.equal(final.code, 0, final.stdout + final.stderr);
+    assert.equal(final.stderr, '');
+    assert.match(final.stdout, /fake answer/);
+  });
+
   test('failed job → exit 3 with the stored error', async () => {
     const sb = sandbox('wait-error');
     const started = run(sb, ['research', '--prompt', 'a topic'], { FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '' });

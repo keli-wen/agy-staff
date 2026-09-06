@@ -1311,6 +1311,7 @@ async function cmdWait(opts) {
   const budget = durationToMs(timeout);
   if (!Number.isFinite(budget)) die(`invalid --timeout "${timeout}" (examples: 100s, 5m)`);
 
+  // Wait silently: callers use observe for progress, not periodic liveness text.
   // Read-only lookup: the poll loop must never write state.json, or it races
   // the worker's own final read-modify-write (see liveJobStatus).
   const findJob = () => {
@@ -1322,22 +1323,13 @@ async function cmdWait(opts) {
   if (!job) die(id ? `no job ${id} in this repository` : 'no agy-staff jobs recorded in this repository');
 
   const POLL_MS = 200;
-  const HEARTBEAT_MS = 15_000;
   const start = Date.now();
-  let lastBeat = start;
   let status = liveJobStatus(job);
   while (status === 'running' && Date.now() - start < budget) {
     await sleepMs(Math.min(POLL_MS, budget - (Date.now() - start)));
     job = findJob();
     if (!job) die(`job record disappeared from state.json`);
     status = liveJobStatus(job);
-    // Liveness on stderr so a long background wait stays observable without
-    // ever mixing into the result on stdout.
-    if (status === 'running' && Date.now() - lastBeat >= HEARTBEAT_MS) {
-      lastBeat = Date.now();
-      const elapsed = Math.round((Date.now() - start) / 1000);
-      process.stderr.write(`agy-staff: still waiting on ${job.id} (${elapsed}s elapsed, budget ${timeout})\n`);
-    }
   }
 
   return renderJobResponse(job);

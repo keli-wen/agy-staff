@@ -173,6 +173,8 @@ wait/observe/status（带 id）退出码：**0** done、**2** running、**3** er
 
 worker 显式给 AGY `--print-timeout 60m`，并独立执行包括初始化在内的 60 分钟总上限。启动 `--timeout` 可缩短硬上限，wait/observe 不能续期。达到上限后报告 `status=error`、`reason=hard_timeout`、最后快照、日志、已知 conversation ID、原配置和恢复入口。显式恢复创建拥有新预算的关联 job，旧终态记录保留；companion 不自动重试。
 
+wait 在完成或软到期之前保持安静。用户询问进度或主 agent 要汇报中间进展时，在已有 wait 继续等待的同时调用 `observe <id>`，只报告有变化的活动或需要处理的信息。Codex `write_stdin` 等宿主 session 收取工具只读取待完成命令的输出，不会替你读取 worker 快照。避免反复短间隔空轮询，使用后台完成通知或宿主支持的较长等待。
+
 宿主支持时每个 job 启动独立的后台 wait，不要在同一 shell 串行等多个 job。其他宿主使用其工具时限允许的短等待。完成会结束正在执行的 wait，但模型何时收到结果由外层 harness 决定。Bash + skills 无法保证唤醒空闲模型，仅写定时指令也不会调度下一轮调用。
 
 状态位于 `<repo>/.agy-staff/`。`state.json` 保存会话和生命周期，写入使用短事务锁；观察保持只读。`config.json` 保存可选权限策略。每个 job 有 spec、诊断日志、结果、终态 sidecar、原始 stdout（`.events.jsonl`）和原子发布的快照（`.progress.json`）。原始记录可能包含未知或无效事件。旧 job 没有活动文件时仍可读取状态/结果。
