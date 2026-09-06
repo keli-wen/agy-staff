@@ -7,61 +7,54 @@ allowed-tools: Bash(node:*), AskUserQuestion
 
 # agy jobs
 
-Job management for the agy-staff plugin. All state is per-repository under `.agy-staff/` (created and git-ignored automatically on first use).
+Manage background staffer/research/review/implement jobs. State is per repository in `.agy-staff/`. Only ask runs synchronously.
 
-staffer, research, review, and implement always start a background job and return a job id immediately; only ask runs in the foreground. Completion ends an outstanding wait; the outer harness controls when the tool result reaches the model. Bash + skills cannot universally wake an idle orchestrator: the deliverable is agy's output, not the job id, and collecting it is your job, not the user's.
-
-## Locating the companion
-
-This skill file lives at `<plugin-root>/skills/jobs/SKILL.md`; resolve the companion path relative to this skill directory:
+This file lives at `<plugin-root>/skills/jobs/SKILL.md`:
 
 ```bash
-node "<skill-dir>/../../companion/agy-companion.mjs" <subcommand> [args]
+node "<skill-dir>/../../companion/agy-companion.mjs" <command> [args]
 ```
 
-## Collecting results
+## Collect the result
 
-The job-start output prints the exact collect command — `wait <id> --timeout 10m`, an attention interval independent of the worker’s 60-minute hard execution limit. The call returns the existing result on completion, or a bounded observation snapshot on soft expiry while the worker continues. Ordinary activity does not end the wait early. Never parse output to decide whether a job is done; branch on the exit code.
+1. Keep the returned job id. Start `wait <id> --timeout 10m` in the background, using the same unsandboxed context as launch. Use a separate wait for each job; never wait for several jobs serially in one shell.
+2. Branch on the exit code:
 
-- **One job → one background wait.** Run the printed `wait` through your harness's background command facility (Claude Code's background Bash, a Codex `unified_exec` session), started as soon as the job starts, and pick it up when it exits. While it runs, heartbeat lines on stderr (`still waiting on <id>…`) show liveness.
-- **N jobs → N background waits, never one shell.** Do not wait for several ids serially in a single shell (`wait a; wait b`, a for-loop): it hides each job's completion behind the slowest predecessor and gives you nothing to react to. Start every job's own background `wait` the moment that job starts.
-- **Foreground fallback** (nothing else to do, single job): run `wait <id>` with its 100s default timeout and rerun it while it exits 2.
-- **Match the permission context.** Run `wait`, `status`, `result`, and `cancel` in the same unsandboxed permission context as the corresponding job start. If collected from a different sandbox or permission context, the collector may not see the worker process and can falsely report a running job as crashed.
+| Code | Meaning | Next action |
+| --- | --- | --- |
+| 0 | Finished; result printed | Deliver it. Mention any warnings in the log. |
+| 2 | Still running; current progress printed | Read the progress, then wait again if work should continue. |
+| 3 | Error or crash | Read the error and recovery information below. |
+| 4 | Canceled | Report cancellation. |
+| 1 | Invalid command or other command error | Quote the error and correct the named problem. |
 
-Exit codes (`wait`, `observe`, and `status <id>`): **0** = done — the result is already printed; **2** = still running — interpret the attached snapshot, then wait again, inspect more detail, or cancel as the task requires; **3** = error/crashed; **4** = canceled; **1** = generic companion error (e.g. unknown id).
+A wait expires without stopping the worker. Cancel only when the task calls for stopping; a quiet period alone is not a reason. If progress leaves a specific question unanswered, read only the relevant part of the file named in `details`, such as the last 4 KiB of its diagnostic log. Do not load an entire stream by default.
 
-Delivering an exit-0 result: a short report (about a screenful) → verbatim; a long report → the verdict/key points plus the result-file path (printed at job start), expanding sections on request. A `done_with_warnings` run (agy reported an error after producing a complete response) still exits 0 — the warning is on stderr / in the job log; mention it, deliver the response. If it was an implement job whose output says the working tree changed, also show `git diff`; if the task explicitly asked agy to commit or open a PR, report and verify agy's result instead of doing Git delivery yourself.
+Deliver short results verbatim; summarize long results with their file path. Keep quoted verdicts, numbers and errors exact. For implement, also report the workspace state and inspect changes with `git diff`; verify any Git delivery that the user explicitly requested.
 
-## Subcommands
+Follow through to a result unless the user asked only to launch. If the host cannot deliver background command results, use shorter waits (bare `wait` defaults to 100s). The host controls when the model receives a tool result; this plugin cannot schedule a future model invocation by itself.
 
-- **wait `[job-id] [--timeout <dur>]`** — block until the job (default: the most recent one) reaches a terminal state, then print its result. Its own `--timeout` (default 100s, no upper limit) is independent of the job's; expiring is not a failure (exit 2 = run it again).
-- **observe `[job-id]`** — immediately return the current running snapshot or existing terminal result/error report. Reads do not consume history or reset any deadline.
-- **status `[job-id]`** — list jobs (render as a compact table) or show one job with a log tail; with an id it exits with the same codes as `wait`.
-- **result `[job-id]`** — re-print the stored output of a finished job (default: the most recent finished one). Deliver per "Collecting results".
-- **cancel `<job-id>`** — kill a running job and mark it canceled.
-- **restart `<job-id>`** — explicitly create a linked new job from the stored original task/configuration with a fresh 60-minute budget. Inspect partial workspace changes first.
-- **continue `--prompt "follow-up text"`** — send a follow-up to the most recent agy conversation in this repo (any mode; quota-friendly — agy serves prior context from cache). `--job <job-id>` is the preferred recovery target: it preserves the original mode/model/profile and links a new job, even if another job changed the last conversation. `--conversation <id>` targets a known older conversation; ids are tracked in `.agy-staff/state.json` and shown on the `[agy-staff]` stderr line. Execution style follows the resumed mode: a continued ask is foreground, everything else returns a job id.
-- **setup `[--apply] [--restrict <modes|none>]`** — optional hardening for restricted runs. Read `references/setup.md` before running it.
+## Other commands
 
-## Rules
+| Command | Purpose |
+| --- | --- |
+| `observe [id]` | Immediately show current progress, or the terminal result/report. |
+| `status [id]` | List jobs or show one job's state and log tail. |
+| `result [id]` | Reprint stored output; default to the latest finished job. |
+| `cancel <id>` | Stop that job's execution. Interrupting wait does not cancel it. |
+| `continue --job <id> --prompt "..."` | Resume the job's conversation with its original mode/model/profile; create a linked new job. |
+| `continue --prompt "..."` | Continue the latest conversation; `--conversation <id>` selects a known older one. |
+| `restart <id>` | Start the original task/configuration again without its conversation; create a linked new job. |
+| `setup [--apply] [--restrict <modes\|none>]` | Optional permission setup; read `references/setup.md` first. |
 
-- Never paraphrase verdicts, numbers, or error text — quote them. Summarizing a long report is fine, but what you do quote must be verbatim.
-- Report just the job id and stop only when the user explicitly said not to wait.
-- If a `--restricted` run keeps returning empty responses even after setup, suggest dropping `--restricted` (the default) for that command.
+Wait/observe default to the latest job; observe and status-with-id use the same exit codes as wait. A continued ask remains synchronous.
 
-## Failure protocol
+## Progress and recovery
 
-- If the companion exits with an error, quote its error message verbatim, add one line of your own diagnosis and the suggested next step, use its diagnostic and recovery information to decide the next step within the user’s authorization. Never retry or restart merely because a wait expired or no activity appeared.
-- `operation not permitted` on `~/.gemini/...` or `bind: operation not permitted` means the companion ran inside a command sandbox, where agy cannot work. See `references/troubleshooting.md`; rerun unsandboxed instead of retrying as-is.
-- If `wait`/`status`/`result` reports a job as crashed with no stored result, check whether the management command ran in a different permission or sandbox context from the job start. Rerun from the same unsandboxed context before treating the job as crashed.
-- Never change directories, search the filesystem, or pick a different repo to satisfy a precondition — preconditions are safety features, not obstacles.
+Progress contains up to five recent tool calls, input/output excerpts, and the latest response text. Timestamps, incomplete text and truncation are labeled. It is a snapshot, not a judgment of useful progress. Reads do not consume history or reset deadlines. Payload limits and file layout are in `../../docs/REFERENCE.md`.
 
-## Observation and recovery
+The worker has a separate 60m hard limit; launch `--timeout` can shorten it. At that limit it stops execution and reports `hard_timeout`, the last snapshot, logs, known conversation ID and original configuration. Before recovery, inspect `git status` and `git diff` so partial changes are accounted for. Prefer `continue --job` when a conversation exists; otherwise use `restart`. Each creates a new budget and preserves the old terminal record. Recover only within the user's authorization; never restart automatically because a wait expired.
 
-The default running JSON snapshot contains timestamps, elapsed time, the latest five tool activities (bounded input/output excerpts), and the latest response text assembled from deltas. Tool states, incomplete text and truncation are explicit; activity is evidence, not proof of useful progress. Budgets after UTF-8 JSON serialization: 1 KiB per activity, 2 KiB for latest text, 8 KiB total. Final results retain their existing delivery contract. Follow `details` pointers with bounded reads/searches; never load a whole trajectory by default. Multiple observers see independent snapshots, with no shared cursor.
+Warning-free success removes intermediate stream/snapshot files after results are stored. Errors, cancellation, hard timeout and warning results retain them; results, logs and conversation metadata remain available. Older jobs may have no progress files.
 
-The worker explicitly gives AGY `--print-timeout 60m` and independently enforces its overall hard limit (default/max 60m; a launch `--timeout` may shorten it). Wait/observe never reset this budget. A hard timeout reports `reason=hard_timeout`, the last snapshot, known conversation ID, original mode/model/profile, retained logs and continuation/restart commands. Inspect `git status` and `git diff` before recovering partial work. Prefer `continue --job <id> --prompt "..."` when a conversation exists; otherwise use `restart <id>`. Recovery creates a linked job with a fresh budget; the old terminal record is preserved. The companion never relaunches automatically. Ask for more budget only when current user authorization requires it.
-
-Successful jobs without warnings delete their intermediate raw stream and snapshot after results and metadata are durable. Failures, cancellation, hard timeout and completion with warnings retain them. Results, logs and conversation metadata remain available; AGY's own conversation storage is untouched. Older jobs without activity files still support state/result reads.
-
-If the host has no background tool completion delivery, use shorter waits within its tool-call limit. A timer instruction or file write alone does not schedule a future model invocation. Interruption of a wait does not cancel its worker; `cancel <id>` explicitly stops execution belonging to the job.
+Quote errors and add a concise diagnosis. For sandbox/permission errors or an apparent crash without a result, check that collection uses the same unsandboxed context as launch; see `references/troubleshooting.md`. For restricted empty responses, relay the companion's permission guidance. Do not switch repositories to bypass a precondition.

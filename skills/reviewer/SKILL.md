@@ -31,13 +31,9 @@ Pass the review subject verbatim via `--prompt`; use `--prompt-file <path>` or `
 
 review is prompt-based: the user's request plus the flavor's framing is the task string. Do not gather diffs, write patch files, or translate the request into flags — agy collects the evidence itself. If the subject is ambiguous, agy reports the ambiguity instead of guessing; relay that and let the user sharpen the request. A task string is required; review with no subject exits with an error.
 
-## Execution style
-
-review always runs as a background job: the call returns a job id immediately. The job never calls back — collecting the result is your job.
-
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout 10m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed review when it exits 0: short (about a screenful) verbatim; long as the verdict/key points plus the result-file path, expanding sections on request. Everything else about job management is in the jobs skill: `../jobs/SKILL.md`.
+The command returns a job id. Read `../jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress.
 
 ## Flags (all optional)
 
@@ -55,6 +51,4 @@ An unrestricted review of code from an untrusted author (a PR from a stranger, a
 - Return the companion stdout verbatim — no commentary, no fixes, no softening of findings.
 - Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, commands that burn paid API quota); that default opens only when the request itself asks for the operation — so keep "run the e2e tests" or "call the staging API" in the prompt instead of trimming it.
 - Empty responses from a `--restricted` run: relay the companion's guidance (run the setup flow once, or drop `--restricted`).
-- On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../jobs/SKILL.md`.
-
-On wait exit 2, inspect the attached observation snapshot and decide whether to wait again, inspect bounded excerpts of the referenced files, or cancel. The worker keeps running; ordinary activity does not end a wait early. Use `observe <id>` for an immediate snapshot. A hard timeout is terminal and includes recovery information; use the jobs skill for explicit continuation/restart. Bash + skills cannot wake an idle orchestrator universally: use one independent background wait per job where supported, or shorter waits supported by the host.
+- For errors and recovery, follow `../jobs/SKILL.md`.

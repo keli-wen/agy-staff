@@ -29,13 +29,9 @@ Pass the user's task description verbatim via `--prompt`; use `--prompt-file <pa
 - By default, agy leaves a working-tree diff. If the user explicitly asks for a commit, push, or PR, include that request verbatim in the task text and let agy do that exact Git delivery.
 - After the run, surface agy's summary and the current workspace state. Do not add your own commit/PR step unless the user separately asks you to do it.
 
-## Execution style
-
-implement always runs as a background job: the call returns a job id immediately. The job never calls back — collecting the result is your job.
-
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout 10m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command. When it exits 0 it has printed agy's summary: deliver it (verbatim if short; key points plus the result-file path if long), then report the current workspace state. Everything else about job management is in the jobs skill: `../agy-jobs/SKILL.md`.
+The command returns a job id. Read `../agy-jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress.
 
 ## Flags (all optional)
 
@@ -49,9 +45,7 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout 1
 - Return agy's summary verbatim before presenting the diff.
 - Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects; that default opens only when the request itself asks for the operation — so keep "open a draft PR", "run the e2e tests", or "call the staging API" in the prompt instead of trimming it.
 - Never commit agy's changes yourself unless the user explicitly asks you, the host agent, to do it.
-- On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../agy-jobs/SKILL.md`.
-
-On wait exit 2, inspect the attached observation snapshot and decide whether to wait again, inspect bounded excerpts of the referenced files, or cancel. The worker keeps running; ordinary activity does not end a wait early. Use `observe <id>` for an immediate snapshot. A hard timeout is terminal and includes recovery information; use the jobs skill for explicit continuation/restart. Bash + skills cannot wake an idle orchestrator universally: use one independent background wait per job where supported, or shorter waits supported by the host.
+- For errors and recovery, follow `../agy-jobs/SKILL.md`.
 
 ## Host compatibility
 

@@ -22,13 +22,9 @@ Pass the user's research topic verbatim via `--prompt`; use `--prompt-file <path
 > [!IMPORTANT]
 > Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`.
 
-## Execution style
-
-research always runs as a background job: the call returns a job id immediately, and nothing streams back from agy in this turn. The job never calls back — collecting the result is your job.
-
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout 10m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed report when it exits 0: a short report (about a screenful) verbatim; a long report as the key points plus the result-file path, expanding sections on request. Everything else about job management is in the jobs skill: `../jobs/SKILL.md`.
+The command returns a job id. Read `../jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress.
 
 ## Flags (all optional)
 
@@ -44,6 +40,4 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout 1
 - Return the companion stdout verbatim. The `[agy-staff]` telemetry line goes to stderr (and into `jobs/<id>.log` for background runs) — it is metadata for you, the calling agent, not something to show the user.
 - Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, commands that burn paid API quota); that default opens only when the request itself asks for the operation — so keep "run the e2e tests" or "call the staging API" in the prompt instead of trimming it.
 - If a `--restricted` run reports an empty response due to denied permissions, relay the companion's guidance: run the setup flow once (see `../jobs/references/setup.md`), or drop `--restricted`.
-- On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../jobs/SKILL.md`.
-
-On wait exit 2, inspect the attached observation snapshot and decide whether to wait again, inspect bounded excerpts of the referenced files, or cancel. The worker keeps running; ordinary activity does not end a wait early. Use `observe <id>` for an immediate snapshot. A hard timeout is terminal and includes recovery information; use the jobs skill for explicit continuation/restart. Bash + skills cannot wake an idle orchestrator universally: use one independent background wait per job where supported, or shorter waits supported by the host.
+- For errors and recovery, follow `../jobs/SKILL.md`.

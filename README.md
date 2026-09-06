@@ -109,7 +109,7 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 `staffer` also unlocks agy's native tools that no specialist persona covers — notably **image generation** (`generate_image`; verified on agy v1.1.15, a 1024×1024 PNG in ~30s).
 
-`ask` answers in the same call. The other personas run as background jobs: the call returns a job id and prints the exact collect command (`wait <id> --timeout 10m`); your agent runs that in the background — one wait per job — and delivers the result when it finishes.
+`ask` answers in the same call. The other personas run as background jobs: the call returns a job id and prints the exact collect command (`wait <id> --timeout <n>m`); your agent runs that in the background — one wait per job — and delivers the result when it finishes.
 
 **Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading). **Release notes →** [docs/releases/](docs/releases/).
 
@@ -133,5 +133,3 @@ Adding a mode or a flag changes the public surface, so please open an issue firs
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-Version 0.6.0 adds streaming observations: `observe <id>` shows the latest five tool activities and response text; a 10-minute wait expiry returns the same snapshot while work continues. Workers have a separate 60-minute hard limit and explicit job-linked recovery. See [job lifecycle and recovery](docs/REFERENCE.md#state-and-background-jobs).
