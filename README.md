@@ -6,15 +6,15 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-agy-staff is an agent tool plugin that lets **Claude Code**, **OpenAI Codex**, and **Pi** delegate work to Google's Antigravity CLI (`agy`).
+Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI Codex**, and **Pi**.
 
-Keep working with your main agent in its usual environment. When a task needs research, a review, or a scoped implementation, it can hand that part to an agy agent running Gemini 3.8 Flash, then inspect and integrate the result. Persona skills and a shared set of job commands connect the two execution flows.
+![agy-staff design](assets/design.png)
 
 ## What & Why
 
 agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.8 Flash. Five personas: staffer (general-purpose), researcher, reviewer (code **and** plans/decisions), implementer, and ask — plus a model-facing jobs skill. Claude Code uses `/agy:<persona>` and Codex uses `$agy:<persona>`.
 
-Reading a group of files, checking a plan, investigating a problem, and making a scoped change are often useful tasks to delegate. Running them in the background lets your main agent continue other work. A second model's review can also add evidence and another perspective to the main agent's assessment; the main agent remains responsible for checking and integrating the result.
+If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
@@ -72,7 +72,9 @@ Restart Claude Code or Codex afterwards. First run: `/agy:ask reply with OK` (Cl
 Paste this into any coding agent:
 
 ```
-Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md (curl it — do not work from a summary), or the same file in your local checkout of agy-staff, and follow it to install and verify the agy-staff plugin for the harness you are running in. Respond in the user's language.
+Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md (curl it — do not
+work from a summary) and follow it to install and verify the agy-staff plugin for the harness you are running in.
+Respond in the user's language.
 ```
 
 #### Upgrade
@@ -109,7 +111,7 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 `staffer` also covers agy's native tools without a dedicated specialist persona, including **image generation** (`generate_image`). A trial on agy v1.1.15 produced a 1024×1024 PNG in about 30 seconds; actual time depends on the task and environment.
 
-### Background jobs
+## Core design
 
 `ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 

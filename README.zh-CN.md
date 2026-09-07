@@ -6,17 +6,15 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-agy-staff 是一个 agent 工具插件，让 **Claude Code**、**OpenAI Codex** 和 **Pi** 可以把任务交给 Google 的 Antigravity CLI（`agy`）完成。
+把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex** 和 **Pi** 的「agy 员工」。
 
-你仍然在熟悉的环境里与主 agent 协作。需要调研、审查代码或实现某个修复时，它可以把这部分工作委派给运行 Gemini 3.8 Flash 的 agy，再根据返回的结果继续处理整个任务。插件提供角色技能和一套共用的任务管理命令，负责连接两边的执行流程。
+![agy-staff 设计图](assets/design.png)
 
 ## 它适合做什么
 
-使用主力 agent 写代码时，很多工作可以单独交出去：读一组文件、核对一个方案、调查某个问题，或完成一个范围明确的修改。把这些任务放到后台，主 agent 就可以继续处理其他事情，你也不必把每次调研和审查都放在同一轮对话里等待。
-
 agy-staff 提供五种角色（persona）。`staffer` 适合通用任务；`researcher` 负责调研；`reviewer` 审查代码、方案和决策；`implementer` 处理编码任务；`ask` 用于不需要工具的简短问答。前四种角色都使用相同的后台任务机制，由 `jobs` 技能负责等待、查看进度和收取结果。
 
-委派也能带来另一种视角。让不同模型审查同一份代码或方案，可以为主 agent 的判断补充依据。你可以把 agy 当作一个按需参与的协作者，再由主 agent 检查和整合它的工作。
+为什么需要它：GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。这些任务可以交给 agy：它几秒钟就能给出第二意见，调研和审查以 Flash 的速度完成，范围明确的实现任务放到后台执行，你继续做手头的事。另外，即使不追求速度，让另一个模型家族审同一份代码，也能发现主力 agent 自己发现不了的问题。
 
 ![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
 
@@ -64,8 +62,10 @@ codex plugin add agy@agy-staff
 
 也可以把下面这段话交给你的 coding agent，让它按照仓库里的说明完成安装和验证：
 
-```text
-Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md (curl it — do not work from a summary), or the same file in your local checkout of agy-staff, and follow it to install and verify the agy-staff plugin for the harness you are running in. Respond in the user's language.
+```
+Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md
+(curl it — do not work from a summary), or the same file in your local checkout of agy-staff, and follow it to
+install and verify the agy-staff plugin for the harness you are running in. Respond in the user's language.
 ```
 
 ## 使用
@@ -96,7 +96,7 @@ Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master
 
 `staffer` 没有预设的专业分工，因此也适合调用其他角色没有专门介绍的 agy 原生工具，例如 `generate_image`。项目曾在 agy v1.1.15 上验证图像生成：一次调用约 30 秒生成了 1024×1024 的 PNG。这个记录可以作为使用示例，实际耗时取决于任务和运行环境。
 
-### 后台任务如何运行
+## 核心设计
 
 `ask` 会在同一次调用中返回答案。其他角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
 
