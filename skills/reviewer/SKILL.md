@@ -39,7 +39,7 @@ The command returns a job id. Read `../jobs/SKILL.md` and follow its collection 
 
 - `--json` — schema-enforced JSON findings (verdict/summary/findings/could_not_verify) instead of markdown. Code-review flavor only, and only when the user asks for machine-readable output.
 - `--restricted` / `--unrestricted` — permission profile. review defaults to unrestricted, so it works out of the box and can run tests or reproduce a bug when the request asks for it. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
-- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-medium`), `--continue` (or `--conversation <id>`), `--timeout <dur>` (default/max 60m hard execution limit).
+- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-medium`), `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts (a composed task with the flavor framing usually is one).
 
 ## Reviewing untrusted content
@@ -52,3 +52,5 @@ An unrestricted review of code from an untrusted author (a PR from a stranger, a
 - Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, commands that burn paid API quota); that default opens only when the request itself asks for the operation — so keep "run the e2e tests" or "call the staging API" in the prompt instead of trimming it.
 - Empty responses from a `--restricted` run: relay the companion's guidance (run the setup flow once, or drop `--restricted`).
 - For errors and recovery, follow `../jobs/SKILL.md`.
+
+For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.

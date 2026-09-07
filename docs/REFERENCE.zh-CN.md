@@ -20,7 +20,7 @@ Claude Code、Codex 和 Pi 使用同一组人格，共用 companion 脚本（`co
 
 每种模式只会运行在两个权限档之一。**所有会用工具的模式默认都是 `unrestricted`**，所以插件装完即用，不需要 allowlist、不需要 setup；`--restricted` 是可选的加固 flag。`--restricted`/`--unrestricted` 可以按次覆盖。`ask` 是例外：它不用工具、固定为 restricted，两个 flag 都会被忽略——给它传 `--unrestricted` 会打印一条提示，然后仍按 restricted 运行。
 
-一次运行实际用哪个档，按这个顺序决定：命令行 flag > 仓库级 policy（[`setup --restrict`](#仓库级-policysetup---restrict)）> 内置默认。
+一次运行实际用哪个档，按这个顺序决定：命令行 flag > 已记录的会话权限档（续接时）> 仓库级 policy（[`setup --restrict`](#仓库级-policysetup---restrict)）> 内置默认。
 
 | | **unrestricted**（默认：staffer、research、review、implement） | **restricted**（可选加固；ask 强制如此） |
 |---|---|---|
@@ -112,7 +112,7 @@ policy 写入 `<repo>/.agy-staff/config.json`，之后自动生效（运行时�
 | `--restricted` / `--unrestricted` | 覆盖权限档（`ask` 会忽略）。`staffer`/`research`/`review`/`implement` 默认就是 unrestricted，所以实际会用到的是 `--restricted` |
 | `--restrict <modes\|none>` | （setup）仓库级 policy：列出的模式在本仓库默认 restricted；`none` 清除。见[仓库级 policy](#仓库级-policysetup---restrict) |
 | `--json` | （review）按 schema 强制输出 JSON findings；默认是自由格式 markdown。面向代码审查 flavor |
-| `--timeout <dur>` | 后台 worker 硬上限（默认/最大 60m，可缩短）；显式传给 AGY 的响应预算为 60m。同步 ask 的响应超时默认 2m |
+| `--timeout <dur>` | 后台 worker 硬上限（默认 60m，最大 120m）；给 AGY 传入同一响应超时。同步 ask 的响应超时默认 2m |
 | `--prompt <text>` | 任务正文，作为**一个**参数传入。请加引号；引号里的内容一律不透明 |
 | `--prompt-file <path>` | 从文件读任务文本——长 prompt 用它，不用跟 shell 引号搏斗 |
 | `--stdin` | 从 stdin 读任务文本。每次调用只允许一个任务来源：`--prompt`、`--prompt-file` 或 `--stdin` |
@@ -165,13 +165,15 @@ review 模板本身是中性骨架（审查者立场、证据纪律、护栏）�
 - `wait [id] [--timeout <dur>]`：完成时交付原结果；软等待到期时直接返回 JSON 快照，worker 继续运行。普通活动不会提前结束等待。裸 wait 默认 100s，skills 建议显式传 10m。
 - `observe [id]`：始终返回最多 8 KiB 的 JSON。运行中给进展；完成后给终态、结果路径/可用性和收取提示；失败、取消、崩溃时附有界诊断及恢复信息，不返回报告全文。它独立读取 job，不观察 wait 的输出，也不重置期限或消耗其他观察者的历史。
 - `status [id]`：列出任务或显示状态和有界日志尾部。`result [id]`：重印已存结果。
-- `cancel <id>`：停止属于该 job 的执行进程；中断 wait 不会取消 worker。
+- `cancel <id>`：先记录取消请求，worker 保存报告并发布 `canceled` 后才返回成功。已崩溃任务保留 crash 诊断，不向未经身份验证的存储 PID 发信号。缺少取消通道的旧任务明确报错；中断 wait 不会取消 worker。
 - `continue --job <id> --prompt "..."`：按原 conversation、mode、model、profile 续接，创建关联的新 job。`--conversation <id>` 同样从已知会话解析配置，不使用无关的最近模式。
-- `restart <id>`：显式用原任务和配置重新开始，关联原 job，不复用 conversation。续接或重启前先用 `git status`、`git diff` 检查部分改动。
+- `restart <id>`：显式用原任务和配置重新开始，关联原 job，不复用 conversation。续接或重启前先用 `git status`、`git diff` 检查部分改动。 新任务重新生成工作区上下文；旧规格将旧快照标记为历史信息，并追加当前上下文。
+
+可从同一 worktree 的根目录或任意子目录发起续接/重启，实际执行回到原 cwd。通用 `continue` 遇到未登记的 conversation ID 直接失败，不启动 AGY，也不搜索其他 worktree。续接默认继承已记录的 model/profile，显式参数可覆盖；恢复的新预算默认 60m，可用 `--timeout` 指定。
 
 wait/observe/status（带 id）退出码：**0** done、**2** running、**3** error/crashed、**4** canceled、**1** 命令错误。observe 的退出码 0 表示任务完成，不表示全文已交付；优先收取已有 wait session，没有待收取的 wait 时再调用 result。wait/result 保持全文交付契约。中间工具错误保留供内部诊断，不自动升级为成功交付时的用户警告。运行中快照含时间戳、已运行时长、最近 5 次工具活动（参数/输出节选）及按 step 合并的最新文本。未知状态、未完成文本和截断均有标记；工具完成不代表有用进展。UTF-8 JSON 预算：每活动 1 KiB、文本 2 KiB、整体 8 KiB；更多详情通过 `details` 路径限量读取或搜索。
 
-worker 显式给 AGY `--print-timeout 60m`，并独立执行包括初始化在内的 60 分钟总上限。启动 `--timeout` 可缩短硬上限，wait/observe 不能续期。达到上限后报告 `status=error`、`reason=hard_timeout`、最后快照、日志、已知 conversation ID、原配置和恢复入口。显式恢复创建拥有新预算的关联 job，旧终态记录保留；companion 不自动重试。
+worker 给 AGY 传入所选超时，并独立执行包括初始化在内的总上限：默认 60m，启动 `--timeout` 最多可设为 120m。wait/observe 不能续期。硬超时清理前已收到完整回答时，交付回答并附警告；没有回答或回答为空时仍失败。未取得回答而达到上限时报告 `status=error`、`reason=hard_timeout`、最后快照、日志、已知 conversation ID、原配置和恢复入口。显式恢复创建拥有新预算的关联 job，旧终态记录保留；companion 不自动重试。
 
 wait 在完成或软到期之前保持安静。用户询问进度或主 agent 要汇报中间进展时，在已有 wait 继续等待的同时调用 `observe <id>`，只报告有变化的活动或需要处理的信息。Codex `write_stdin` 等宿主 session 收取工具只读取待完成命令的输出，不会替你读取 worker 快照。避免反复短间隔空轮询，使用后台完成通知或宿主支持的较长等待。
 

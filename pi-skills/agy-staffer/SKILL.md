@@ -35,7 +35,7 @@ The command returns a job id. Read `../agy-jobs/SKILL.md` and follow its collect
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts instead of shell quoting.
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-medium`.
 - `--restricted` / `--unrestricted` — permission profile; staffer defaults to unrestricted like the other tool-using personas, `--restricted` is the opt-in hardening path.
-- `--continue` (or `--conversation <id>`), `--timeout <dur>` (default/max 60m hard execution limit).
+- `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 
 ## Rules
 
@@ -43,6 +43,8 @@ The command returns a job id. Read `../agy-jobs/SKILL.md` and follow its collect
 - Pass the user's explicit authorizations through verbatim. The template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, paid-quota commands); that default opens only when the task itself asks for the operation.
 - A general task may legitimately edit files. The companion reports any working-tree delta with the result — inspect it (`git diff`) and confirm it is what the task asked for before building on it.
 - For errors and recovery, follow `../agy-jobs/SKILL.md`.
+
+For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
 
 ## Host compatibility
 

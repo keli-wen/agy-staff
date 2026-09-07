@@ -53,11 +53,15 @@ Follow through to a result unless the user asked only to launch. If the host can
 
 Wait/observe default to the latest job. Observe uses the same status exit codes, but exit 0 means **finished, not full result delivered**. Collect the existing wait session, or use `result <id>` if none is pending; do not start another wait or expect observe to consume the pending session. Failed/canceled observations provide bounded recovery metadata; wait/result deliver the full report. A continued ask remains synchronous.
 
+Continuation and restart may be invoked from the root or any subdirectory of the same worktree; execution returns to the original cwd. Generic `continue` fails for an unrecorded conversation ID. It does not search other worktrees or infer configuration from an unrelated conversation. For continuation, explicit model/profile flags override the inherited values.
+
+Cancel records a request first and returns success only after the worker has stored the cancellation report and published `canceled`. A crashed job keeps its crash diagnostics. A cancellation error requires inspection; it does not mean execution has stopped.
+
 ## Progress and recovery
 
 Progress contains up to five recent tool calls, input/output excerpts, and the latest response text. Timestamps, incomplete text and truncation are labeled. It is a snapshot, not a judgment of useful progress. Reads do not consume history or reset deadlines. Payload limits and file layout are in `../../docs/REFERENCE.md`.
 
-The worker has a separate 60m hard limit; launch `--timeout` can shorten it. At that limit it stops execution and reports `hard_timeout`, the last snapshot, logs, known conversation ID and original configuration. Before recovery, inspect `git status` and `git diff` so partial changes are accounted for. Prefer `continue --job` when a conversation exists; otherwise use `restart`. Each creates a new budget and preserves the old terminal record. Recover only within the user's authorization; never restart automatically because a wait expired.
+The worker has a separate hard limit: default 60m, configurable with launch `--timeout` up to 120m. AGY receives the same response timeout; the worker independently enforces the overall budget, including initialization. At that limit it stops execution. If a complete response has already arrived, it delivers that response with a warning; otherwise it reports `hard_timeout`, the last snapshot, logs, known conversation ID and original configuration. Before recovery, inspect `git status` and `git diff` so partial changes are accounted for. Prefer `continue --job` when a conversation exists; otherwise use `restart`. Each creates a fresh 60m budget unless `--timeout` is specified, and preserves the old terminal record. Restart refreshes workspace context; older specifications explicitly label historical snapshots and append current context. Recover only within the user's authorization; never restart automatically because a wait expired.
 
 Warning-free success removes intermediate stream/snapshot files after results are stored. Errors, cancellation, hard timeout and warning results retain them; results, logs and conversation metadata remain available. Older jobs may have no progress files.
 
