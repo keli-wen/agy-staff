@@ -65,3 +65,23 @@ test('late updates do not resurrect evicted tools or replace newer response text
   p.accept(step(9, 'agent_response', 'DONE', { text_delta: 'old' }));
   assert.equal(p.snapshot().latest_text.text, 'new');
 });
+
+test('large fragmented records do not repeatedly scan all buffered bytes', () => {
+  const record = Buffer.from(JSON.stringify({ response: 'x'.repeat(32 * 1024 * 1024) }) + '\n');
+  const original = Buffer.byteLength;
+  let scanned = 0, result;
+  Buffer.byteLength = (value, ...args) => { scanned += value.length; return original(value, ...args); };
+  try {
+    const parser = createParser(event => { result = event; }, message => assert.fail(message), record.length + 1);
+    for (let i = 0; i < record.length; i += 65536) parser.write(record.subarray(i, i + 65536));
+    parser.end();
+    assert.equal(result.response.length, 32 * 1024 * 1024);
+    assert.ok(scanned < record.length * 3, `rescanned ${scanned} characters for ${record.length} bytes`);
+  } finally { Buffer.byteLength = original; }
+});
+
+test('bounding legacy details preserves null pointers', () => {
+  const out = boundSnapshot({ job_id: 'legacy', status: 'running', details: { raw_output: null, diagnostics: 'x'.repeat(20000) } });
+  assert.equal(out.details.raw_output, null);
+  assert.ok(bytes(out) + 1 <= 8192);
+});

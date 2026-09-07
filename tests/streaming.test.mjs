@@ -10,10 +10,22 @@ const job = (sb, id) => state(sb).jobs.find((j) => j.id === id);
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const events = [{ event: 'step_update', step_update: { conversation_id: 'conv-1', step_index: 2, step_type: 'tool', state: 'DONE', tool_name: 'shell', tool_info: { parameters: { command: 'hello' }, output: 'world' } } }, { event: 'step_update', step_update: { conversation_id: 'conv-1', step_index: 3, step_type: 'agent_response', state: 'ACTIVE', text_delta: 'Working…' } }];
 
-test('soft expiry includes observation; independent observers and interrupted wait leave execution alive', async () => {
+test('soft expiry includes observation; independent observers and interrupted wait leave execution alive', async t => {
   const sb = sandbox('observers');
-  const id = jobIdOf(run(sb, ['staffer', '--prompt', 'test'], { FAKE_AGY_EVENTS: JSON.stringify(events), FAKE_AGY_SLEEP_MS: '2200' }).stdout);
+  const release = path.join(sb.root, 'release');
+  t.after(() => fs.writeFileSync(release, 'finish'));
+  const id = jobIdOf(run(sb, ['staffer', '--prompt', 'test'], { FAKE_AGY_EVENTS: JSON.stringify(events), FAKE_AGY_RELEASE_FILE: release }).stdout);
   await waitForCalls(sb, 1);
+  // Dispatch/argv recording precedes stream consumption and publication.
+  const progress = job(sb, id).progress_file;
+  const deadline = Date.now() + 10000;
+  let published;
+  while (Date.now() < deadline) {
+    try { published = JSON.parse(fs.readFileSync(progress, 'utf8')); } catch {}
+    if (published?.recent_activities?.length) break;
+    await pause(25);
+  }
+  assert.ok(published?.recent_activities?.length, 'the tool snapshot must be published before observation assertions');
   const waiter = spawn(process.execPath, [COMPANION, 'wait', id], { cwd: sb.repo, stdio: 'ignore' });
   waiter.kill('SIGTERM');
   const early = run(sb, ['wait', id, '--timeout', '150ms']);
@@ -26,6 +38,7 @@ test('soft expiry includes observation; independent observers and interrupted wa
   assert.deepEqual(second.recent_activities, first.recent_activities);
   assert.ok(alive(job(sb, id).agy_pid));
   assert.ok(fs.existsSync(first.details.raw_output));
+  fs.writeFileSync(release, 'finish');
   assert.equal(run(sb, ['wait', id]).code, 0);
   for (let i = 0; i < 20 && fs.existsSync(first.details.raw_output); i++) await pause(50);
   assert.equal(fs.existsSync(first.details.raw_output), false);

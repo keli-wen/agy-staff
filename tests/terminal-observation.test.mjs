@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { sandbox, run, jobIdOf, COMPANION } from './helpers.mjs';
-const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+import { sandbox, run, jobIdOf, waitForCalls, COMPANION } from './helpers.mjs';
 const body = 'FULL_REPORT_ONLY_IN_DELIVERY\n' + '报告内容😀'.repeat(4500);
 function storedJob(status, extra = {}) {
   const sb = sandbox(`terminal-${status}`);
@@ -80,23 +79,23 @@ test('nested recovery metadata obeys the same 8 KiB ceiling and marks shortening
   assert.doesNotMatch(JSON.stringify(s), /�/);
 });
 
-test('observe during a pending wait never duplicates its large final report', async () => {
+test('observe during a pending wait never duplicates its large final report', async t => {
   const sb = sandbox('observe-with-wait');
-  const id = jobIdOf(run(sb, ['staffer', '--prompt', 'report'], { FAKE_AGY_SLEEP_MS: '1500', FAKE_AGY_RESPONSE: body }).stdout);
+  const release = path.join(sb.root, 'release');
+  t.after(() => fs.writeFileSync(release, 'finish'));
+  const id = jobIdOf(run(sb, ['staffer', '--prompt', 'report'], { FAKE_AGY_RELEASE_FILE: release, FAKE_AGY_RESPONSE: body }).stdout);
+  await waitForCalls(sb, 1);
   const waiter = spawn(process.execPath, [COMPANION, 'wait', id], { cwd: sb.repo, stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '', stderr = '';
   waiter.stdout.on('data', data => { stdout += data; }); waiter.stderr.on('data', data => { stderr += data; });
   const done = new Promise(resolve => waiter.on('close', resolve));
-  let terminal = null;
-  for (let i = 0; i < 50; i++) {
-    const r = run(sb, ['observe', id]);
-    assert.ok(Buffer.byteLength(r.stdout) <= 8192);
-    assert.doesNotMatch(r.stdout, /FULL_REPORT_ONLY_IN_DELIVERY/);
-    const s = JSON.parse(r.stdout);
-    if (r.code === 0) { terminal = s; break; }
-    assert.equal(r.code, 2); await pause(100);
-  }
-  assert.ok(terminal?.result_available);
+  const running = run(sb, ['observe', id]);
+  assert.equal(running.code, 2);
+  assert.ok(Buffer.byteLength(running.stdout) <= 8192);
+  assert.doesNotMatch(running.stdout, /FULL_REPORT_ONLY_IN_DELIVERY/);
+  fs.writeFileSync(release, 'finish');
   assert.equal(await done, 0); assert.equal(stderr, '');
+  const terminal = observation(sb, id, 0);
+  assert.ok(terminal.result_available);
   assert.equal(stdout, `# Job ${id} (staffer, done)\n\n` + body + '\n');
 });

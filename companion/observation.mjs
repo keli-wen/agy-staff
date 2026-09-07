@@ -27,7 +27,9 @@ export function boundSnapshot(snapshot) {
     for (const key of Object.keys(out)) {
       if (typeof out[key] === 'string') out[key] = excerpt(out[key], 256).text;
     }
-    for (const key of Object.keys(out.details || {})) out.details[key] = excerpt(out.details[key], 512).text;
+    for (const key of Object.keys(out.details || {})) {
+      if (typeof out.details[key] === 'string') out.details[key] = excerpt(out.details[key], 512).text;
+    }
     out.truncated = true;
     out.details_truncated = true;
   }
@@ -121,14 +123,15 @@ export function createProjection(onConversation = () => {}) {
 // records degrade observation; only a valid result event can complete a job.
 export function createParser(onEvent, onWarning, maxRecord = 8 * 1024 * 1024) {
   const decoder = new StringDecoder('utf8');
-  let pending = '', dropping = false;
+  let pending = '', pendingBytes = 0, dropping = false;
   const consume = (text) => {
     for (const fragment of text.split(/(?<=\n)/)) {
       const end = fragment.endsWith('\n');
       if (!dropping) {
-        if (Buffer.byteLength(pending) + Buffer.byteLength(fragment) > maxRecord) {
-          pending = ''; dropping = true; onWarning('Oversized record omitted from projection; see raw output.');
-        } else pending += fragment;
+        const fragmentBytes = Buffer.byteLength(fragment);
+        if (pendingBytes + fragmentBytes > maxRecord) {
+          pending = ''; pendingBytes = 0; dropping = true; onWarning('Oversized record omitted from projection; see raw output.');
+        } else { pending += fragment; pendingBytes += fragmentBytes; }
       }
       if (end) {
         if (!dropping && pending.trim()) {
@@ -136,7 +139,7 @@ export function createParser(onEvent, onWarning, maxRecord = 8 * 1024 * 1024) {
           try { event = JSON.parse(pending); } catch { onWarning('Malformed record retained in raw output.'); }
           if (event && typeof event === 'object') onEvent(event);
         }
-        pending = ''; dropping = false;
+        pending = ''; pendingBytes = 0; dropping = false;
       }
     }
   };
