@@ -6,44 +6,40 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex** 和 **Pi** 的「agy 员工」。
+agy-staff 是一个 agent 工具插件，让 **Claude Code**、**OpenAI Codex** 和 **Pi** 可以把任务交给 Google 的 Antigravity CLI（`agy`）完成。
+
+你仍然在熟悉的环境里与主 agent 协作。需要调研、审查代码或实现某个修复时，它可以把这部分工作委派给运行 Gemini 3.8 Flash 的 agy，再根据返回的结果继续处理整个任务。插件提供角色技能和一套共用的任务管理命令，负责连接两边的执行流程。
 
 ![agy-staff 设计图](assets/design.png)
 
-## What & Why
+## 它适合做什么
 
-agy-staff 让主力 agent 把任务委托给 `agy`，后者运行速度很快的 Gemini 3.8 Flash。五个人格：staffer（通用任务）、researcher、reviewer（代码和方案审查）、implementer、ask，另有 jobs 管理后台任务。Claude Code 用 `/agy:<persona>`，Codex 用 `$agy:<persona>`。
+使用主力 agent 写代码时，很多工作可以单独交出去：读一组文件、核对一个方案、调查某个问题，或完成一个范围明确的修改。把这些任务放到后台，主 agent 就可以继续处理其他事情，你也不必把每次调研和审查都放在同一轮对话里等待。
 
-为什么需要它：GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。这些任务可以交给 agy：它几秒钟就能给出第二意见，调研和审查以 Flash 的速度完成，范围明确的实现任务放到后台执行，你继续做手头的事。另外，即使不追求速度，让另一个模型家族审同一份代码，也能发现主力 agent 自己发现不了的问题。
+agy-staff 提供五种角色（persona）。`staffer` 适合通用任务；`researcher` 负责调研；`reviewer` 审查代码、方案和决策；`implementer` 处理编码任务；`ask` 用于不需要工具的简短问答。前四种角色都使用相同的后台任务机制，由 `jobs` 技能负责等待、查看进度和收取结果。
 
-![两个忙不过来的主力 agent 把任务交给一个速度很快的 agy 员工](assets/why.png)
+委派也能带来另一种视角。让不同模型审查同一份代码或方案，可以为主 agent 的判断补充依据。你可以把 agy 当作一个按需参与的协作者，再由主 agent 检查和整合它的工作。
 
-## How
+![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
 
-在 Claude Code 里输入 `/agy:`，五个人格都在这儿：
+## 安装
 
-![Claude Code 里的 /agy: 命令菜单](assets/claude-code-screenshot.png)
+### 手动安装
 
-同一个插件在 Codex 里用 `$agy` 调用：
-
-![Codex 里的 $agy 技能选择器](assets/codex-desktop-screenshot.png)
-
-### 安装
-
-#### 给人类
-
-第一步——安装 Antigravity CLI（[官方文档](https://antigravity.google/docs/cli/install)），然后用 `agy --version` 验证（v1.1.15 测试通过；另需 Node.js）：
+先安装 Antigravity CLI。下面的命令来自[官方安装文档](https://antigravity.google/docs/cli/install)，安装后用 `agy --version` 确认命令可用。运行插件还需要 Node.js。
 
 ```bash
 curl -fsSL https://antigravity.google/cli/install.sh | bash
 ```
 
-第二步——把插件装进你的 harness：
+接着，在你使用的 agent 环境中安装插件。如果使用 Claude Code，运行：
 
 ```bash
 claude plugin marketplace add keli-wen/agy-staff
 claude plugin install agy@agy-staff
 ```
+
+如果使用 Codex，运行：
 
 ```bash
 codex plugin marketplace add https://github.com/keli-wen/agy-staff
@@ -51,85 +47,99 @@ codex plugin add agy@agy-staff
 ```
 
 <details>
-<summary>使用 Pi？</summary>
+<summary>在 Pi 中安装</summary>
 
-安装：`pi install git:github.com/keli-wen/agy-staff`。
-技能带 `agy-` 前缀调用：`/skill:agy-<persona>`（例如 `/skill:agy-ask reply with OK`），任务管理使用 `/skill:agy-jobs`。
-更新使用 `pi update --extension git:github.com/keli-wen/agy-staff`，随后在 Pi 中运行 `/reload`。
+运行 `pi install git:github.com/keli-wen/agy-staff` 安装插件。Pi 中的技能使用 `agy-` 前缀，例如 `/skill:agy-ask reply with OK`；任务管理技能是 `/skill:agy-jobs`。
+
+更新时运行 `pi update --extension git:github.com/keli-wen/agy-staff`，然后在 Pi 中执行 `/reload`。
 
 </details>
 
-装完重启 Claude Code 或 Codex。首次运行：Claude Code 用 `/agy:ask reply with OK`，Codex 用 `$agy:ask reply with OK`。Ask 不用工具、不需要 setup。
+安装完成后，重启 Claude Code 或 Codex，再做一次简单的验证：在 Claude Code 中输入 `/agy:ask reply with OK`，在 Codex 中输入 `$agy:ask reply with OK`。`ask` 不调用工具，也不需要额外的权限配置。
 
 > [!IMPORTANT]
-> **没有必须先做的 setup 步骤。** `staffer`、`researcher`、`reviewer`、`implementer` 默认以 **unrestricted** 档运行：agy 可以自己看仓库、跑命令、改文件。agy-staff 靠一层会看当前仓库状态的 prompt 来约束它。比如 `implementer` 遇到 dirty workspace 时，companion 会告诉 agy 哪些文件本来就有改动，并提醒它不要覆盖或交付无关的用户改动。只有任务明确要求 commit、push 或 PR 时，agy 才做对应交付；否则它只留下工作区 diff 供你审查。
-> `setup` + `--restricted` 是**可选的加固手段**，处理不可信输入时才需要——既可按次传 `--restricted`，也可用 `setup --restrict review,research` 设为本仓库默认。`setup` 会先 dry run，经你确认才写入（对 agent 说「set up agy」即可触发）；用之前请读[权限说明](docs/REFERENCE.zh-CN.md#可选加固-setup)——allowlist 按前缀匹配、对整台机器生效，restricted 档运行返回的内容也可能比 unrestricted 少。
+> `staffer`、`researcher`、`reviewer` 和 `implementer` 默认使用 `unrestricted` 权限配置，可以读取仓库、运行命令和修改文件。插件会通过提示词说明任务边界和已有改动的归属；任务明确要求提交、推送或创建 PR 时，agy 才应执行相应操作，否则留下工作区改动供你审查。这些提示约定不能替代权限隔离。
+>
+> 日常使用不需要先运行 `setup`。如果希望保留 agy 自身的权限检查，可以选择 `--restricted`，并通过 `setup` 配置允许执行的命令。`setup` 默认只展示计划，经你确认后才写入配置。使用前请阅读[权限说明](docs/REFERENCE.zh-CN.md#可选加固-setup)，了解全局命令允许列表的作用范围，以及审查不可信内容时的限制。
 
-#### 给 Agent
+### 让 agent 帮你安装
 
-把下面这段话直接粘贴给任何 coding agent：
+也可以把下面这段话交给你的 coding agent，让它按照仓库里的说明完成安装和验证：
 
+```text
+Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md (curl it — do not work from a summary), or the same file in your local checkout of agy-staff, and follow it to install and verify the agy-staff plugin for the harness you are running in. Respond in the user's language.
 ```
-Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/INSTALL_FOR_AGENTS.md
-(curl it — do not work from a summary), or the same file in your local checkout of agy-staff, and follow it to
-install and verify the agy-staff plugin for the harness you are running in. Respond in the user's language.
-```
 
-#### 升级
+## 使用
 
-Claude Code 和 Codex 装的都是**拷贝**，所以新版本要你主动拉一次才会生效：
+在 Claude Code 中输入 `/agy:`，就能选择要使用的角色：
+
+![Claude Code 中的 /agy: 命令菜单](assets/claude-code-screenshot.png)
+
+在 Codex 中输入 `$agy`，可以找到对应的技能：
+
+![Codex 中的 $agy 技能选择器](assets/codex-desktop-screenshot.png)
+
+下面的示例使用 Claude Code 的 `/agy:…` 写法。在 Codex 中把它换成 `$agy:…` 即可；Pi 使用 `/skill:agy-…`。
+
+| 想做的事 | 示例 |
+| --- | --- |
+| 问一个简短的问题 | `/agy:ask 你的后端模型是什么` |
+| 交办一个通用任务 | `/agy:staffer 汇总这个仓库里所有未完成的 TODO` |
+| 生成图片 | `/agy:staffer 生成一个像素风机器人吉祥物，存为 assets/mascot.png` |
+| 审查当前改动 | `/agy:reviewer 检查当前工作区的改动` |
+| 审查某个 PR | `/agy:reviewer 审查 PR #730` |
+| 审查方案 | `/agy:reviewer 检查 docs/plan.md 中的迁移方案，指出可能遗漏的问题` |
+| 调研代码 | `/agy:researcher 这个仓库的鉴权是怎么做的` |
+| 实现修复 | `/agy:implementer 修复那个不稳定的重试测试` |
+| 查看或继续任务 | 直接说“agy 的任务进展如何”或“继续刚才的任务，再检查一下错误路径” |
+
+使用 `reviewer` 时，直接说明审查对象即可。agy 会自行调用 `gh pr view`、`git diff` 等命令收集材料，也可以读取指定文件。代码审查会按严重程度列出问题；方案和决策审查则会检查假设、取舍和可能遗漏的情况。
+
+`staffer` 没有预设的专业分工，因此也适合调用其他角色没有专门介绍的 agy 原生工具，例如 `generate_image`。项目曾在 agy v1.1.15 上验证图像生成：一次调用约 30 秒生成了 1024×1024 的 PNG。这个记录可以作为使用示例，实际耗时取决于任务和运行环境。
+
+### 后台任务如何运行
+
+`ask` 会在同一次调用中返回答案。其他角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
+
+想了解中间进展时，可以直接问主 agent。它会用 `observe` 查看当前快照，其中包含最近的工具活动和回答片段。任务完成后，`wait` 或 `result` 负责返回完整结果。
+
+等待到期不会停止后台任务。任务本身有独立的执行时限，默认 60 分钟，可以在启动时用 `--timeout` 调整，最长 120 分钟。需要停止时使用 `cancel`；需要继续或重新开始时，由主 agent 根据你的要求调用 `continue` 或 `restart`。模型何时收到后台结果，仍由你使用的 agent 环境决定。
+
+关于参数、权限、进度快照和恢复方式，可以查阅[完整参考手册](docs/REFERENCE.zh-CN.md)。各版本的改动记录在[发布说明](docs/releases/)中。
+
+## 升级
+
+Claude Code 和 Codex 使用的是安装时复制到缓存中的插件。仓库发布新版本后，需要主动更新，并重启应用才能加载新的技能。
+
+Claude Code 的更新命令是：
 
 ```bash
 claude plugin marketplace update agy-staff && claude plugin update agy@agy-staff
 ```
 
+Codex 的更新命令是：
+
 ```bash
-codex plugin marketplace upgrade && codex plugin add agy@agy-staff  # then restart Codex
+codex plugin marketplace upgrade && codex plugin add agy@agy-staff
 ```
 
-Claude Code 和 Codex 按版本号目录缓存插件，只有插件版本号变了升级才会落地，之后还要重启 harness。改动没出现时见[升级](docs/REFERENCE.zh-CN.md#升级)——那里有强制刷新的命令。
-
-### 典型场景（CUJ）
-
-下面示例用 Claude Code 的 `/agy:…` 写法；Codex 用 `$agy:…` 写法。
-
-| 使用场景 | 调用 |
-|---|---|
-| 快速第二意见 | `/agy:ask 你的后端模型是什么` |
-| 通用任务 | `/agy:staffer 汇总这个仓库里所有未完成的 TODO` |
-| 生成一张图片 | `/agy:staffer 生成一个像素风机器人吉祥物，存为 assets/mascot.png` |
-| 审查当前工作区 | `/agy:reviewer Review the current working tree` |
-| 审查某个 PR | `/agy:reviewer Review PR #730` |
-| 审查一个方案/决策 | `/agy:reviewer Challenge docs/plan.md 里的迁移方案` |
-| 调研一个主题 | `/agy:researcher 这个仓库的鉴权是怎么做的` |
-| 实现一个范围明确的修复 | `/agy:implementer 修复那个不稳定的重试测试` |
-| 任务管理（等待/进度/取消/续接） | 自然语言：「agy 的 job 好了吗」「continue：再看看错误路径」 |
-
-`reviewer` 完全靠 prompt 描述审查对象，agy 自己去收集证据（`gh pr view`、`git diff`、直接读文件）；没有任何 flag 可以直接传入 diff。它有两个 flavor，按对象自动路由：代码审查（severity 分级的 findings）和通用审查（对方案、设计、决策的多角度 challenge）。
-
-`staffer` 还能解锁 agy 的原生工具中没有专职人格覆盖的部分——最值得一提的是**图像生成**（`generate_image`；在 agy v1.1.15 上实测，约 30 秒产出 1024×1024 PNG）。
-
-`ask` 在同一次调用里返回答案。其余人格作为后台任务运行：调用立即返回 job id，并打印确切的收取命令（`wait <id> --timeout <n>m`）；你的 agent 把它作为后台命令运行——一个 job 一个 wait——完成时交付结果。
-
-**完整参考 →** [docs/REFERENCE.zh-CN.md](docs/REFERENCE.zh-CN.md)（flags、权限模型、任务/状态、疑难排查、升级）。**Release notes →** [docs/releases/](docs/releases/)。
+这两个环境都按版本号管理插件缓存。如果更新后仍然看到旧行为，请先确认是否已重启应用，再参考[升级说明](docs/REFERENCE.zh-CN.md#升级)检查版本和实际安装的提交。Pi 的更新方式见上方安装说明。
 
 ## 社区
 
-- [LINUX DO](https://linux.do/) — 新一代的 Linux 社区。
+欢迎在 [LINUX DO](https://linux.do/) 交流使用经验。
 
 ## 参与贡献
 
-欢迎贡献——提 issue、报 bug、发 PR 都可以。
+欢迎通过 issue 或 PR 提出问题、分享使用经验或改进代码。新增模式或参数会影响对外接口，建议先开 issue 讨论预期行为。
 
-发 PR 之前有几件事需要知道：
+提交代码前请运行 `npm test`。标准测试使用临时仓库、临时 HOME 和假的 agy，不会调用真实模型或改动你的个人配置。新增回归测试也应保持这一点。需要验证真实 AGY 时，请使用[测试说明](tests/README.md)中单独启用的集成测试。
 
-- **跑测试**：`node --test tests/*.test.mjs`。这些是黑盒测试，跑在一次性的仓库和 HOME 里，用假的 `agy`（`tests/fake-agy.mjs`）替代真实二进制，所以不会联网、也不会碰你真实的配置。请保持这个性质：测试永远不要调用真的 `agy`。
-- **文档是成对的**：`README.md` / `README.zh-CN.md`、`docs/REFERENCE.md` / `docs/REFERENCE.zh-CN.md` 保持同步。改了一份，就要改它的对应版本。
-- **行为都在一个文件里**：`companion/agy-companion.mjs` 承载全部逻辑，skills 只是转发的薄壳，护栏写在 `templates/` 的 prompt 模板里。
-- **Skills 以 canonical 为单一来源**：修改人格请编辑 `skills/`，不要直接修改 `pi-skills/`。运行 `npm run generate:pi` 自动生成 Pi 入口，用 `npm run check:pi` 校验一致性。
+运行逻辑位于 `companion/`：入口负责模式和任务命令，独立模块负责流式执行、进度快照和状态锁。角色技能位于 `skills/`，共享的提示词模板位于 `templates/`。修改技能时请以 `skills/` 为准，再运行 `npm run generate:pi` 生成 `pi-skills/`，用 `npm run check:pi` 检查两者是否一致。
 
-新增模式或 flag 会改变对外接口，请先开 issue 讨论形态，再动手。
+README 和参考手册都有中英文版本。修改使用方法或行为说明时，请同步更新对应版本，让两种语言的读者得到一致的信息。
 
 ## 许可证
 
-MIT — 见 [LICENSE](LICENSE)。
+本项目采用 MIT 许可证，详见 [LICENSE](LICENSE)。
