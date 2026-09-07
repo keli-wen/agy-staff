@@ -10,8 +10,6 @@ agy-staff is an agent tool plugin that lets **Claude Code**, **OpenAI Codex**, a
 
 Keep working with your main agent in its usual environment. When a task needs research, a review, or a scoped implementation, it can hand that part to an agy agent running Gemini 3.8 Flash, then inspect and integrate the result. Persona skills and a shared set of job commands connect the two execution flows.
 
-![agy-staff design](assets/design.png)
-
 ## What & Why
 
 agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.8 Flash. Five personas: staffer (general-purpose), researcher, reviewer (code **and** plans/decisions), implementer, and ask — plus a model-facing jobs skill. Claude Code uses `/agy:<persona>` and Codex uses `$agy:<persona>`.
@@ -21,6 +19,8 @@ Reading a group of files, checking a plan, investigating a problem, and making a
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
 ## How
+
+### Invoke a persona
 
 Type `/agy:` in Claude Code and the five personas are right there:
 
@@ -114,6 +114,10 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 `ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 
 Ask your main agent about progress and it can use `observe` to read a snapshot of recent tool activity and response text. Once the task finishes, `wait` or `result` delivers the full report. Expiring a wait leaves the worker running.
+
+The timeline below follows a background task from delegation to completion. The host agent can continue other work, check progress when needed, and collect the final report.
+
+[![A background task over time: the host delegates, waits or observes, while the worker continuously saves AGY output and eventually delivers the full report](assets/integration.png)](assets/integration.svg)
 
 Jobs have a separate execution deadline: default 60 minutes, configurable at launch with `--timeout` up to 120 minutes. Use `cancel` to stop execution, or explicitly request `continue` or `restart` after inspecting the existing work. The host harness controls when your agent receives a background result.
 

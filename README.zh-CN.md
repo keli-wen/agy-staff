@@ -10,8 +10,6 @@ agy-staff 是一个 agent 工具插件，让 **Claude Code**、**OpenAI Codex** 
 
 你仍然在熟悉的环境里与主 agent 协作。需要调研、审查代码或实现某个修复时，它可以把这部分工作委派给运行 Gemini 3.8 Flash 的 agy，再根据返回的结果继续处理整个任务。插件提供角色技能和一套共用的任务管理命令，负责连接两边的执行流程。
 
-![agy-staff 设计图](assets/design.png)
-
 ## 它适合做什么
 
 使用主力 agent 写代码时，很多工作可以单独交出去：读一组文件、核对一个方案、调查某个问题，或完成一个范围明确的修改。把这些任务放到后台，主 agent 就可以继续处理其他事情，你也不必把每次调研和审查都放在同一轮对话里等待。
@@ -103,6 +101,10 @@ Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master
 `ask` 会在同一次调用中返回答案。其他角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
 
 想了解中间进展时，可以直接问主 agent。它会用 `observe` 查看当前快照，其中包含最近的工具活动和回答片段。任务完成后，`wait` 或 `result` 负责返回完整结果。
+
+下图按时间顺序展示一次后台任务：主 agent 发起委派后可以继续其他工作，在需要时查看进度，最后收取报告。
+
+[![后台任务从委派到完成的过程：主 agent 等待或查看进度时，worker 持续保存 AGY 的输出，最终交付完整报告](assets/integration.png)](assets/integration.svg)
 
 等待到期不会停止后台任务。任务本身有独立的执行时限，默认 60 分钟，可以在启动时用 `--timeout` 调整，最长 120 分钟。需要停止时使用 `cancel`；需要继续或重新开始时，由主 agent 根据你的要求调用 `continue` 或 `restart`。模型何时收到后台结果，仍由你使用的 agent 环境决定。
 
