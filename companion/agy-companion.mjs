@@ -94,6 +94,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { boundSnapshot } from './observation.mjs';
 import { atomicJSON, runStreaming, stopExecution } from './stream-worker.mjs';
+import { withStateLock } from './state-lock.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const TEMPLATES_DIR = path.join(path.dirname(SELF), '..', 'templates');
@@ -332,31 +333,12 @@ function saveState(state) {
 
 function updateState(change) {
   ensureStateDir();
-  const lock = statePath() + '.lock';
-  const start = Date.now();
-  for (;;) {
-    try { fs.mkdirSync(lock); break; } catch (error) {
-      if (error.code !== 'EEXIST') throw error;
-      let owner = null;
-      try { owner = Number(fs.readFileSync(path.join(lock, 'pid'), 'utf8')); } catch {}
-      // An ownerless lock is allowed time to publish its PID.
-      let age = 0;
-      try { age = Date.now() - fs.statSync(lock).mtimeMs; } catch { continue; }
-      if ((owner && !pidAlive(owner)) || (!owner && age > 5000)) {
-        try { fs.rmSync(lock, { recursive: true }); } catch {}
-        continue;
-      }
-      if (Date.now() - start > 10000) throw new Error('Timed out acquiring job state lock.');
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
-    }
-  }
-  try {
-    fs.writeFileSync(path.join(lock, 'pid'), String(process.pid));
+  return withStateLock(statePath() + '.lock', () => {
     const state = loadState();
     const value = change(state);
     saveState(state);
     return value;
-  } finally { fs.rmSync(lock, { recursive: true, force: true }); }
+  });
 }
 
 function updateJob(id, fields, terminal = false) {
