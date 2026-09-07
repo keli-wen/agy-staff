@@ -148,7 +148,7 @@ describe('task text is opaque: flag-like content is never parsed (issue #3)', ()
   test('real companion flags around --prompt still take effect', async () => {
     const sb = sandbox('real-flags-around-prompt');
     const task = 'Review this --json example and the --timeout 1s it mentions';
-    // --timeout 90s is deliberately NOT review's default (5m), so the
+    // --timeout 90s is deliberately NOT review's default (60m), so the
     // assertion below proves the flag was honored rather than defaulted
     const r = run(sb, ['review', '--restricted', '--prompt', task, '--json', '--timeout', '90s']);
     assert.equal(r.code, 0, r.stderr);
@@ -156,7 +156,7 @@ describe('task text is opaque: flag-like content is never parsed (issue #3)', ()
     await waitForJob(sb, jobIdOf(r.stdout));
     const [argv] = await waitForCalls(sb, 1);
     assert.ok(argv.includes('--json-schema'), 'the real --json flag must enable the schema');
-    assert.equal(argv[argv.indexOf('--print-timeout') + 1], '60m');
+    assert.equal(argv[argv.indexOf('--print-timeout') + 1], '90s');
     assert.ok(promptOf(argv).includes(task));
   });
 

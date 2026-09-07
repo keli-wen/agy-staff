@@ -17,17 +17,19 @@ export function signalGroup(pid, signal) {
 // to kill an unrelated process after PID reuse. Tool shells may create groups.
 let inspectionUnavailable = false;
 function processTable() {
-  const ps = spawnSync('ps', ['-axo', 'pid=,ppid=,lstart='], { encoding: 'utf8', timeout: 1000 });
+  const ps = spawnSync('ps', ['-axo', 'pid=,ppid=,pgid=,lstart='], { encoding: 'utf8', timeout: 1000, env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' } });
   if (ps.error || ps.status !== 0) {
     if (!inspectionUnavailable) process.stderr.write('agy-staff warning: process-tree inspection unavailable; run unsandboxed to verify descendant cleanup.\n');
     inspectionUnavailable = true;
+    return null;
   }
   return (ps.stdout || '').trim().split('\n').flatMap((line) => {
-    const match = /^\s*(\d+)\s+(\d+)\s+(.+)$/.exec(line);
-    return match ? [{ pid: Number(match[1]), parent: Number(match[2]), born: match[3].trim() }] : [];
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+)$/.exec(line);
+    return match ? [{ pid: Number(match[1]), parent: Number(match[2]), group: Number(match[3]), born: match[4].trim() }] : [];
   });
 }
 function tree(pid, rows = processTable()) {
+  if (!rows || !pid) return [];
   const found = new Set([pid]);
   for (let changed = true; changed;) {
     changed = false;
@@ -37,43 +39,74 @@ function tree(pid, rows = processTable()) {
 }
 export function descendants(pid) { return tree(pid).map((row) => row.pid); }
 
-export async function stopExecution(pid, known = []) {
-  if (!pid) return;
+export function processIdentity(pid) {
+  if (!Number.isInteger(pid) || pid <= 1) return null;
+  return processTable()?.find((row) => row.pid === pid) || null;
+}
+const matches = (rows, identity) => !!identity && !!rows?.some((row) => row.pid === identity.pid && row.born === identity.born);
+
+export async function stopExecution(root, known = []) {
+  if (!root) return;
   const current = processTable();
-  const children = new Map(tree(pid, current).map((row) => [row.pid, row]));
-  for (const old of known) if (current.some((row) => row.pid === old.pid && row.born === old.born)) children.set(old.pid, old);
-  signalGroup(pid, 'SIGTERM');
-  for (const child of [...children.values()].reverse()) { try { process.kill(child.pid, 'SIGTERM'); } catch {} }
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  signalGroup(pid, 'SIGKILL');
-  const remaining = processTable();
-  for (const child of children.values()) {
-    if (remaining.some((row) => row.pid === child.pid && row.born === child.born)) { try { process.kill(child.pid, 'SIGKILL'); } catch {} }
+  if (!current) return;
+  const children = new Map(known.filter((old) => matches(current, old)).map((row) => [row.pid, row]));
+  if (matches(current, root)) {
+    children.set(root.pid, root);
+    for (const row of tree(root.pid, current)) children.set(row.pid, row);
   }
+  const signal = (rows, kind) => {
+    // A surviving, identified member proves this is still our execution group.
+    const reusedLeader = rows?.some((row) => row.pid === root.pid && row.born !== root.born);
+    const ownedMember = rows?.some((row) => row.group === root.pid && children.get(row.pid)?.born === row.born);
+    if (!reusedLeader && ownedMember) signalGroup(root.pid, kind);
+    for (const child of [...children.values()].reverse()) {
+      if (matches(rows, child)) { try { process.kill(child.pid, kind); } catch {} }
+    }
+  };
+  signal(current, 'SIGTERM');
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  signal(processTable(), 'SIGKILL');
 }
 
 export async function runStreaming({ binary, args, job, budget, signal, update, conversation }) {
+  const hardDeadline = Date.now() + Math.max(0, budget);
   const rawFd = fs.openSync(job.events_file, 'a');
   const projection = createProjection(conversation);
-  let payload = null, stderr = '', lastPublish = 0, child, deadline, publishTimer, trackingTimer;
+  let payload = null, stderr = '', stdoutTail = '', lastPublish = 0, child, root, deadline, publishTimer, trackingTimer;
   let stopping = null, reason = null, spawnError = null, streamError = null;
   const tracked = new Map();
   const track = () => {
     const rows = processTable();
+    if (!rows) return; // An unavailable inspection is not evidence of exit.
     for (const [pid, old] of tracked) if (!rows.some((row) => row.pid === pid && row.born === old.born)) tracked.delete(pid);
-    for (const row of tree(child?.pid, rows)) tracked.set(row.pid, row);
+    if (!root) root = rows.find((row) => row.pid === child?.pid);
+    if (matches(rows, root)) for (const row of tree(root.pid, rows)) tracked.set(row.pid, row);
+    // A detached child owns its group until exit; collect orphaned members at
+    // the exit/result boundary too, unless the leader PID has been reused.
+    if (root && !rows.some((row) => row.pid === root.pid && row.born !== root.born)) {
+      for (const row of rows) if (row.pid !== root.pid && row.group === root.pid) tracked.set(row.pid, row);
+    }
   };
   const publish = () => {
     lastPublish = Date.now();
     atomicJSON(job.progress_file, boundSnapshot({ job_id: job.id, ...projection.snapshot() }));
   };
   const stop = (why) => {
+    if (why === 'canceled') reason = why;
     if (stopping) return;
     reason = why;
     // Latch the stop reason before cleanup. The terminal record is published
     // only after the report is durable; canceled records stay canceled.
     clearInterval(trackingTimer);
-    stopping = stopExecution(child?.pid, [...tracked.values()]).then(() => { child?.stdout.destroy(); child?.stderr.destroy(); });
+    track();
+    stopping = cleanup();
+  };
+  const cleanup = async () => {
+    // ChildProcess.kill only targets our still-running direct child. Stored
+    // numeric PIDs are never sufficient authority for a signal.
+    if (!root && child?.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+    await stopExecution(root, [...tracked.values()]);
+    if (child?.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
   };
   const abort = () => stop('canceled');
   const safely = (action) => {
@@ -82,43 +115,66 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
   try {
     publish();
     child = spawn(binary, args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    child.on('error', (error) => { spawnError = error; });
+    const exited = new Promise((resolve) => {
+      child.once('error', (error) => { spawnError = error; resolve({ exit: null, killedSignal: null }); });
+      child.once('exit', (exit, killedSignal) => resolve({ exit, killedSignal }));
+    });
+    const closed = new Promise((resolve) => child.once('close', resolve));
+    track();
     trackingTimer = setInterval(track, 1000);
-    update({ agy_pid: child.pid, execution_started_at: new Date().toISOString(), hard_deadline_at: new Date(Date.now() + Math.max(0, budget)).toISOString() });
+    update({ agy_pid: child.pid, execution_started_at: new Date().toISOString(), hard_deadline_at: new Date(hardDeadline).toISOString() });
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) abort();
-    deadline = setTimeout(() => stop('hard_timeout'), Math.max(0, budget));
+    deadline = setTimeout(() => stop('hard_timeout'), Math.max(0, hardDeadline - Date.now()));
     const parser = createParser((event) => {
       projection.accept(event);
-      if (event.event === 'result' && event.result && typeof event.result === 'object') payload = event.result;
+      if (event.event === 'result' && event.result && typeof event.result === 'object') { payload = event.result; track(); }
       if (Date.now() - lastPublish >= 100) publish();
       else if (!publishTimer) publishTimer = setTimeout(() => { publishTimer = null; safely(publish); }, 100);
     }, projection.warn, 64 * 1024 * 1024);
-    child.stdout.on('data', (chunk) => safely(() => { fs.writeSync(rawFd, chunk); parser.write(chunk); }));
+    child.stdout.on('data', (chunk) => safely(() => {
+      fs.writeSync(rawFd, chunk);
+      stdoutTail = excerpt(stdoutTail + chunk.toString('utf8'), 8192, true).text;
+      parser.write(chunk);
+    }));
     child.stderr.on('data', (chunk) => safely(() => {
       process.stderr.write(chunk);
       stderr = excerpt(stderr + chunk.toString('utf8'), 8192, true).text;
     }));
-    const outcome = await new Promise((resolve) => child.on('close', (exit, killedSignal) => resolve({ exit, killedSignal })));
-    safely(() => parser.end());
+    const outcome = await exited;
     clearTimeout(deadline); clearInterval(trackingTimer);
     if (stopping) await stopping;
     // Kill remaining members even if the CLI itself already exited.
-    else await stopExecution(child.pid, [...tracked.values()]);
+    else { track(); stopping = cleanup(); await stopping; }
+    // Drain buffered result bytes, but do not wait indefinitely for a tool
+    // process that inherited stdout/stderr and escaped cleanup.
+    let drainTimer;
+    const drained = await Promise.race([closed.then(() => true), new Promise((resolve) => { drainTimer = setTimeout(() => resolve(false), 500); })]);
+    clearTimeout(drainTimer);
+    if (!drained) {
+      projection.warn('AGY exited but inherited output pipes did not close; output drain was bounded.');
+      child.stdout.destroy(); child.stderr.destroy();
+    }
+    safely(() => parser.end());
     clearTimeout(publishTimer);
     if (inspectionUnavailable) projection.warn('Process-tree inspection unavailable; verify descendant cleanup from the original unsandboxed context.');
     publish();
     if (streamError) throw Object.assign(streamError, { reason: 'stream_error' });
-    if (reason) throw Object.assign(new Error(reason === 'hard_timeout' ? 'Worker hard execution limit reached.' : 'Execution canceled.'), { reason });
+    if (reason === 'hard_timeout' && typeof payload?.response === 'string' && payload.response.trim()) {
+      const warning = 'Worker hard execution limit reached after a response was received; delivering the response with a cleanup warning.';
+      projection.warn(warning);
+      stderr = `${stderr}\n${warning}`.trim();
+      process.stderr.write(`agy-staff warning: ${warning}\n`);
+    } else if (reason) throw Object.assign(new Error(reason === 'hard_timeout' ? 'Worker hard execution limit reached.' : 'Execution canceled.'), { reason });
     if (spawnError) throw Object.assign(new Error(`failed to launch agy (${binary}): ${spawnError.message}`), { reason: 'launch_error' });
     if (!payload) {
       let message = `agy did not return parseable JSON result (exit ${outcome.exit}, signal ${outcome.killedSignal || 'none'}). stdout: see ${job.events_file}\nstderr: ${stderr || '(empty)'}`;
       if (/operation not permitted/i.test(stderr)) message += '\nThis looks like a harness command sandbox blocking agy. Run this companion command unsandboxed (escalated permissions).';
-      throw Object.assign(new Error(message), { reason: 'missing_result' });
+      throw Object.assign(new Error(message), { reason: 'missing_result', diagnosticText: `${stdoutTail}\n${stderr}` });
     }
     return { payload, stderr, exit: outcome.exit ?? 1, observationWarnings: projection.snapshot().warnings };
   } catch (error) {
-    if (!stopping && child?.pid) await stopExecution(child.pid, [...tracked.values()]);
+    if (!stopping && child?.pid) await cleanup();
     throw error;
   } finally {
     clearInterval(trackingTimer);

@@ -39,7 +39,7 @@
  *   --unrestricted        pass --dangerously-skip-permissions (already the
  *                         default for research/review/implement)
  *   --json                (review) ask agy for schema-enforced JSON findings
- *   --timeout <dur>       background hard limit (default/max 60m); ask response timeout
+ *   --timeout <dur>       background hard limit (default 60m, maximum 120m); ask response timeout
  *   --prompt <text>       the task text as one opaque argv value
  *   --prompt-file <path>  read the task text from a file (long prompts)
  *   --stdin               read the task text from stdin
@@ -93,7 +93,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { boundSnapshot } from './observation.mjs';
-import { atomicJSON, runStreaming, stopExecution } from './stream-worker.mjs';
+import { atomicJSON, runStreaming, processIdentity } from './stream-worker.mjs';
 import { withStateLock } from './state-lock.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
@@ -353,10 +353,14 @@ function updateJob(id, fields, terminal = false) {
 
 function finishJob(id, output, fields) {
   return updateState((state) => {
-    const job = state.jobs.find((j) => j.id === id);
+    const job = state.jobs?.find((j) => j.id === id);
+    if (!job) throw new Error(`Missing job ${id}`);
+    if (typeof fields === 'function') fields = fields(job);
     if (job.status !== 'running' && !(job.status === 'canceled' && fields.status === 'canceled')) return job;
-    fs.writeFileSync(job.result_file, output);
+    if (job.cancel_requested_at && fields.status !== 'canceled') throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled' });
     const final = { ...fields, finished_at: new Date().toISOString() };
+    const completed = { ...job, ...final };
+    fs.writeFileSync(job.result_file, typeof output === 'function' ? output(completed) : output);
     atomicJSON(job.result_file + '.status.json', final);
     Object.assign(job, final);
     return job;
@@ -760,10 +764,10 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
     ? `\nConversation id (you can still continue it): ${payload.conversation_id}`
     : '';
 
-  if (status.includes('TIMEOUT')) {
+  if (status.includes('TIMEOUT') && !response) {
     die(
       `agy timed out (status ${payload.status}) before finishing.` +
-        ` Retry with a larger --timeout, or narrow the task.${convNote}`
+        ` Retry with a larger --timeout (at most 120m for background jobs), or narrow the task.${convNote}`
     );
   }
 
@@ -822,11 +826,11 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
     const cause =
       profileSource === 'project'
         ? 'This run was restricted by the project policy in .agy-staff/config.json'
-        : 'This run used `--restricted`';
+        : profileSource === 'inherited' ? 'This continuation inherited the restricted profile' : 'This run used `--restricted`';
     const relax =
       profileSource === 'project'
         ? 'relax the policy (`setup --restrict none`) or pass `--unrestricted` for this run'
-        : `drop \`--restricted\` — ${mode} runs unrestricted by default`;
+        : profileSource === 'inherited' ? 'pass `--unrestricted` explicitly for this continuation' : `drop \`--restricted\` — ${mode} runs unrestricted by default`;
     msg +=
       `\n${cause}, so agy kept its permission enforcement on: in headless mode every` +
       ' unlisted tool call is auto-denied, which is the usual cause of an empty response.' +
@@ -842,7 +846,7 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
 // run (research / review / implement / continue)
 // ---------------------------------------------------------------------------
 
-function resolveRun(mode, opts) {
+function resolveRun(mode, opts, priorJob = null) {
   // likely a typo for --restricted; --restrict (per-repo policy) belongs to setup
   if (opts.restrict !== undefined) {
     die(`--restrict is a setup flag (per-repo policy: \`setup --restrict <modes|none>\`). For a single ${mode} run use --restricted.`);
@@ -865,14 +869,13 @@ function resolveRun(mode, opts) {
   if (opts.restricted && opts.unrestricted) die('--restricted and --unrestricted are mutually exclusive');
   const policyProfile = mode === 'ask' ? null : loadProjectConfig()?.profiles?.[mode] || null;
   let profile;
-  let profileSource; // 'flag' | 'project' | 'default' — used by the empty-response hint
+  let profileSource; // 'flag' | 'project' | 'default' | 'inherited'
   if (opts.restricted || opts.unrestricted) {
     profile = opts.restricted ? 'restricted' : 'unrestricted';
     profileSource = 'flag';
   } else if (policyProfile) {
     profile = policyProfile;
     profileSource = 'project';
-    process.stderr.write(`agy-staff: profile=${profile} set by project policy (${configPath()})\n`);
   } else {
     profile = DEFAULTS.profile[mode];
     profileSource = 'default';
@@ -887,7 +890,7 @@ function resolveRun(mode, opts) {
 
   const timeout = opts.timeout || DEFAULTS.timeout[mode];
   const budget = durationToMs(timeout);
-  if (!Number.isFinite(budget) || budget <= 0 || (background && budget > 3600000)) die('invalid --timeout: use a positive duration, at most 60m for background jobs');
+  if (!Number.isFinite(budget) || budget <= 0 || (background && budget > 7200000)) die('invalid --timeout: use a positive duration, at most 120m for background jobs');
 
   // conversation
   const state = loadState();
@@ -897,11 +900,12 @@ function resolveRun(mode, opts) {
     if (!conversation) die(`--continue given but no previous ${mode} conversation is recorded in state.json`);
   }
 
-  const prior = conversation ? [...(state.jobs || [])].reverse().find((j) => j.conversation_id === conversation && j.mode === mode) : null;
+  const prior = priorJob || (conversation ? [...(state.jobs || [])].reverse().find((j) => j.conversation_id === conversation && j.mode === mode) : null);
   if (prior) {
     if (!opts.model && !opts.effort && prior.model) model = prior.model;
-    if (!opts.restricted && !opts.unrestricted && prior.profile) { profile = prior.profile; profileSource = prior.profileSource || 'inherited'; }
+    if (!opts.restricted && !opts.unrestricted && prior.profile) { profile = prior.profile; profileSource = 'inherited'; }
   }
+  if (profileSource === 'project') process.stderr.write(`agy-staff: profile=${profile} set by project policy (${configPath()})\n`);
   return { mode, model, profile, profileSource, background, timeout, conversation, parentJobId: prior?.id || null };
 }
 
@@ -1098,14 +1102,15 @@ async function executeRun(resolved, prompt, opts, execution = null) {
 }
 
 function cmdRun(mode, opts) {
+  const task = taskText(opts); // Resolve prompt-file/stdin in the caller's cwd.
   const resolved = resolveRun(mode, opts);
   if (resolved.parentJobId) {
     const prior = findJob(resolved.parentJobId);
-    if (prior.cwd && prior.cwd !== process.cwd()) die(`continue must run in the original workspace: ${prior.cwd}`);
+    enterOriginalWorkspace(prior.cwd);
     if (prior.spec_file) { try { opts.json ||= JSON.parse(fs.readFileSync(prior.spec_file, 'utf8')).opts.json; } catch {} }
   }
-  const prompt = buildPrompt(mode, opts);
-  return dispatch(resolved, prompt, opts);
+  const prompt = buildPrompt(mode, { prompt: task });
+  return dispatch(resolved, prompt, { ...opts, promptSource: { kind: 'template', task } });
 }
 
 async function dispatch(resolved, prompt, opts) {
@@ -1125,7 +1130,7 @@ async function dispatch(resolved, prompt, opts) {
   const specFile = path.join(jobsDir, `${jobId}.spec.json`);
   const resultFile = path.join(jobsDir, `${jobId}.result.md`);
 
-  fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
+  fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
 
   // Register the job BEFORE spawning: a fast worker's own state update must
   // find the record already present, or it gets lost in its read-modify-write.
@@ -1176,15 +1181,21 @@ async function workerMain(jobId) {
   const onSignal = () => controller.abort();
   process.on('SIGTERM', onSignal);
   process.on('SIGINT', onSignal);
-  let job;
+  let job, cancelTimer;
   try {
-    job = updateJob(jobId, { worker_started_at: new Date().toISOString(), worker_pid: process.pid });
+    job = updateJob(jobId, { worker_started_at: new Date().toISOString(), worker_pid: process.pid, worker_identity: processIdentity(process.pid) });
     process.stderr.write(`[agy-staff] worker started ${jobId} pid=${process.pid} at ${job.worker_started_at}\n`);
     if (job.status !== 'running') return;
+    const checkCancellation = () => {
+      if (job.cancel_requested_at || fs.existsSync(job.spec_file + '.cancel')) controller.abort();
+    };
+    checkCancellation();
+    cancelTimer = setInterval(checkCancellation, 100);
+    if (controller.signal.aborted) throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled' });
     const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
     const opts = { ...spec.opts, jobId };
     const output = await executeRun(spec.resolved, spec.prompt, opts, (invoke) => {
-      const args = ['-p', invoke.prompt, '--model', invoke.model, '--output-format', 'stream-json', '--print-timeout', '60m'];
+      const args = ['-p', invoke.prompt, '--model', invoke.model, '--output-format', 'stream-json', '--print-timeout', invoke.timeout];
       if (invoke.conversation) args.push('--conversation', invoke.conversation);
       if (invoke.unrestricted) args.push('--dangerously-skip-permissions');
       if (invoke.jsonSchema) args.push('--json-schema', invoke.jsonSchema);
@@ -1192,6 +1203,11 @@ async function workerMain(jobId) {
         budget: durationToMs(spec.resolved.timeout) - (Date.now() - started), signal: controller.signal,
         update: (fields) => updateJob(jobId, fields),
         conversation: (id) => rememberConversation(spec.resolved, id, jobId),
+      }).catch((error) => {
+        if (error.reason === 'missing_result' && isUnsupportedModelError(error.diagnosticText || '')) {
+          handleUnsupportedModel({ requestedModel: invoke.model, errText: error.diagnosticText, originalError: error.diagnosticText });
+        }
+        throw error;
       });
     });
     if (controller.signal.aborted) throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled' });
@@ -1204,13 +1220,17 @@ async function workerMain(jobId) {
     }
   } catch (error) {
     if (!job) throw error;
-    job = loadState().jobs.find((j) => j.id === jobId);
-    const reason = error.reason || 'agy_error';
+    job = loadState().jobs?.find((j) => j.id === jobId);
+    if (!job) throw error;
+    const reason = job.cancel_requested_at ? 'canceled' : error.reason || 'agy_error';
     const status = job.status === 'canceled' || reason === 'canceled' ? 'canceled' : 'error';
-    const report = { ...diagnosticPacket(job), reason, last_snapshot: readObservation(job) };
-    finishJob(jobId, `Job failed:\n${error.message}\n\n${JSON.stringify(report, null, 2)}\n`, { status, reason });
-    process.exitCode = status === 'canceled' ? 4 : 1;
+    job = finishJob(jobId, (completed) => {
+      const report = { ...diagnosticPacket(completed), result_exists: true, reason: completed.reason, last_snapshot: readObservation(completed) };
+      return `Job failed:\n${completed.reason === 'canceled' ? 'Execution canceled.' : error.message}\n\n${JSON.stringify(report, null, 2)}\n`;
+    }, (current) => current.cancel_requested_at ? { status: 'canceled', reason: 'canceled' } : { status, reason });
+    process.exitCode = job.status === 'canceled' ? 4 : 1;
   } finally {
+    clearInterval(cancelTimer);
     process.removeListener('SIGTERM', onSignal);
     process.removeListener('SIGINT', onSignal);
   }
@@ -1455,24 +1475,57 @@ function cmdResult(opts) {
 async function cmdCancel(opts) {
   const id = opts._[0];
   if (!id) die('cancel needs a job id (see `status`)');
-  let changed = false;
+  let changed = false, status;
   const job = updateState((state) => {
     const job = state.jobs?.find((j) => j.id === id);
     if (!job) die(`no job ${id} in this repository`);
-    if (job.status === 'running') {
-      job.status = 'canceled'; job.reason = 'canceled'; job.finished_at = new Date().toISOString(); changed = true;
+    status = liveJobStatus(job);
+    if (status === 'running') {
+      if (!job.spec_file) die('this legacy job has no cancellation request channel; cannot safely signal an unverified stored PID');
+      const identity = job.worker_identity;
+      const current = identity ? processIdentity(job.pid) : null;
+      if (identity && (identity.pid !== job.pid || (current && identity.born !== current.born))) {
+        die('worker identity no longer matches this job; refusing to signal a reused or unrelated PID');
+      }
+      // Keep running visible until the worker stores the cancellation report.
+      job.cancel_requested_at ||= new Date().toISOString();
+      fs.writeFileSync(job.spec_file + '.cancel', job.cancel_requested_at);
+      changed = true;
     }
     return job;
   });
-  if (!changed) { process.stdout.write(`Job ${id} is not running (status: ${job.status}).\n`); return; }
-  try { if (job.pid) process.kill(job.pid, 'SIGTERM'); } catch {}
-  await stopExecution(job.agy_pid);
-  process.stdout.write(`Canceled job ${id} (pid ${job.pid}).\n`);
+  if (!changed) { process.stdout.write(`Job ${id} is not running (status: ${status}).\n`); return; }
+  // The worker polls the request even if PID inspection/signaling is blocked.
+  // Never send signals to the stored AGY PID: the worker owns that child.
+  const current = job.worker_identity ? processIdentity(job.pid) : null;
+  if (current && current.pid === job.worker_identity.pid && current.born === job.worker_identity.born) {
+    try { process.kill(current.pid, 'SIGTERM'); } catch {}
+  }
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const latest = findJob(id);
+    status = liveJobStatus(latest);
+    if (status === 'canceled') { process.stdout.write(`Canceled job ${id} (pid ${job.pid}).\n`); return; }
+    if (status !== 'running') die(`Cancellation requested, but job is ${status}; inspect \`observe ${id}\` and the retained diagnostics.`);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  die(`Cancellation requested but the worker has not published a terminal report; inspect \`observe ${id}\` from the original unsandboxed context.`);
 }
 
 // ---------------------------------------------------------------------------
 // continue
 // ---------------------------------------------------------------------------
+
+function enterOriginalWorkspace(cwd) {
+  if (!cwd) return; // Legacy records did not store a cwd.
+  const root = fs.realpathSync(repoRoot());
+  let target;
+  try { target = fs.realpathSync(cwd); } catch { die(`original workspace directory is unavailable: ${cwd}`); }
+  const git = sh('git', ['rev-parse', '--show-toplevel'], { cwd: target });
+  const targetRoot = fs.realpathSync(git.code === 0 && git.out ? git.out : target);
+  if (root !== targetRoot) die(`recovery cannot switch worktrees; run from the original workspace: ${cwd}`);
+  process.chdir(target);
+}
 
 function cmdContinue(opts) {
   const state = loadState();
@@ -1484,34 +1537,39 @@ function cmdContinue(opts) {
   if (!mode || !conversation) die('no previous agy-staff conversation recorded in this repository for this target; use restart <job-id> when no conversation is available');
   if (opts.job && opts.conversation && opts.conversation !== prior.conversation_id) die('--job and --conversation identify different conversations');
   if (opts.job && !prior.conversation_id) die('this job has no known conversation; use restart <job-id>');
-  if (prior?.cwd && prior.cwd !== process.cwd()) die(`continue must run in the original workspace: ${prior.cwd}`);
   const task = taskText(opts);
   if (!task) die('continue needs follow-up text');
-  const inherited = { ...opts, conversation };
-  if (prior) {
-    if (!opts.model && !opts.effort) inherited.model = prior.model;
-    if (!opts.restricted && !opts.unrestricted && prior.profile) inherited[prior.profile] = true;
-  }
-  const resolved = resolveRun(mode, inherited);
+  enterOriginalWorkspace(prior?.cwd);
+  const resolved = resolveRun(mode, { ...opts, conversation }, prior);
   const workspace = mode === 'implement' ? dirtyWorkspacePrompt() : '';
   const prompt = `${workspace ? `${workspace}\n\n` : ''}Follow-up in the same conversation:\n\n${task}`;
   let json = opts.json;
   if (prior?.spec_file) { try { json ||= JSON.parse(fs.readFileSync(prior.spec_file, 'utf8')).opts.json; } catch {} }
-  return dispatch(resolved, prompt, { ...opts, json, parentJobId: prior?.id });
+  return dispatch(resolved, prompt, { ...opts, json, parentJobId: prior?.id, promptSource: { kind: 'followup', task } });
 }
 
 function cmdRestart(opts) {
-  const job = findJob(opts._[0]);
   if (!opts._[0]) die('restart needs a job id');
+  const job = findJob(opts._[0]);
   if (liveJobStatus(job) === 'running') die('job is still running; cancel it before restarting');
   if (!job.spec_file) die('this legacy job has no stored restart specification');
   const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
-  if (spec.cwd && spec.cwd !== process.cwd()) die(`restart must run in the original workspace: ${spec.cwd}`);
+  enterOriginalWorkspace(spec.cwd);
   const resolved = { ...spec.resolved, conversation: null, timeout: DEFAULTS.timeout[job.mode] };
   if (opts.timeout) {
     resolved.timeout = resolveRun(job.mode, { ...opts, model: resolved.model, [resolved.profile]: true }).timeout;
   }
-  return dispatch(resolved, spec.prompt, { ...spec.opts, parentJobId: job.id });
+  // Rebuild saved task sources with fresh context. For legacy prompts, label
+  // historical snapshots and append current facts without parsing task text.
+  const source = spec.prompt_source || { kind: 'legacy', text: spec.prompt };
+  let prompt;
+  if (source.kind === 'template') prompt = buildPrompt(job.mode, { prompt: source.task });
+  else if (source.kind === 'followup') prompt = `${job.mode === 'implement' ? dirtyWorkspacePrompt() + '\n\n' : ''}Follow-up task in a fresh conversation:\n\n${source.task}`;
+  else {
+    const current = `${gatherContext()}\n\n${job.mode === 'implement' ? dirtyWorkspacePrompt() || 'Working tree is currently clean.' : ''}`;
+    prompt = `Restart the original task below. Its embedded workspace/environment snapshots are historical. Use the current workspace section at the end for this execution; preserve existing partial work.\n\n${source.text}\n\n## Current workspace for this restart\n\n${current}`;
+  }
+  return dispatch(resolved, prompt, { ...spec.opts, parentJobId: job.id, promptSource: source });
 }
 
 // ---------------------------------------------------------------------------
@@ -1699,7 +1757,7 @@ function main() {
     case 'status':
       return cmdStatus(opts);
     case 'wait':
-      return cmdWait(opts).catch((e) => die(e?.message || String(e)));
+      return cmdWait(opts);
     case 'result':
       return cmdResult(opts);
     case 'cancel':
