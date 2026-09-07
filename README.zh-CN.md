@@ -10,6 +10,8 @@
 
 ![agy-staff 设计图](assets/design.png)
 
+**[安装](#安装) · [使用示例](#使用) · [核心设计](#核心设计) · [升级](#升级)**
+
 ## 它适合做什么
 
 agy-staff 提供五种角色（persona）。`staffer` 适合通用任务；`researcher` 负责调研；`reviewer` 审查代码、方案和决策；`implementer` 处理编码任务；`ask` 用于不需要工具的简短问答。前四种角色都使用相同的后台任务机制，由 `jobs` 技能负责等待、查看进度和收取结果。
