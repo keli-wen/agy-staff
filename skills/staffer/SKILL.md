@@ -26,24 +26,22 @@ Pass the user's task text verbatim via `--prompt`; use `--prompt-file <path>` or
 > [!IMPORTANT]
 > Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`.
 
-## Execution style
-
-staffer always runs as a background job: the call returns a job id immediately and never calls back — collecting the result is your job.
-
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed result when it exits 0. Everything else about job management (status, result, cancel, continue, failure protocol, waiting on several jobs at once) is in the jobs skill: `../jobs/SKILL.md`.
+The command returns a job id. Read `../jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress. To answer a progress question or give a mid-run update, call `observe <id>` as described in the jobs skill.
 
 ## Flags (all optional)
 
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts instead of shell quoting.
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-medium`.
 - `--restricted` / `--unrestricted` — permission profile; staffer defaults to unrestricted like the other tool-using personas, `--restricted` is the opt-in hardening path.
-- `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 10m).
+- `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 
 ## Rules
 
 - Pass the user's task through verbatim. Because the template imposes no output format, state the desired format in the task text when the caller needs a specific one.
 - Pass the user's explicit authorizations through verbatim. The template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, paid-quota commands); that default opens only when the task itself asks for the operation.
 - A general task may legitimately edit files. The companion reports any working-tree delta with the result — inspect it (`git diff`) and confirm it is what the task asked for before building on it.
-- On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../jobs/SKILL.md`.
+- For errors and recovery, follow `../jobs/SKILL.md`.
+
+For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.

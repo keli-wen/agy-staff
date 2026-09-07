@@ -7,7 +7,7 @@ Back to the [README](../README.md). 中文版见 [REFERENCE.zh-CN.md](REFERENCE.
 | Persona (skill) | Companion mode | What it is | Default model | Profile | Execution |
 |---|---|---|---|---|---|
 | `ask` | `ask` | Cheap zero-tool one-shot Q&A (~3s); doubles as the post-install smoke test | `gemini-3.8-flash-low` | restricted (prompt-only) | synchronous — the answer comes back in the same call |
-| `staffer` | `staffer` | General-purpose delegation with a minimal prompt: no role, rules, or output format — the task text alone shapes the output | `gemini-3.8-flash-medium` | unrestricted | background job — returns a job id |
+| `staffer` | `staffer` | General-purpose delegation without a specialist role or fixed output format; shared operational guardrails still apply | `gemini-3.8-flash-medium` | unrestricted | background job — returns a job id |
 | `researcher` | `research` | Deep survey with cited sources and explicit unverified-claims marking | `gemini-3.8-flash-high` | unrestricted | background job — returns a job id |
 | `reviewer` | `review` | Second-opinion verifier, two flavors routed by subject: code review (severity-ranked findings with `file:line` refs) and general review (multi-angle challenge of a plan, design, or decision) | `gemini-3.8-flash-medium` | unrestricted | background job — returns a job id |
 | `implementer` | `implement` | Well-scoped coding task; agy edits the working tree and can perform explicitly requested Git delivery | `gemini-3.8-flash-high` | unrestricted | background job — returns a job id |
@@ -20,7 +20,7 @@ Claude Code, Codex, and Pi surface the same personas, backed by one companion sc
 
 Every mode runs under exactly one of two profiles. **Every tool-using mode defaults to `unrestricted`**, so the plugin works out of the box with no allowlist and no setup; `--restricted` is the opt-in hardening flag. `--restricted`/`--unrestricted` override per call (`ask` is tool-free and forced restricted — it ignores both, and passing `--unrestricted` to it prints a note and proceeds restricted).
 
-The profile for a run is resolved in this order: CLI flag > per-repo policy ([`setup --restrict`](#per-repo-policy-setup---restrict)) > built-in default.
+The profile for a run is resolved in this order: CLI flag > recorded conversation profile (when continuing) > per-repo policy ([`setup --restrict`](#per-repo-policy-setup---restrict)) > built-in default.
 
 | | **unrestricted** (default: staffer, research, review, implement) | **restricted** (opt-in hardening; forced for ask) |
 |---|---|---|
@@ -69,7 +69,7 @@ The default optimizes for the common case: your own code on your own machine. Un
 
 ### Optional hardening (setup)
 
-`/agy:setup` is **optional** — nothing requires it, because every tool-using mode defaults to `unrestricted`. Run it when you want `--restricted` to be usable: it checks the `agy` binary, then (after showing you exactly what it will write, and backing the file up) appends an **evidence-gathering command allowlist** to `~/.gemini/antigravity-cli/settings.json` so restricted-profile runs can collect evidence without a human approving every tool call. The default flow is a dry run; nothing is written until you explicitly confirm.
+`setup` is an optional companion management command handled by the `jobs` skill. Ask your host agent to configure agy's restricted mode when you need it. The command checks the `agy` binary and previews an **evidence-gathering command allowlist** for `~/.gemini/antigravity-cli/settings.json`. Only after explicit confirmation does it back up the file and append the configuration. Default unrestricted tasks and tool-free ask do not depend on setup.
 
 Two properties of that allowlist you should know before applying it:
 
@@ -89,7 +89,7 @@ setup --restrict none              # back to the built-in defaults
 
 The policy is written to `<repo>/.agy-staff/config.json` and applied automatically (the run prints a note that the profile came from the project policy). Three properties:
 
-- **Precedence.** A `--restricted`/`--unrestricted` flag on a call always overrides the policy; unlisted modes keep the built-in default. `ask` is not configurable (tool-free, always restricted).
+- **Precedence.** Explicit `--restricted`/`--unrestricted` flags override the policy. Continuations without an explicit override inherit their recorded profile; new tasks use the repository policy or built-in defaults. `ask` is tool-free and always restricted.
 - **Scope.** `.agy-staff/` is normally git-ignored, so the policy is a personal, per-machine preference — it is not shared with your team through the repo.
 - **What it is not.** This is a run policy for consistency and accident prevention, not a security boundary: it feeds the same `--restricted` machinery, with the same caveats (needs the global allowlist, prefix-matched, some tools ignore allow-rules headless). For genuinely untrusted input, use an isolated checkout.
 
@@ -112,7 +112,7 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 | `--restricted` / `--unrestricted` | permission profile override (ignored by `ask`). `unrestricted` is the default for `staffer`/`research`/`review`/`implement`, so `--restricted` is the flag you actually reach for |
 | `--restrict <modes\|none>` | (setup) per-repo policy: the listed modes default to restricted in this repository; `none` clears it. See [Per-repo policy](#per-repo-policy-setup---restrict) |
 | `--json` | (review) schema-enforced JSON findings; default is free-form markdown. Meant for the code-review flavor |
-| `--timeout <dur>` | agy `--print-timeout` (defaults: 10m staffer/research/implement, 5m review, 2m ask) |
+| `--timeout <dur>` | Background worker hard limit (default 60m, maximum 120m). AGY receives the selected response timeout. For synchronous ask: AGY response timeout, default 2m |
 | `--prompt <text>` | the task text as one argument. Quote it; whatever is inside is opaque |
 | `--prompt-file <path>` | read the task text from a file — for long prompts, instead of shell quoting |
 | `--stdin` | read the task text from stdin. Exactly one task source per call: `--prompt`, `--prompt-file`, or `--stdin` |
@@ -160,22 +160,28 @@ The review template itself is a neutral skeleton (reviewer stance, evidence disc
 
 **Output split.** stdout carries the result and any guard warning about the working tree; the `[agy-staff]` telemetry line (mode, profile, model, duration, tokens, conversation id) goes to stderr, and for background jobs into `jobs/<id>.log`. Telemetry is metadata for the calling agent — it is not part of the deliverable and is not stored in `jobs/<id>.result.md`.
 
-`staffer`, `research`, `review` and `implement` return a job id immediately instead of blocking, and the job-start output prints the exact collect command — `wait <id> --timeout <n>m`, sized to outlive the job. Results are collected through the job lifecycle:
+`staffer`, `research`, `review` and `implement` return stable job handles promptly. Each detached worker continuously drains AGY `stream-json`, even with no observers. There is no additional daemon or scheduler.
 
-- `wait [id] [--timeout <dur>]` — block until the job (default: the most recent) reaches a terminal state, then print its result. The preferred collection path: one command instead of a hand-rolled poll loop. While waiting, heartbeat lines on stderr show liveness every ~15s.
-- `status` — list jobs / show one job's state (`running`, `done`, `error`, `crashed`, `canceled`).
-- `result <id>` — print a finished job's output (again).
-- `cancel <id>` — kill a running job.
+- `wait [id] [--timeout <dur>]` waits for completion or its attention interval. Completion delivers the existing result; soft expiry returns a JSON observation snapshot directly and leaves execution running. Ordinary tool activity does not end the wait early. Bare wait defaults to 100s; skills recommend an explicit 10m attention interval.
+- `observe [id]` always returns bounded JSON (at most 8 KiB): current progress while running; terminal status, result path/availability and collection instructions when finished. Error/canceled/crashed states include bounded diagnostic and recovery metadata, never the full report. It reads job state independently of any wait, without resetting deadlines or consuming another observer’s history.
+- `status [id]` lists jobs or shows state and a bounded diagnostic log tail. `result [id]` reprints stored output.
+- `cancel <id>` requests cancellation and returns success after the worker stores its report and publishes `canceled`. It preserves crash diagnostics and never signals an unverified stored PID. Legacy jobs without a cancellation channel fail explicitly. A cancellation error requires checking the job and logs; it does not establish that execution stopped. Interrupting a wait does not cancel the worker.
+- `continue --job <id> --prompt "..."` resumes the known conversation with its original mode/model/profile and a linked new job. `continue --conversation <id>` also resolves configuration from that known conversation, never an unrelated last mode.
+- `restart <id>` explicitly relaunches the original task/configuration without a conversation, linked to the original job. Inspect partial workspace changes with `git status` and `git diff` before either recovery action. New runs regenerate workspace context. Legacy specifications label historical snapshots and append current context.
 
-`status <id>` and `wait` exit with a machine-readable code so callers never parse output to branch: **0** done, **2** running, **3** error/crashed, **4** canceled (1 stays the generic error, e.g. unknown id). `wait`'s own `--timeout` defaults to 100s — deliberately under a typical harness per-command limit — but has no upper bound: the canonical pattern is the printed long-timeout `wait` run as a background command, **one background wait per job** (never several ids serially in one shell — that hides each completion behind the slowest predecessor). Expiring is not a failure: exit 2 means the job is still running, and you simply run the same `wait` again. The agent that started a job is expected to see it through with `wait` (and to tell you the job id when it starts one) rather than leave the run dangling.
+Continuation/restart can be invoked from any directory within the same worktree and execute in the original cwd. Generic `continue` rejects unrecorded conversation IDs without launching AGY or searching other worktrees. For continuation, explicit model/profile flags override the recorded values; otherwise those values are inherited. A new recovery budget defaults to 60m unless overridden.
 
-Per-repository state lives in `<repo>/.agy-staff/`:
+Exit codes for wait/observe/status-with-id: **0** done, **2** running, **3** error/crashed, **4** canceled, **1** command error. Observe exit 0 means the job is finished, not that its report was delivered. Collect an already pending wait session; otherwise call result. Wait/result keep their existing full-result contract. Intermediate tool errors are retained internally and are not automatically promoted to warnings in successful delivery. A running snapshot contains timestamps, elapsed time, the latest five tool activities with input/output excerpts and the latest response text merged by step. Unknown states, incomplete text and truncation are labeled; a tool finishing is not proof of useful progress. UTF-8 JSON budgets are 1 KiB per activity, 2 KiB for text and 8 KiB total. Use bounded reads/searches of the `details` paths for more context.
 
-- `state.json` — last conversation id per mode + a jobs registry.
-- `config.json` — the per-repo profile policy, if you set one with `setup --restrict`.
-- `jobs/<id>.log`, `jobs/<id>.spec.json`, `jobs/<id>.result.md` — one triple per background job.
+The worker passes the selected timeout to AGY and independently enforces an overall limit including initialization: default 60m, configurable up to 120m with launch `--timeout`. If a complete response arrived before hard-expiry cleanup, it is delivered with a warning; an empty or absent response remains a failure. Wait/observe cannot renew it. Without a response, hard expiry produces `status=error`, `reason=hard_timeout`, the last snapshot, retained logs, known conversation ID, original configuration and recovery commands. Explicit recovery creates a linked new job with a fresh budget, preserving the old terminal record; the companion never retries automatically.
 
-Background jobs are plain detached processes (the companion re-spawns itself as a worker; no daemon). `status` detects crashed workers by pid liveness; `cancel` kills the pid. Conversation continuation (`--continue`, `continue`) is cheap: agy serves prior context largely from cache (`cache_read_tokens`).
+Wait is silent until completion or soft expiry. To answer a progress question or give a mid-run update, call `observe <id>` while the wait remains pending; report changed activity or actionable information rather than repeated liveness. Host session collection (such as Codex `write_stdin`) retrieves only the pending command’s output, not its worker’s observation snapshot. Avoid repeated short empty polls; use background completion delivery or a substantial host-supported wait.
+
+Use one independent background wait per job where the harness supports it, never serialize multiple jobs in one shell. Otherwise use shorter waits within the host's tool-call limit. Completion ends an outstanding wait, but the outer harness controls when the model receives it. Bash + skills cannot universally wake an idle model; a timer instruction alone does not schedule another invocation.
+
+Per-repository state lives in `<repo>/.agy-staff/`. `state.json` stores conversations and lifecycle records, protected by short write transactions; observation reads remain read-only. `config.json` holds optional permission policy. Each job has a spec, diagnostic log, result, final status sidecar, raw stdout (`.events.jsonl`) and atomically published bounded snapshot (`.progress.json`). Raw records may include unknown/malformed events. Missing activity files on legacy jobs yield a status-only snapshot.
+
+After warning-free success, results and metadata become durable before the raw stream/snapshot are deleted. Failures, cancellation, hard timeout and warning results retain intermediates. Results, diagnostic logs, conversation metadata and AGY's own conversation storage are retained. Readers racing with cleanup recheck terminal state: observe returns terminal metadata; wait returns the result. Observe never reads result-file contents, even after successful intermediates have been deleted. Crash-without-result reports include dispatch/worker-start evidence, process IDs, log existence/size and next-inspection/recovery commands without copying prompts or environment values.
 
 ### Keeping `.agy-staff/` out of git
 
@@ -184,14 +190,14 @@ Automatic since 0.4: when the companion creates `.agy-staff/` for the first time
 ## Troubleshooting
 
 - **"agy reported an error (status ERROR)"** — the companion relays agy's own error verbatim, and appends a cause hint only when the error text actually matches one (invalid model id → run `agy models`; expired auth → run `agy` interactively once to re-login; exhausted quota). If agy reported an error but still returned a complete response (e.g. one tool call timed out during wrap-up), the companion delivers the response anyway — exit 0, response on stdout, warning on stderr (`done_with_warnings`); only a run with no response fails.
-- **`operation not permitted` on `~/.gemini/...` / `bind: operation not permitted` / sudden "authentication failed" while `agy` works fine in your terminal** — agy was launched inside a harness command sandbox (typically Codex's workspace-write). agy cannot run sandboxed: it binds a localhost port for its internal language server and reads its OAuth token file, and sandbox secret-protection hides that token no matter which `writable_roots`/`network_access` knobs you open. Run companion commands unsandboxed — in Codex, grant the workspace full access or approve the command with escalated permissions.
+- **`operation not permitted` on `~/.gemini/...` / `bind: operation not permitted` / sudden "authentication failed" while `agy` works in your terminal** — check whether a harness command sandbox is blocking access. AGY needs its OAuth credentials and a localhost port for its internal language server; allowing workspace writes alone may not provide that access. Where those restrictions apply, use the host's authorization mechanism to run the companion in a context that supports AGY. Use the same permission context to start and manage a job.
 - **False crash report on `wait`/`status` ("finished with status crashed and no stored result")** — the background job was started in one permission or sandbox context (e.g. unsandboxed) and collected from another (e.g. inside a command sandbox). The collector cannot see the worker PID across the sandbox boundary and misclassifies the running job as crashed. Run management commands (`wait`, `status`, `result`) in the same unsandboxed permission context as the job start; rerunning from the unsandboxed context resumes waiting or reporting normal status.
-- **Empty response, "status SUCCESS"** — only happens on a restricted run (`--restricted`, or a project policy that restricts the mode): agy reports success even when every tool call was denied, so the content is empty and stderr carries a permission note. The companion detects this and tells you the fix: run `setup` once so the allowlist exists, or relax the profile (drop `--restricted`, or `setup --restrict none` if it came from the policy). Caveat baked into agy: some tools ignore allow-rules in headless mode entirely and only work with the skip flag — those always need an unrestricted run. (`ask` cannot hit this case; if it does, report a bug.)
+- **Empty response, "status SUCCESS"** — a restricted run may report success even when its tool calls were denied. Check whether the profile came from a flag, repository policy or an earlier conversation. Use `setup` to configure allowed commands, or pass `--unrestricted` explicitly if authorized; dropping `--restricted` alone does not override an inherited profile. Some native tools remain unavailable in restricted headless runs even with allow-rules. An empty response from unrestricted mode or tool-free ask needs a separate diagnosis; retain the diagnostics and report it.
 - **"unknown flag --X: the whole string … arrived as a single argument"** — several flags, and usually the task, are quoted into one argument. Each flag is its own argument; the task belongs in `--prompt`. See [Task text](#task-text).
-- **"task text exceeds the 200KB inline limit"** — the whole prompt travels to agy as one argv entry and macOS ARG_MAX is ~1MB (agy itself does not read stdin, so `--prompt-file`/`--stdin` only fix shell quoting, not this ceiling). Shorten the task text: point agy at the material (a PR number, a ref, a file path) and let it fetch the content itself instead of pasting it in.
+- **"task text exceeds the 200KB inline limit"** — the companion ultimately passes the complete prompt to AGY as one command-line argument. `--prompt-file` and `--stdin` simplify input but do not remove that limit. Shorten the task text by referring to a PR, branch or file, and let AGY read the material itself.
 - **Never use agy's `--sandbox` for these modes** — it redirects execution into agy's own scratch workspace (`~/.gemini/antigravity-cli/scratch`) and cannot see your real working directory. The companion never passes it.
 - **Dirty workspace on implement** — `implement` can start even when the repo already has changes. The companion adds a capped status summary to agy's prompt so it knows those paths are pre-existing user work. If the task does not clearly include them, agy should ask before overwriting, cleaning, stashing, resetting, deleting, committing, pushing, or opening a PR with those changes.
-- **"agy modified the working tree during this review"** — the delta warning (printed with the result) on an unrestricted `research`/`review` run: agy changed files it was told to leave alone. Inspect the listed paths and revert them; the warning includes the rollback hint.
+- **"agy modified the working tree during this review"** — an unrestricted `research`/`review` run changed files it was asked to preserve. Inspect the listed paths to identify changes from this run before deciding what to revert, preserving pre-existing user work.
 - **Project-scoped agy permissions** — agy has project-level rules ("highest priority") tied to its `--project` system; the settings-file path for those is undocumented and unverified, so setup only edits the global file. If a rule seems ignored, check agy interactively. See [Advanced: project-scoped permissions](#advanced-project-scoped-permissions).
 - **Rules context** — agy auto-loads `AGENTS.md`/`GEMINI.md`/`.agents/rules/*.md` from the workspace; keep those files sane in repos where you delegate.
 
@@ -202,15 +208,15 @@ Automatic since 0.4: when the companion creates `.agy-staff/` for the first time
 | 0.1 | 0.2 | Notes |
 |---|---|---|
 | `research`/`review` default to the strict (restricted) profile | `research`/`review`/`implement` default to `unrestricted` | 0.1 fail-closed research and review unless you ran setup first. 0.2 works out of the box and makes `--restricted` the opt-in hardening flag; `ask` still runs restricted (tool-free). |
-| `--strict` | `--restricted` | Old name still accepted for one release; it warns on stderr. Same semantics. |
-| `--loose` | `--unrestricted` | Old name still accepted for one release; it warns on stderr. Same semantics. |
+| `--strict` | `--restricted` | Old name accepted as a deprecated compatibility alias; it warns on stderr. Same semantics. |
+| `--loose` | `--unrestricted` | Old name accepted as a deprecated compatibility alias; it warns on stderr. Same semantics. |
 | profile names "strict"/"loose" in output | "restricted"/"unrestricted" | Cosmetic rename; the telemetry line (stderr) now prints `profile=restricted` / `profile=unrestricted`. |
 | `--diff-file <path>` | *(removed)* | Review is prompt-based: `review --prompt "Review the patch at /tmp/change.patch"`. |
 | `--pr <num>` | *(removed)* | `review --prompt "Review PR #730"`. |
 | `--target <ref>` | *(removed)* | `review --prompt "Review changes against master"`. |
 | `--background` / `--wait` | *(removed)* | Execution style is fixed per mode: `ask` is synchronous, `research`/`review`/`implement` return a job id. Manage them with `status`/`result`/`cancel`. |
 
-Removed flags fail fast with a message naming the replacement; the deprecated profile aliases keep working through this release and will be deleted in the next one.
+Removed flags fail fast with a message naming the replacement. The deprecated profile aliases remain accepted for compatibility; use `--restricted` and `--unrestricted` in new commands and scripts.
 
 ## Migration from 0.3
 
@@ -256,7 +262,10 @@ You can check which commit is actually installed: the `gitCommitSha` in `~/.clau
 ## Repository layout
 
 ```
-companion/agy-companion.mjs   the single brain (all modes, jobs, setup)
+companion/agy-companion.mjs    command entrypoint, modes, job management and setup
+companion/stream-worker.mjs    streaming execution, process cleanup and deadlines
+companion/observation.mjs      event parsing, progress snapshots and output budgets
+companion/state-lock.mjs       state-write locking and stale-lock recovery
 templates/                    shared prompt templates (staffer/ask/research/review/implement) and harness-compatibility.md
 .claude-plugin/               Claude Code plugin + self-hosting marketplace manifests
 .codex-plugin/plugin.json     Codex plugin manifest
@@ -267,5 +276,6 @@ package.json                  Pi manifest, npm file allowlist, and verification 
 skills/                       canonical personas + jobs (Claude/Codex entrypoints;
                               reviewer/ and jobs/ carry references/ for on-demand detail)
 assets/                       design diagram + logo + badges
-docs/                         this reference + INSTALL_FOR_AGENTS.md
+tests/                        offline regression tests and opt-in integration suites
+docs/                         references, installation guide and release notes
 ```

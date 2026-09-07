@@ -22,13 +22,9 @@ Pass the user's research topic verbatim via `--prompt`; use `--prompt-file <path
 > [!IMPORTANT]
 > Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../agy-jobs/references/troubleshooting.md`.
 
-## Execution style
-
-research always runs as a background job: the call returns a job id immediately, and nothing streams back from agy in this turn. The job never calls back — collecting the result is your job.
-
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed report when it exits 0: a short report (about a screenful) verbatim; a long report as the key points plus the result-file path, expanding sections on request. Everything else about job management is in the jobs skill: `../agy-jobs/SKILL.md`.
+The command returns a job id. Read `../agy-jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress. To answer a progress question or give a mid-run update, call `observe <id>` as described in the jobs skill.
 
 ## Flags (all optional)
 
@@ -36,7 +32,7 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-high`.
 - `--restricted` / `--unrestricted` — permission profile. research defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy runs without `--dangerously-skip-permissions` and may only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
-- `--timeout <dur>` — default 10m.
+- `--timeout <dur>` — default 60m, maximum 120m hard execution limit.
 
 ## Rules
 
@@ -44,7 +40,9 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 - Return the companion stdout verbatim. The `[agy-staff]` telemetry line goes to stderr (and into `jobs/<id>.log` for background runs) — it is metadata for you, the calling agent, not something to show the user.
 - Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, commands that burn paid API quota); that default opens only when the request itself asks for the operation — so keep "run the e2e tests" or "call the staging API" in the prompt instead of trimming it.
 - If a `--restricted` run reports an empty response due to denied permissions, relay the companion's guidance: run the setup flow once (see `../agy-jobs/references/setup.md`), or drop `--restricted`.
-- On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../agy-jobs/SKILL.md`.
+- For errors and recovery, follow `../agy-jobs/SKILL.md`.
+
+For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
 
 ## Host compatibility
 

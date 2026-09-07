@@ -1,11 +1,12 @@
 # Companion regression tests
 
-Black-box tests for `companion/agy-companion.mjs` against the 0.3.1 interface.
-Zero test dependencies (`node:test` + `node:assert`), no network. Packaging tests also use npm and tar. The optional Pi integration suite uses a separately installed Pi CLI, never a model provider.
+Regression tests for the 0.6.0 companion interface: black-box CLI tests for `companion/agy-companion.mjs`, plus focused tests for observation parsing, byte budgets and state locking.
+The standard suite uses Node's built-in test runner and assertions, with no test dependencies or model/network calls. Run unsandboxed when the host restricts process inspection/signals: lifecycle tests use `ps` to verify detached descendant cleanup. Packaging tests also use npm and tar. The optional Pi integration suite uses a separately installed Pi CLI, never a model provider; the opt-in real AGY suite below does make model calls.
 
 ## Run
 
 ```sh
+npm test                         # standard offline suite
 node --test tests/*.test.mjs      # from the repo root
 node --test                       # equivalent: walks the repo for *.test.mjs
 ```
@@ -14,7 +15,7 @@ Pi packaging checks run in the standard suite (`pi-packaging.test.mjs`). They ch
 
 With Pi installed, `npm run test:pi` exercises its real package loader, skill-command expansion, and Bash tool, using disposable settings and fake agy. The suite discovers Pi from PATH, or accepts `AGY_PI_PACKAGE_ROOT`. It never reads credentials or calls a model; offline success does not prove LLM behavior. For manual testing in Pi, use `pi -e /path/to/checkout` (temporary session) or `pi install /path/to/checkout`. After editing canonical skills in `skills/`, re-run `npm run generate:pi` and run `/reload` in Pi.
 
-GitHub CI only runs `npm run check:pi` to detect generated-file drift. Full regression and Pi integration tests remain available locally through the commands above; CI does not install Pi or run a Node version matrix.
+GitHub CI runs `npm run check:pi` and `npm test` on Ubuntu with Node 24 for pushes and pull requests. The job retains the required status-check name `Generated skills consistency`. Pi integration and real AGY smoke tests remain opt-in; CI does not install Pi or run a Node version matrix.
 
 Note: `node --test tests/` does **not** work on Node >= 22 — positional
 arguments are glob patterns there, and a bare directory matches the directory
@@ -22,8 +23,7 @@ itself. Node 24.7 verified.
 
 ## How it works
 
-Everything is exercised through the CLI, because the companion calls `main()` on
-import. Each test builds its own sandbox (`tests/helpers.mjs`):
+CLI behavior is exercised through subprocesses, because the companion calls `main()` on import. Observation and lock tests also import their modules directly. CLI tests build isolated sandboxes (`tests/helpers.mjs`):
 
 - a throwaway git repo under `os.tmpdir()` (so `.agy-staff/` state never lands in
   the real repo), with `.agy-staff/` added to `.git/info/exclude` — since 0.4 the
@@ -33,8 +33,7 @@ import. Each test builds its own sandbox (`tests/helpers.mjs`):
   run outside a repository;
 - a throwaway `HOME` (so `setup` can never touch the real `~/.gemini`);
 - `AGY_BIN` pointed at `tests/fake-agy.mjs`, which records every argv it is
-  called with to `$FAKE_AGY_ARGV_FILE` and prints a canned single-line JSON
-  payload. The real `agy` is never invoked. Its behaviour is steered by env
+  called with to `$FAKE_AGY_ARGV_FILE` and emits canned JSON results or streaming NDJSON events according to the requested output format. The standard suite never invokes real `agy`. Its behaviour is steered by env
   knobs (`FAKE_AGY_RESPONSE`, `FAKE_AGY_STATUS`, `FAKE_AGY_SLEEP_MS`,
   `FAKE_AGY_EXIT`, and `FAKE_AGY_TOUCH_FILE`, which writes a file mid-"run" to
   simulate agy dirtying the working tree).
@@ -79,6 +78,20 @@ part of 0.2, since background-first made them the default path:
 
 `state.test.mjs` pins both. The other suites still wait read-only for the
 worker's result file and give the fake `agy` a 300 ms latency floor
-(`FAKE_AGY_SLEEP_MS`) — a residual lost-update window remains when two processes
-read-modify-write `state.json` at the same instant (full fix would need file
-locking, out of scope).
+(`FAKE_AGY_SLEEP_MS`) — since 0.6.0, lifecycle writes use a crash-recoverable lock around read-modify-write, while observers stay read-only. `streaming.test.mjs` also starts three jobs concurrently to verify that registrations, conversations and terminal states survive contention.
+
+## Streaming lifecycle (0.6.0)
+
+`observation.test.mjs` checks UTF-8/parser boundaries, malformed and oversized records, merged and late tool/text updates, serialized byte budgets and explicit truncation. `streaming.test.mjs` checks short soft/hard deadlines, wait interruption, multiple observers, process cleanup, concurrent dispatch, recovery configuration/linkage, warning retention, crash packets and terminal cleanup races. No model calls are made by these tests.
+
+`recovery-regressions.test.mjs` covers durable cancellation reports, crash preservation, process identity and group checks, cancellation across locale/timezone changes, inherited output pipes, transient process-inspection failures, complete responses at hard expiry, the 120m timeout ceiling and AGY argument forwarding, and recovery within the original worktree with the selected job's configuration. `state-lock.test.mjs` verifies that competing stale-lock reapers cannot remove a successor or lose concurrent updates.
+
+The optional real AGY suite requires an authenticated AGY installation and incurs model usage:
+
+```sh
+AGY_REAL_SMOKE=1 node tests/real-agy.integration.mjs
+```
+
+Run it unsandboxed in the same permission context as AGY. It creates disposable directories, validates real streaming and structured review output, then cancels and hard-stops jobs after their shell tools start. It records observed process IDs, checks for surviving processes and unintended completion markers, and prints the retained evidence directory. It never changes global settings. The shortened hard deadline exercises the worker timer; it does not claim a full-hour endurance test.
+
+`terminal-observation.test.mjs` verifies bounded JSON for done/error/canceled/crashed and legacy jobs, terminal-sidecar races, nested recovery metadata, and observe alongside a pending wait with a large report. Observe never consumes or duplicates full result delivery.

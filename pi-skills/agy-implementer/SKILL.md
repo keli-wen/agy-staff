@@ -29,18 +29,14 @@ Pass the user's task description verbatim via `--prompt`; use `--prompt-file <pa
 - By default, agy leaves a working-tree diff. If the user explicitly asks for a commit, push, or PR, include that request verbatim in the task text and let agy do that exact Git delivery.
 - After the run, surface agy's summary and the current workspace state. Do not add your own commit/PR step unless the user separately asks you to do it.
 
-## Execution style
-
-implement always runs as a background job: the call returns a job id immediately. The job never calls back — collecting the result is your job.
-
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command. When it exits 0 it has printed agy's summary: deliver it (verbatim if short; key points plus the result-file path if long), then report the current workspace state. Everything else about job management is in the jobs skill: `../agy-jobs/SKILL.md`.
+The command returns a job id. Read `../agy-jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress. To answer a progress question or give a mid-run update, call `observe <id>` as described in the jobs skill.
 
 ## Flags (all optional)
 
 - `--restricted` / `--unrestricted` — permission profile. implement defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it can usually only propose rather than edit, and it needs the setup flow's evidence-gathering allowlist to be useful.
-- `--continue` (or `--conversation <id>`), `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-high`), `--timeout <dur>` (default 10m).
+- `--continue` (or `--conversation <id>`), `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-high`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
 
 ## Rules
@@ -49,7 +45,9 @@ The job-start output prints the exact collect command (`` `wait <id> --timeout <
 - Return agy's summary verbatim before presenting the diff.
 - Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects; that default opens only when the request itself asks for the operation — so keep "open a draft PR", "run the e2e tests", or "call the staging API" in the prompt instead of trimming it.
 - Never commit agy's changes yourself unless the user explicitly asks you, the host agent, to do it.
-- On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../agy-jobs/SKILL.md`.
+- For errors and recovery, follow `../agy-jobs/SKILL.md`.
+
+For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
 
 ## Host compatibility
 

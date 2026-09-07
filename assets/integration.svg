@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 632" role="img" aria-label="agy-staff exposes asynchronous agent work through persona skills and ordinary shell tool calls. The host agent delegates a task, receives a job ID, and starts a background wait where supported. It can continue other work or request a bounded progress snapshot. The worker runs AGY independently, continuously drains its stream-json output, stores events and progress, and saves a final report. Wait expiry leaves execution running. The host controls model scheduling while the worker enforces a separate deadline, default 60 minutes and configurable up to 120 minutes.">
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: #202124; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .muted { fill: #5F6368; }
+    .link { fill: #1A73E8; }
+    .white { fill: #FFFFFF; }
+    .silver { fill: #BDC1C6; }
+    .label { font-size: 12px; font-weight: 700; fill: #1A73E8; letter-spacing: 1.5px; }
+    .sub { font-size: 12px; fill: #5F6368; letter-spacing: 0; font-weight: 400; }
+    .arrowlbl { font-size: 11px; font-weight: 700; fill: #1A73E8; }
+  </style>
+  <defs>
+    <marker id="arrow" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="11" refY="5.5" orient="auto"><path d="M0,0 L12,5.5 L0,11 Z" fill="#1A73E8"/></marker>
+    <marker id="arrow-clay" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="11" refY="5.5" orient="auto"><path d="M0,0 L12,5.5 L0,11 Z" fill="#D97757"/></marker>
+    <marker id="arrow-green" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="11" refY="5.5" orient="auto"><path d="M0,0 L12,5.5 L0,11 Z" fill="#34A853"/></marker>
+    <marker id="arrow-amber" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="11" refY="5.5" orient="auto"><path d="M0,0 L12,5.5 L0,11 Z" fill="#F29900"/></marker>
+    <marker id="arrow-purple" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="11" refY="5.5" orient="auto"><path d="M0,0 L12,5.5 L0,11 Z" fill="#9B72CB"/></marker>
+    <marker id="arrow-ink" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="11" refY="5.5" orient="auto"><path d="M0,0 L12,5.5 L0,11 Z" fill="#202124"/></marker>
+    <marker id="arrow-start" markerUnits="userSpaceOnUse" markerWidth="16" markerHeight="16" refX="1" refY="5.5" orient="auto"><path d="M12,0 L0,5.5 L12,11 Z" fill="#1A73E8"/></marker>
+    <linearGradient id="rainbow" x1="0" x2="1" y1="0" y2="0"><stop offset="0.000" stop-color="#F6912E"/><stop offset="0.167" stop-color="#EF5441"/><stop offset="0.333" stop-color="#955FA5"/><stop offset="0.500" stop-color="#6C73D8"/><stop offset="0.667" stop-color="#3D85FC"/><stop offset="0.833" stop-color="#43AEAA"/><stop offset="1.000" stop-color="#85C64E"/></linearGradient>
+    <linearGradient id="rainbow-soft" x1="0" x2="1" y1="0" y2="0"><stop offset="0.000" stop-color="#F6912E" stop-opacity="0.2"/><stop offset="0.167" stop-color="#EF5441" stop-opacity="0.2"/><stop offset="0.333" stop-color="#955FA5" stop-opacity="0.2"/><stop offset="0.500" stop-color="#6C73D8" stop-opacity="0.2"/><stop offset="0.667" stop-color="#3D85FC" stop-opacity="0.2"/><stop offset="0.833" stop-color="#43AEAA" stop-opacity="0.2"/><stop offset="1.000" stop-color="#85C64E" stop-opacity="0.2"/></linearGradient>
+    <pattern id="grid" width="18" height="18" patternUnits="userSpaceOnUse"><rect x="8" y="8" width="1.6" height="1.6" fill="#DADCE0"/></pattern>
+    <linearGradient gradientUnits="userSpaceOnUse" id="codexgrad" x1="12" x2="12" y1="3" y2="21"><stop stop-color="#B1A7FF"/><stop offset=".5" stop-color="#7A9DFF"/><stop offset="1" stop-color="#3941FF"/></linearGradient>
+  </defs>
+  <rect x="1" y="1" width="918" height="630" rx="8" fill="#F8F9FA" stroke="#202124" stroke-width="1.5"/>
+  <rect x="2" y="2" width="916" height="628" rx="8" fill="url(#grid)"/>
+  <g stroke="#4285F4" stroke-width="1.5" opacity="0.85"><line x1="20" y1="26" x2="32" y2="26"/><line x1="26" y1="20" x2="26" y2="32"/></g>
+  <g stroke="#4285F4" stroke-width="1.5" opacity="0.85"><line x1="888" y1="606" x2="900" y2="606"/><line x1="894" y1="600" x2="894" y2="612"/></g>
+
+  <!-- ===== 01 · AGENT LOOP, unrolled in time (clay) ===== -->
+  <rect x="48" y="56" width="824" height="150" rx="10" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+  <text x="62" y="81" class="label" style="fill:#B5573A">01 · AGENT LOOP<tspan class="sub" dx="7">· host turns over time →</tspan></text>
+  <g transform="translate(660,64)"><path clip-rule="evenodd" fill-rule="evenodd" d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z" fill="#D97757"/></g>
+  <text x="688" y="81" font-size="12.5" font-weight="600">Claude Code</text>
+  <g transform="translate(784,64)"><path d="M19.503 0H4.496A4.496 4.496 0 000 4.496v15.007A4.496 4.496 0 004.496 24h15.007A4.496 4.496 0 0024 19.503V4.496A4.496 4.496 0 0019.503 0z" fill="#fff"/><path d="M9.064 3.344a4.578 4.578 0 012.285-.312c1 .115 1.891.54 2.673 1.275.01.01.024.017.037.021a.09.09 0 00.043 0 4.55 4.55 0 013.046.275l.047.022.116.057a4.581 4.581 0 012.188 2.399c.209.51.313 1.041.315 1.595a4.24 4.24 0 01-.134 1.223.123.123 0 00.03.115c.594.607.988 1.33 1.183 2.17.289 1.425-.007 2.71-.887 3.854l-.136.166a4.548 4.548 0 01-2.201 1.388.123.123 0 00-.081.076c-.191.551-.383 1.023-.74 1.494-.9 1.187-2.222 1.846-3.711 1.838-1.187-.006-2.239-.44-3.157-1.302a.107.107 0 00-.105-.024c-.388.125-.78.143-1.204.138a4.441 4.441 0 01-1.945-.466 4.544 4.544 0 01-1.61-1.335c-.152-.202-.303-.392-.414-.617a5.81 5.81 0 01-.37-.961 4.582 4.582 0 01-.014-2.298.124.124 0 00.006-.056.085.085 0 00-.027-.048 4.467 4.467 0 01-1.034-1.651 3.896 3.896 0 01-.251-1.192 5.189 5.189 0 01.141-1.6c.337-1.112.982-1.985 1.933-2.618.212-.141.413-.251.601-.33.215-.089.43-.164.646-.227a.098.098 0 00.065-.066 4.51 4.51 0 01.829-1.615 4.535 4.535 0 011.837-1.388zm3.482 10.565a.637.637 0 000 1.272h3.636a.637.637 0 100-1.272h-3.636zM8.462 9.23a.637.637 0 00-1.106.631l1.272 2.224-1.266 2.136a.636.636 0 101.095.649l1.454-2.455a.636.636 0 00.005-.64L8.462 9.23z" fill="url(#codexgrad)"/></g>
+  <text x="812" y="81" font-size="12.5" font-weight="600">Codex</text>
+  <rect x="80" y="96" width="136" height="78" rx="8" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+  <rect x="198" y="106" width="8" height="8" fill="#34A853" shape-rendering="crispEdges"/>
+  <text x="90" y="114" font-size="12" font-weight="700" class="mono" style="fill:#B5573A">Delegate</text>
+  <text x="90" y="132" font-size="11" class="muted">Read the staffer skill.</text><text x="90" y="146" font-size="11" class="muted">Run the launch</text><text x="90" y="160" font-size="11" class="muted">command.</text>
+  <g fill="#D97757" shape-rendering="crispEdges"><rect x="223" y="130" width="2" height="2"/><rect x="225" y="132" width="2" height="2"/><rect x="227" y="134" width="2" height="2"/><rect x="225" y="136" width="2" height="2"/><rect x="223" y="138" width="2" height="2"/></g>
+  <rect x="236" y="96" width="136" height="78" rx="8" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+  <rect x="354" y="106" width="8" height="8" fill="#F29900" shape-rendering="crispEdges"/>
+  <text x="246" y="114" font-size="12" font-weight="700" class="mono" style="fill:#B5573A">Start a wait</text>
+  <text x="246" y="132" font-size="11" class="muted">Use the job ID to</text><text x="246" y="146" font-size="11" class="muted">wait in background.</text><text x="246" y="160" font-size="11" class="muted">Continue other work.</text>
+  <g fill="#D97757" shape-rendering="crispEdges"><rect x="379" y="130" width="2" height="2"/><rect x="381" y="132" width="2" height="2"/><rect x="383" y="134" width="2" height="2"/><rect x="381" y="136" width="2" height="2"/><rect x="379" y="138" width="2" height="2"/></g>
+  <rect x="392" y="96" width="136" height="78" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5" stroke-dasharray="4 3"/>
+
+  <text x="402" y="114" font-size="12" font-weight="700" class="mono" style="fill:#5F6368">Keep working</text>
+  <text x="402" y="132" font-size="11" class="muted">Use other tools,</text><text x="402" y="146" font-size="11" class="muted">delegate more work,</text><text x="402" y="160" font-size="11" class="muted">or talk to the user.</text>
+  <g fill="#D97757" shape-rendering="crispEdges"><rect x="535" y="130" width="2" height="2"/><rect x="537" y="132" width="2" height="2"/><rect x="539" y="134" width="2" height="2"/><rect x="537" y="136" width="2" height="2"/><rect x="535" y="138" width="2" height="2"/></g>
+  <rect x="548" y="96" width="136" height="78" rx="8" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+  <rect x="666" y="106" width="8" height="8" fill="#9B72CB" shape-rendering="crispEdges"/>
+  <text x="558" y="114" font-size="12" font-weight="700" class="mono" style="fill:#B5573A">Check progress</text>
+  <text x="558" y="132" font-size="11" class="muted">Call observe when</text><text x="558" y="146" font-size="11" class="muted">progress matters.</text><text x="558" y="160" font-size="11" class="muted">Read a small snapshot.</text>
+  <g fill="#D97757" shape-rendering="crispEdges"><rect x="691" y="130" width="2" height="2"/><rect x="693" y="132" width="2" height="2"/><rect x="695" y="134" width="2" height="2"/><rect x="693" y="136" width="2" height="2"/><rect x="691" y="138" width="2" height="2"/></g>
+  <rect x="704" y="96" width="136" height="78" rx="8" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+  <rect x="822" y="106" width="8" height="8" fill="#202124" shape-rendering="crispEdges"/>
+  <text x="714" y="114" font-size="12" font-weight="700" class="mono" style="fill:#B5573A">Use the result</text>
+  <text x="714" y="132" font-size="11" class="muted">The wait finishes.</text><text x="714" y="146" font-size="11" class="muted">The host returns the</text><text x="714" y="160" font-size="11" class="muted">report to the agent.</text>
+
+  <!-- call / return arrows between the loop and the plugin, coloured per command -->
+  <line x1="128" y1="174" x2="128" y2="296" stroke="#34A853" stroke-width="1.8" marker-end="url(#arrow-green)"/>
+  <line x1="168" y1="296" x2="168" y2="174" stroke="#34A853" stroke-width="1.8" marker-end="url(#arrow-green)"/>
+  <text x="122" y="238" font-size="10" text-anchor="end" class="mono" style="fill:#188038">shell</text>
+  <text x="174" y="238" font-size="10" text-anchor="start" class="mono" style="fill:#188038">job ID</text>
+  <line x1="304" y1="174" x2="304" y2="312" stroke="#F29900" stroke-width="1.8" marker-end="url(#arrow-amber)"/>
+  <text x="312" y="238" font-size="10" text-anchor="start" class="mono" style="fill:#B06000">background command</text>
+  <line x1="596" y1="174" x2="596" y2="296" stroke="#9B72CB" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
+  <line x1="636" y1="296" x2="636" y2="174" stroke="#9B72CB" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
+  <text x="590" y="238" font-size="10" text-anchor="end" class="mono" style="fill:#6A3AB2">shell</text>
+  <text x="642" y="238" font-size="10" text-anchor="start" class="mono" style="fill:#6A3AB2">snapshot ≤ 8 KiB</text>
+  <line x1="772" y1="312" x2="772" y2="174" stroke="#202124" stroke-width="1.8" marker-end="url(#arrow-ink)"/>
+  <text x="780" y="238" font-size="10" text-anchor="start" class="mono" style="fill:#202124">full report</text>
+  <g shape-rendering="crispEdges"><rect x="119" y="202" width="18" height="8" fill="#F8F9FA"/><rect x="119" y="202" width="5" height="8" fill="#202124"/><rect x="132" y="202" width="5" height="8" fill="#202124"/></g><g shape-rendering="crispEdges"><rect x="159" y="202" width="18" height="8" fill="#F8F9FA"/><rect x="159" y="202" width="5" height="8" fill="#202124"/><rect x="172" y="202" width="5" height="8" fill="#202124"/></g><g shape-rendering="crispEdges"><rect x="295" y="202" width="18" height="8" fill="#F8F9FA"/><rect x="295" y="202" width="5" height="8" fill="#202124"/><rect x="308" y="202" width="5" height="8" fill="#202124"/></g><g shape-rendering="crispEdges"><rect x="587" y="202" width="18" height="8" fill="#F8F9FA"/><rect x="587" y="202" width="5" height="8" fill="#202124"/><rect x="600" y="202" width="5" height="8" fill="#202124"/></g><g shape-rendering="crispEdges"><rect x="627" y="202" width="18" height="8" fill="#F8F9FA"/><rect x="627" y="202" width="5" height="8" fill="#202124"/><rect x="640" y="202" width="5" height="8" fill="#202124"/></g><g shape-rendering="crispEdges"><rect x="763" y="202" width="18" height="8" fill="#F8F9FA"/><rect x="763" y="202" width="5" height="8" fill="#202124"/><rect x="776" y="202" width="5" height="8" fill="#202124"/></g>
+
+  <!-- ===== 02 · PLUGIN: bash commands (blue) ===== -->
+  <rect x="48" y="260" width="824" height="112" rx="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="1.5"/>
+  <text x="62" y="285" class="label" style="fill:#1A73E8">02 · AGY-STAFF<tspan class="sub" dx="7">· skills guide the agent; shell commands manage the job</tspan></text>
+  <rect x="236" y="312" width="604" height="28" rx="6" fill="#FEF7E0" stroke="#F29900" stroke-width="1.5"/>
+  <text x="246" y="330" font-size="11" font-weight="700" class="mono" style="fill:#B06000">wait &lt;id&gt; --timeout 10m</text>
+  <text x="414" y="330" font-size="10" class="mono" style="fill:#B06000">silent until ready</text>
+  <text x="780" y="330" font-size="10" font-weight="700" class="mono" style="fill:#202124">result</text>
+  <text x="246" y="364" font-size="9.5" class="muted">One wait per job. Wait expiry returns a snapshot; execution continues.</text>
+  <rect x="80" y="296" width="136" height="60" rx="8" fill="#E6F4EA" stroke="#34A853" stroke-width="1.5"/>
+  <text x="90" y="313" font-size="12" font-weight="700" class="mono" style="fill:#188038">launch</text>
+  <text x="90" y="327" font-size="9.5" class="mono" style="fill:#202124">staffer --prompt "…"</text><text x="90" y="339.5" font-size="9.5" class="" style="fill:#202124">Start an independent job.</text><text x="90" y="352" font-size="9.5" class="" style="fill:#202124">Return a job ID.</text>
+  <rect x="548" y="296" width="136" height="60" rx="8" fill="#F3EDFA" stroke="#9B72CB" stroke-width="1.5"/>
+  <text x="558" y="313" font-size="12" font-weight="700" class="mono" style="fill:#6A3AB2">observe &lt;id&gt;</text>
+  <text x="558" y="327" font-size="9.5" class="" style="fill:#202124">Return current progress:</text><text x="558" y="339.5" font-size="9.5" class="" style="fill:#202124">5 recent tool calls</text><text x="558" y="352" font-size="9.5" class="" style="fill:#202124">+ latest response</text>
+
+  <!-- plugin <-> job arrows -->
+  <line x1="148" y1="356" x2="148" y2="492" stroke="#34A853" stroke-width="1.8" marker-end="url(#arrow-green)"/>
+  <text x="156" y="392" font-size="10" text-anchor="start" class="mono" style="fill:#188038">start worker</text>
+  <line x1="616" y1="444" x2="616" y2="356" stroke="#9B72CB" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
+  <text x="624" y="392" font-size="10" text-anchor="start" class="mono" style="fill:#6A3AB2">read snapshot</text>
+  <line x1="772" y1="444" x2="772" y2="340" stroke="#202124" stroke-width="1.8" marker-end="url(#arrow-ink)"/>
+  <text x="780" y="392" font-size="10" text-anchor="start" class="mono" style="fill:#202124">on completion</text>
+
+  <!-- ===== 03 · BACKGROUND JOB (ink frame, rainbow worker) ===== -->
+  <rect x="48" y="406" width="824" height="166" rx="10" fill="#FFFFFF" stroke="#202124" stroke-width="1.5"/>
+  <text x="62" y="431" class="label" style="fill:#202124">03 · BACKGROUND JOB<tspan class="sub" dx="7">· streaming continues independently of agent turns</tspan></text>
+  <rect x="236" y="444" width="292" height="44" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/>
+  <text x="246" y="461" font-size="11" font-weight="700" class="mono" style="fill:#202124">Event log</text>
+  <text x="246" y="477" font-size="9.5" class="muted">Raw AGY events · events.jsonl</text>
+  <rect x="548" y="444" width="136" height="44" rx="8" fill="#F3EDFA" stroke="#9B72CB" stroke-width="1.5"/>
+  <text x="558" y="461" font-size="11" font-weight="700" class="mono" style="fill:#6A3AB2">Progress snapshot</text>
+  <text x="558" y="477" font-size="9.5" class="muted">≤ 8 KiB · progress.json</text>
+  <rect x="704" y="444" width="136" height="44" rx="8" fill="#FFFFFF" stroke="#202124" stroke-width="1.5"/>
+  <text x="714" y="461" font-size="11" font-weight="700" class="mono" style="fill:#202124">Final report</text>
+  <text x="714" y="477" font-size="9.5" class="muted">Saved as result.md</text>
+  <g shape-rendering="crispEdges"><rect x="377" y="490" width="2" height="2" fill="#5F6368"/><rect x="377" y="495" width="2" height="2" fill="#5F6368"/><rect x="377" y="500" width="2" height="2" fill="#5F6368"/></g><g shape-rendering="crispEdges"><rect x="615" y="490" width="2" height="2" fill="#9B72CB"/><rect x="615" y="495" width="2" height="2" fill="#9B72CB"/><rect x="615" y="500" width="2" height="2" fill="#9B72CB"/></g><g shape-rendering="crispEdges"><rect x="771" y="490" width="2" height="2" fill="#202124"/><rect x="771" y="495" width="2" height="2" fill="#202124"/><rect x="771" y="500" width="2" height="2" fill="#202124"/></g>
+  <rect x="254" y="504" width="586" height="32" rx="6" fill="url(#rainbow-soft)" stroke="url(#rainbow)" stroke-width="1.5"/>
+  <text x="266" y="524" font-size="10.5" class="mono" style="fill:#202124">Worker · drains AGY stream-json</text>
+  <g shape-rendering="crispEdges"><rect x="560" y="516" width="6" height="6" fill="#F6912E"/><rect x="570" y="520" width="4" height="4" fill="#F6912E" opacity="0.6"/><rect x="588" y="516" width="6" height="6" fill="#EF5441"/><rect x="598" y="520" width="4" height="4" fill="#EF5441" opacity="0.6"/><rect x="616" y="516" width="6" height="6" fill="#955FA5"/><rect x="626" y="520" width="4" height="4" fill="#955FA5" opacity="0.6"/><rect x="644" y="516" width="6" height="6" fill="#6C73D8"/><rect x="654" y="520" width="4" height="4" fill="#6C73D8" opacity="0.6"/><rect x="672" y="516" width="6" height="6" fill="#3D85FC"/><rect x="682" y="520" width="4" height="4" fill="#3D85FC" opacity="0.6"/><rect x="700" y="516" width="6" height="6" fill="#43AEAA"/><rect x="710" y="520" width="4" height="4" fill="#43AEAA" opacity="0.6"/></g>
+  <g fill="#202124" shape-rendering="crispEdges"><rect x="806" y="511" width="2" height="2"/><rect x="806" y="513" width="2" height="2"/><rect x="810" y="513" width="4" height="2"/><rect x="818" y="513" width="4" height="2"/><rect x="806" y="515" width="2" height="2"/><rect x="814" y="515" width="4" height="2"/><rect x="822" y="515" width="4" height="2"/><rect x="806" y="517" width="2" height="2"/><rect x="810" y="517" width="4" height="2"/><rect x="818" y="517" width="4" height="2"/><rect x="806" y="519" width="2" height="2"/><rect x="814" y="519" width="4" height="2"/><rect x="822" y="519" width="4" height="2"/><rect x="806" y="521" width="2" height="2"/><rect x="810" y="521" width="4" height="2"/><rect x="818" y="521" width="4" height="2"/><rect x="806" y="523" width="2" height="2"/><rect x="806" y="525" width="2" height="2"/><rect x="806" y="527" width="2" height="2"/></g>
+  <rect x="104" y="498" width="132" height="44" rx="6" fill="#202124"/>
+  <g transform="translate(110,503) scale(0.26)" shape-rendering="crispEdges"><g fill="#3D85FC"><rect x="80" y="70" width="10" height="10"/><rect x="90" y="80" width="10" height="10"/><rect x="90" y="90" width="10" height="10"/><rect x="100" y="90" width="10" height="10"/><rect x="100" y="100" width="10" height="10"/><rect x="110" y="100" width="10" height="10"/><rect x="110" y="110" width="10" height="10"/><rect x="120" y="110" width="10" height="10"/></g><g fill="#64B6F5"><rect x="50" y="70" width="10" height="10"/><rect x="30" y="90" width="10" height="10"/><rect x="40" y="90" width="10" height="10"/><rect x="30" y="100" width="10" height="10"/><rect x="10" y="110" width="10" height="10"/><rect x="20" y="110" width="10" height="10"/></g><g fill="#85C64E"><rect x="40" y="30" width="10" height="10"/><rect x="40" y="40" width="10" height="10"/><rect x="50" y="40" width="10" height="10"/><rect x="30" y="50" width="10" height="10"/><rect x="40" y="50" width="10" height="10"/><rect x="30" y="60" width="10" height="10"/><rect x="30" y="70" width="10" height="10"/></g><g fill="#F6912E"><rect x="60" y="10" width="10" height="10"/><rect x="70" y="10" width="10" height="10"/><rect x="60" y="20" width="10" height="10"/><rect x="70" y="20" width="10" height="10"/><rect x="60" y="30" width="10" height="10"/><rect x="70" y="30" width="10" height="10"/><rect x="70" y="40" width="10" height="10"/></g><g fill="#955FA5"><rect x="80" y="50" width="10" height="10"/><rect x="90" y="50" width="10" height="10"/><rect x="100" y="50" width="10" height="10"/><rect x="100" y="60" width="10" height="10"/><rect x="100" y="70" width="10" height="10"/></g><g fill="#EF5441"><rect x="80" y="20" width="10" height="10"/><rect x="80" y="30" width="10" height="10"/><rect x="90" y="30" width="10" height="10"/><rect x="80" y="40" width="10" height="10"/><rect x="90" y="40" width="10" height="10"/></g><g fill="#6C73D8"><rect x="80" y="60" width="10" height="10"/><rect x="90" y="60" width="10" height="10"/><rect x="90" y="70" width="10" height="10"/><rect x="100" y="80" width="10" height="10"/><rect x="110" y="90" width="10" height="10"/></g><g fill="#D9B031"><rect x="50" y="20" width="10" height="10"/><rect x="50" y="30" width="10" height="10"/><rect x="60" y="40" width="10" height="10"/></g><g fill="#43AEAA"><rect x="50" y="50" width="10" height="10"/><rect x="40" y="60" width="10" height="10"/><rect x="50" y="60" width="10" height="10"/><rect x="40" y="70" width="10" height="10"/><rect x="30" y="80" width="10" height="10"/><rect x="40" y="80" width="10" height="10"/><rect x="20" y="90" width="10" height="10"/><rect x="20" y="100" width="10" height="10"/></g></g>
+  <text x="152" y="516" font-size="11" font-weight="700" class="mono white">agy CLI</text>
+  <text x="152" y="530" font-size="9" class="silver">Gemini Flash</text>
+  <text x="266" y="554" font-size="9.5" class="muted">Worker deadline: 60m default, 120m max. Wait expiry leaves it running; cancel &lt;id&gt; stops the job.</text>
+
+  <!-- Three equal footer columns; icons sit in 24px slots with an 8px text gap. -->
+  <g fill="#D97757" shape-rendering="crispEdges"><rect x="70" y="590" width="10" height="2"/><rect x="68" y="592" width="2" height="2"/><rect x="80" y="592" width="2" height="2"/><rect x="66" y="594" width="2" height="2"/><rect x="82" y="594" width="2" height="2"/><rect x="66" y="596" width="2" height="2"/><rect x="82" y="596" width="6" height="2"/><rect x="64" y="598" width="2" height="2"/><rect x="82" y="598" width="6" height="2"/><rect x="64" y="600" width="2" height="2"/><rect x="84" y="600" width="2" height="2"/><rect x="64" y="602" width="2" height="2"/><rect x="64" y="604" width="2" height="2"/><rect x="66" y="606" width="2" height="2"/><rect x="86" y="606" width="2" height="2"/><rect x="66" y="608" width="2" height="2"/><rect x="84" y="608" width="2" height="2"/><rect x="68" y="610" width="2" height="2"/><rect x="82" y="610" width="2" height="2"/><rect x="70" y="612" width="12" height="2"/></g><text x="96" y="607" font-size="12.5">Delegate, then keep working</text>
+  <g fill="#F29900" shape-rendering="crispEdges"><rect x="346" y="592" width="8" height="2"/><rect x="344" y="594" width="2" height="2"/><rect x="354" y="594" width="2" height="2"/><rect x="342" y="596" width="2" height="2"/><rect x="356" y="596" width="2" height="2"/><rect x="340" y="598" width="2" height="2"/><rect x="350" y="598" width="2" height="2"/><rect x="358" y="598" width="2" height="2"/><rect x="340" y="600" width="2" height="2"/><rect x="350" y="600" width="2" height="2"/><rect x="358" y="600" width="2" height="2"/><rect x="340" y="602" width="2" height="2"/><rect x="350" y="602" width="4" height="2"/><rect x="358" y="602" width="2" height="2"/><rect x="340" y="604" width="2" height="2"/><rect x="358" y="604" width="2" height="2"/><rect x="342" y="606" width="2" height="2"/><rect x="356" y="606" width="2" height="2"/><rect x="344" y="608" width="2" height="2"/><rect x="354" y="608" width="2" height="2"/><rect x="346" y="610" width="8" height="2"/></g><text x="370" y="607" font-size="12.5">Host schedules agent turns</text>
+  <g fill="#1A73E8" shape-rendering="crispEdges"><rect x="619" y="592" width="2" height="2"/><rect x="627" y="592" width="2" height="2"/><rect x="619" y="594" width="2" height="2"/><rect x="627" y="594" width="2" height="2"/><rect x="617" y="596" width="16" height="2"/><rect x="617" y="598" width="16" height="2"/><rect x="617" y="600" width="16" height="2"/><rect x="619" y="602" width="12" height="2"/><rect x="621" y="604" width="8" height="2"/><rect x="623" y="606" width="4" height="2"/><rect x="623" y="608" width="4" height="2"/></g><text x="644" y="607" font-size="12.5"><tspan font-weight="700" fill="#1A73E8">Skills + shell tools</tspan></text>
+</svg>

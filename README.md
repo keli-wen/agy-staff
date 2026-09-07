@@ -10,6 +10,8 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ![agy-staff design](assets/design.png)
 
+**[Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Upgrade](#upgrade)**
+
 ## What & Why
 
 agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.8 Flash. Five personas: staffer (general-purpose), researcher, reviewer (code **and** plans/decisions), implementer, and ask — plus a model-facing jobs skill. Claude Code uses `/agy:<persona>` and Codex uses `$agy:<persona>`.
@@ -19,6 +21,8 @@ If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode o
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
 ## How
+
+### Invoke a persona
 
 Type `/agy:` in Claude Code and the five personas are right there:
 
@@ -32,7 +36,7 @@ Same plugin in Codex, invoked with `$agy`:
 
 #### For humans
 
-Step 1 — install the Antigravity CLI ([official docs](https://antigravity.google/docs/cli/install)), then verify with `agy --version` (tested with v1.1.15; Node.js is also required):
+Step 1 — install the Antigravity CLI ([official docs](https://antigravity.google/docs/cli/install)), then verify with `agy --version`. Node.js is also required:
 
 ```bash
 curl -fsSL https://antigravity.google/cli/install.sh | bash
@@ -62,7 +66,7 @@ Update with `pi update --extension git:github.com/keli-wen/agy-staff`, then run 
 Restart Claude Code or Codex afterwards. First run: `/agy:ask reply with OK` (Claude Code) or `$agy:ask reply with OK` (Codex). Ask is tool-free and needs no setup.
 
 > [!IMPORTANT]
-> **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy can inspect the repo, run commands, and edit files. agy-staff keeps that practical with prompts that adapt to the current repo state. For example, when `implementer` starts in a dirty workspace, the companion tells agy which files already had changes and reminds it not to overwrite or deliver unrelated user work. If the task asks for a commit, push, or PR, agy can do that delivery; otherwise it leaves a working-tree diff for review.
+> **There is no mandatory setup step.** `staffer`, `researcher`, `reviewer` and `implementer` run **unrestricted** by default: agy can inspect the repo, run commands, and edit files. agy-staff keeps that practical with prompts that adapt to the current repo state. For example, when `implementer` starts in a dirty workspace, the companion tells agy which files already had changes and reminds it not to overwrite or deliver unrelated user work. If the task asks for a commit, push, or PR, agy can do that delivery; otherwise it leaves a working-tree diff for review. These prompt instructions do not provide permission isolation.
 > `setup` + `--restricted` is **optional hardening** for untrusted input — per run (`--restricted`) or as a per-repo default (`setup --restrict review,research`). `setup` dry-runs and asks before writing anything ("set up agy" triggers it); read the [permission notes](docs/REFERENCE.md#optional-hardening-setup) first — the allowlist is prefix-matched, applies machine-wide, and a restricted run can return less than an unrestricted one.
 
 #### For agents
@@ -107,9 +111,19 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 `reviewer` is fully prompt-based: you describe the subject and agy gathers the evidence itself (`gh pr view`, `git diff`, reading the file) — there is no flag for handing it a diff. It has two flavors, routed by subject: code review (severity-ranked findings) and general review (a multi-angle challenge of a plan, design, or decision).
 
-`staffer` also unlocks agy's native tools that no specialist persona covers — notably **image generation** (`generate_image`; verified on agy v1.1.15, a 1024×1024 PNG in ~30s).
+`staffer` also covers agy's native tools without a dedicated specialist persona, including **image generation** (`generate_image`). A trial on agy v1.1.15 produced a 1024×1024 PNG in about 30 seconds; actual time depends on the task and environment.
 
-`ask` answers in the same call. The other personas run as background jobs: the call returns a job id and prints the exact collect command (`wait <id> --timeout <n>m`); your agent runs that in the background — one wait per job — and delivers the result when it finishes.
+## Core design
+
+`ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
+
+Ask your main agent about progress and it can use `observe` to read a snapshot of recent tool activity and response text. Once the task finishes, `wait` or `result` delivers the full report. Expiring a wait leaves the worker running.
+
+The timeline below follows a background task from delegation to completion. The host agent can continue other work, check progress when needed, and collect the final report.
+
+[![A background task over time: the host delegates, waits or observes, while the worker continuously saves AGY output and eventually delivers the full report](assets/integration.png)](assets/integration.svg)
+
+Jobs have a separate execution deadline: default 60 minutes, configurable at launch with `--timeout` up to 120 minutes. Use `cancel` to stop execution, or explicitly request `continue` or `restart` after inspecting the existing work. The host harness controls when your agent receives a background result.
 
 **Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading). **Release notes →** [docs/releases/](docs/releases/).
 
@@ -123,9 +137,9 @@ Contributions are welcome — issues, bug reports and pull requests all help.
 
 A few things worth knowing before you open a PR:
 
-- **Run the tests**: `node --test tests/*.test.mjs`. They are black-box tests against a fake `agy` (`tests/fake-agy.mjs`) in a throwaway repo and HOME, so they never hit the network or your real settings. Keep it that way — a test must never invoke the real binary.
+- **Run the tests**: `npm test`. The standard suite uses temporary repos and HOME directories with fake `agy`, plus focused module tests. Keep regression tests offline and independent of personal settings. Real AGY validation is a separate opt-in suite described in [tests/README.md](tests/README.md).
 - **Docs come in pairs**: `README.md` / `README.zh-CN.md` and `docs/REFERENCE.md` / `docs/REFERENCE.zh-CN.md` are kept in sync. Change one, change its counterpart.
-- **Behaviour lives in one place**: `companion/agy-companion.mjs` holds all of it. The skills are thin shells that call it, and the prompt templates in `templates/` carry the guardrails.
+- **Runtime code lives in `companion/`**: the entrypoint handles modes and job commands; separate modules handle streaming execution, observations and state locking. Skills call the companion, and `templates/` holds the shared prompts.
 - **Canonical skills are the source of truth**: edit personas in `skills/`, never in `pi-skills/`. Run `npm run generate:pi` to generate Pi entrypoints, and `npm run check:pi` to verify consistency.
 
 Adding a mode or a flag changes the public surface, so please open an issue first and we can agree on the shape.

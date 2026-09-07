@@ -31,19 +31,15 @@ Pass the review subject verbatim via `--prompt`; use `--prompt-file <path>` or `
 
 review is prompt-based: the user's request plus the flavor's framing is the task string. Do not gather diffs, write patch files, or translate the request into flags — agy collects the evidence itself. If the subject is ambiguous, agy reports the ambiguity instead of guessing; relay that and let the user sharpen the request. A task string is required; review with no subject exits with an error.
 
-## Execution style
-
-review always runs as a background job: the call returns a job id immediately. The job never calls back — collecting the result is your job.
-
 ## Collecting the result
 
-The job-start output prints the exact collect command (`` `wait <id> --timeout <n>m` ``). Run it as a background command — one background wait per job, in the same unsandboxed permission context as the start command — and deliver the printed review when it exits 0: short (about a screenful) verbatim; long as the verdict/key points plus the result-file path, expanding sections on request. Everything else about job management is in the jobs skill: `../agy-jobs/SKILL.md`.
+The command returns a job id. Read `../agy-jobs/SKILL.md` and follow its collection and recovery flow; use one background `wait <id> --timeout 10m` per job. Deliver the result when ready; exit 2 means the worker is still running and the command has printed its current progress. To answer a progress question or give a mid-run update, call `observe <id>` as described in the jobs skill.
 
 ## Flags (all optional)
 
 - `--json` — schema-enforced JSON findings (verdict/summary/findings/could_not_verify) instead of markdown. Code-review flavor only, and only when the user asks for machine-readable output.
 - `--restricted` / `--unrestricted` — permission profile. review defaults to unrestricted, so it works out of the box and can run tests or reproduce a bug when the request asks for it. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
-- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-medium`), `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 5m).
+- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-medium`), `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts (a composed task with the flavor framing usually is one).
 
 ## Reviewing untrusted content
@@ -55,7 +51,9 @@ An unrestricted review of code from an untrusted author (a PR from a stranger, a
 - Return the companion stdout verbatim — no commentary, no fixes, no softening of findings.
 - Pass the user's explicit authorizations through to the task string verbatim. The prompt template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, commands that burn paid API quota); that default opens only when the request itself asks for the operation — so keep "run the e2e tests" or "call the staging API" in the prompt instead of trimming it.
 - Empty responses from a `--restricted` run: relay the companion's guidance (run the setup flow once, or drop `--restricted`).
-- On any companion error: quote it verbatim, add one line of your own diagnosis, stop. Full failure protocol: `../agy-jobs/SKILL.md`.
+- For errors and recovery, follow `../agy-jobs/SKILL.md`.
+
+For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
 
 ## Host compatibility
 
