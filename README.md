@@ -6,7 +6,9 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI Codex**, and **Pi**.
+**Task orchestration with AGY.**
+
+agy:lead, a task orchestration skill for your agent. Available in **Claude Code**, **OpenAI Codex**, and **Pi**.
 
 ![agy-staff design](assets/design.png)
 
@@ -14,17 +16,17 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ## What & Why
 
-agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.8 Flash. Five personas: staffer (general-purpose), researcher, reviewer (code **and** plans/decisions), implementer, and ask — plus a model-facing jobs skill. Claude Code uses `/agy:<persona>` and Codex uses `$agy:<persona>`.
+`lead` guides your current agent to delegate substantive work to AGY while owning key decisions, review, and final delivery. It defaults to `staffer`, whose brief defines the work. Use `researcher`, `reviewer`, or `implementer` when their specialist guidance fits the assignment; reserve `ask` for installation smoke tests or explicit testing. The shared `jobs` skill handles collection and follow-ups.
 
-If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
+Use AGY for investigation, analysis, writing, planning, and implementation while your current agent retains the wider context and decides what comes next. Continue a useful worker conversation with your feedback, or request an independent review when needed.
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
 ## How
 
-### Invoke a persona
+### Invoke a skill
 
-Type `/agy:` in Claude Code and the five personas are right there:
+Start with `/agy:lead <task>` in Claude Code, `$agy:lead <task>` in Codex, or `/skill:agy-lead <task>` in Pi. Direct persona invocations remain available in the skill picker shown below (screenshots predate lead):
 
 ![the /agy: command menu in Claude Code](assets/claude-code-screenshot.png)
 
@@ -99,7 +101,8 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 | Use case | Invocation |
 |---|---|
-| Quick second opinion | `/agy:ask what's your backend model` |
+| Lead an ongoing task | `/agy:lead investigate the options, draft a proposal, and revise it with my feedback` |
+| Verify the installation | `/agy:ask reply with OK` |
 | A general task | `/agy:staffer summarize the open TODOs in this repo` |
 | Generate an image | `/agy:staffer generate a pixel-art robot mascot, save it as assets/mascot.png` |
 | Review the working tree | `/agy:reviewer Review the current working tree` |
@@ -115,7 +118,9 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 ## Core design
 
-`ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
+`lead` uses a short orchestrator–worker loop: delegate a coherent outcome, assess the result, then continue, redirect, or deliver. It defaults to `staffer` and keeps related work in one conversation when that context helps. Independent assignments can run in parallel; shared artifacts need clear ownership and common decisions. The current agent composes briefs and synthesizes results, staying within the task's requested scope and stage.
+
+`ask` is the synchronous smoke-test entrypoint. The four worker personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 
 The main agent waits for the final result by default. If you explicitly ask about progress, it can use `observe` to read a snapshot of recent tool activity and response text; it does not query progress for routine updates. Once the task finishes, `wait` or `result` delivers the full report. Expiring a wait leaves the worker running.
 
@@ -124,6 +129,8 @@ The timeline below follows a background task from delegation to completion. The 
 [![A background task over time: the host delegates, waits or observes, while the worker continuously saves AGY output and eventually delivers the full report](assets/integration.png)](assets/integration.svg)
 
 Jobs have a separate execution deadline: default 60 minutes, configurable at launch with `--timeout` up to 120 minutes. Use `cancel` to stop execution, or explicitly request `continue` or `restart` after inspecting the existing work. The host harness controls when your agent receives a background result.
+
+To add instructions after completion, use `continue` on the original job. For an urgent change during execution, cancel the active job, confirm it stopped, then continue with the updated brief. A continuation targeting a conversation with a running background job returns immediately with exit `2` and its active job ID; the new prompt is not sent or queued.
 
 **Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading). **Release notes →** [docs/releases/](docs/releases/).
 

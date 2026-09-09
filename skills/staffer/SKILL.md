@@ -1,15 +1,15 @@
 ---
 name: staffer
-description: Delegate a general-purpose task to Google's Antigravity CLI (agy staffer, fast Gemini) with a minimal, unopinionated prompt. Use when the user says /agy:staffer, "have agy do/handle X", "have agy generate an image", or the task fits none of the specialist personas (researcher / reviewer / implementer / ask) — the template adds no role, rules, or output format, so the task text alone shapes the output. Also the route to agy-native tools no specialist covers, notably image generation (generate_image).
+description: Delegate a general-purpose task to Google's Antigravity CLI with a brief that defines the work. The default worker for agy lead. Use for /agy:staffer, "have agy do/handle X", or "have agy generate an image"; supports research, analysis, writing, planning, implementation, and native tools such as image generation.
 argument-hint: '[--restricted|--unrestricted] [--model <id>|--effort low|medium|high] [--timeout <dur>] [--prompt-file <path>|--stdin] "task"'
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), Bash(gh:*)
 ---
 
 # agy staffer
 
-The general-purpose persona: a clean entry point for tasks that none of the specialists fit. Its prompt template is deliberately minimal — the task text, the environment (cwd, branch, date), and the safety guardrails, nothing else. No role framing, no rules, no output format: the task defines its own output, and no unrelated template context can pull the run off course.
+The general-purpose persona and default worker for lead. Its prompt template contains the task, environment (cwd, branch, date), and safety guardrails. The brief defines the work and output, so one conversation can support investigation, drafting, implementation, and revision as the task evolves.
 
-Prefer a specialist when one fits: `researcher` for surveys and deep dives, `reviewer` for second opinions on code or plans, `implementer` for edits to the working tree, `ask` for a cheap one-shot question.
+Choose a specialist when requested or when its guidance materially improves the assignment: `researcher` for a source-backed survey, `reviewer` for independent critique, or `implementer` for a scoped code change with verification. Reserve `ask` for installation smoke tests or explicit testing.
 
 staffer is also the route to agy-native tools no specialist covers — notably **image generation**: agy ships a `generate_image` tool (verified on v1.1.15; a 1024×1024 PNG in ~30s). Name the output path in the task, e.g. `staffer --prompt "generate a pixel-art robot mascot, save it as assets/mascot.png"`.
 
@@ -21,7 +21,7 @@ This skill file lives at `<plugin-root>/skills/staffer/SKILL.md`; resolve the co
 node "<skill-dir>/../../companion/agy-companion.mjs" staffer [flags] --prompt "task"
 ```
 
-Pass the user's task text verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for long text.
+For a direct invocation, pass the user's task text verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for long text. In a lead workflow, use the brief composed by the lead skill.
 
 > [!IMPORTANT]
 > Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../jobs/references/troubleshooting.md`.
@@ -39,7 +39,7 @@ The command returns a job id. Read `../jobs/SKILL.md` for result collection and 
 
 ## Rules
 
-- Pass the user's task through verbatim. Because the template imposes no output format, state the desired format in the task text when the caller needs a specific one.
+- For a direct invocation, pass the user's task through verbatim. In a lead workflow, preserve the user's requirements in the delegated brief. State the desired output format when needed.
 - Pass the user's explicit authorizations through verbatim. The template default-denies costly or irreversible side effects (commits/pushes, deleting files outside the workspace, side-effectful network calls, paid-quota commands); that default opens only when the task itself asks for the operation.
 - A general task may legitimately edit files. The companion reports any working-tree delta with the result — inspect it (`git diff`) and confirm it is what the task asked for before building on it.
 - For errors and recovery, follow `../jobs/SKILL.md`.

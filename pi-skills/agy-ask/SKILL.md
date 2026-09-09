@@ -1,13 +1,13 @@
 ---
 name: agy-ask
-description: Ask Google's Antigravity CLI (agy staffer, fast Gemini) a cheap one-shot question - the fast zero-tool mode and the post-install smoke test. Use when the user says /skill:agy-ask, "ask agy", "quick second opinion from agy", or right after installing to verify the plugin works.
+description: Run a tool-free smoke test of Google's Antigravity CLI after installation, or an explicit test via /skill:agy-ask. Use to verify that the plugin and model respond. Ordinary delegated work uses staffer or a specialist.
 ---
 
 <!-- Generated from skills/ask/SKILL.md; run npm run generate:pi. Do not edit here. -->
 
 # agy ask
 
-The quick mode: one question in, one answer out, ~3 seconds on the default `gemini-3.8-flash-low`. Zero tools by design (restricted profile, question-only prompt), so it needs no setup and works on a fresh install — run it first as the smoke test: `ask --prompt "reply with OK"`.
+The installation smoke-test mode: one test prompt in, one response out on the default `gemini-3.8-flash-low`. Zero tools by design (restricted profile, question-only prompt), so it needs no setup and works on a fresh install: `ask --prompt "reply with OK"`. Reserve this mode for smoke tests or explicit testing; use staffer or a specialist for ordinary work.
 
 ask is the only persona that runs in the foreground: the call blocks and the answer comes back on stdout. staffer, researcher, reviewer, and implementer instead return a background job id (see the jobs skill, `../agy-jobs/SKILL.md`).
 

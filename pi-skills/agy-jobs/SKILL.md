@@ -1,6 +1,6 @@
 ---
 name: agy-jobs
-description: Manage agy staffer background jobs - collect results, check status, cancel, follow-up conversation, and setup. Use when an agy job needs collecting, when the user asks "is the agy job done", "show agy's result", "cancel the agy job", "continue the agy conversation", or "set up agy". This is the orchestrator's skill; the persona skills (staffer/researcher/reviewer/implementer) point here.
+description: Manage agy staffer background jobs - collect results, check status, cancel, append follow-up instructions, and setup. Use when an agy job needs collecting or the user asks to see results, stop a job, add instructions, continue an agy conversation, or set up agy. The lead and delegation skills use this shared job protocol.
 ---
 
 <!-- Generated from skills/jobs/SKILL.md; run npm run generate:pi. Do not edit here. -->
@@ -27,7 +27,7 @@ Default flow: prepare the prompt → dispatch → wait for the final result → 
 | 0 | Invocation ended; response text delivered | Assess whether it satisfies the task. Review attached diagnostics; inspect further only as needed. |
 | 2 | Still running; wait soft-expired | Wait again for the same job. The attached snapshot is not a request to inspect progress or intervene. |
 | 3 | Error or crash | Read the error and recovery information below. |
-| 4 | Canceled | Report cancellation. |
+| 4 | Canceled | Complete any already-authorized follow-up; otherwise report cancellation. |
 | 5 | Attention: resumable timeout | Inspect partial workspace changes; ask whether to continue with the suggested timeout or stop. Continue only after explicit user confirmation. |
 | 1 | Invalid command or other command error | Quote the error and correct the named problem. |
 
@@ -39,7 +39,7 @@ Collecting a pending wait command is necessary result collection, not active obs
 
 A wait expires without stopping the worker. Cancel only when the task calls for stopping; silence or soft expiry alone is not a reason. For a user-requested progress answer or diagnosis after failure/required intervention, read a bounded `details` excerpt only if the returned information leaves a specific question unanswered. Never inspect logs or intermediate artifacts for routine reassurance.
 
-Deliver short results verbatim; summarize long results with their file path. Keep quoted verdicts, numbers and errors exact. For implement, also report the workspace state and inspect changes with `git diff`; verify any Git delivery that the user explicitly requested.
+For direct persona invocations, deliver short results verbatim; summarize long results with their file path. In a lead workflow, return the result to the lead for assessment and synthesis. Keep quoted verdicts, numbers and errors exact. For any workspace edits, including staffer edits, inspect changes with `git diff` and report the workspace state; verify any Git delivery that the user explicitly requested.
 
 Follow through to a result unless the user asked only to launch. If the host cannot deliver background command results, use the longest practical wait within its tool-call limit (bare `wait` defaults to 100s). The host controls when the model receives a tool result; this plugin cannot schedule a future model invocation by itself.
 
@@ -61,6 +61,18 @@ Wait/observe default to the latest job. Observe uses the same status exit codes,
 Continuation and restart may be invoked from the root or any subdirectory of the same worktree; execution returns to the original cwd. Generic `continue` fails for an unrecorded conversation ID. It does not search other worktrees or infer configuration from an unrelated conversation. For continuation, explicit model/profile flags override the inherited values.
 
 Cancel records a request first and returns success only after the worker has stored the cancellation report and published `canceled`. A crashed job keeps its crash diagnostics. A cancellation error requires inspection; it does not mean execution has stopped.
+
+## Append instructions and change direction
+
+An append means a new turn in an existing AGY conversation. `continue` launches a new invocation with the recorded conversation ID; it does not inject input into a live process or queue the prompt. Prefer `continue --job <id>` to target the intended worker when several conversations exist.
+
+- **Job finished:** use `continue --job <id> --prompt "..."` directly. Include the new task, review feedback, and relevant decisions made in the host conversation since the previous dispatch; AGY does not automatically receive those messages.
+- **Job running, follow-up can wait:** keep collecting its existing wait. After completion, submit the follow-up. Do not cancel useful work merely to append a later task.
+- **Job running, current instructions must change now:** `cancel <running-id>`, confirm it has stopped, then `continue --job <running-id> --prompt "..."`. State what changed, what remains valid, and what the worker should do next. A user instruction to redirect the current work authorizes this sequence; do not ask again solely because two commands are needed.
+
+If the target conversation has a running background job, continuation returns immediately with exit **2** and JSON containing `status: "running"`, `reason: "conversation_running"`, the active `job_id`, and `prompt_accepted: false`. This also applies to persona `--continue` / `--conversation` entrypoints and to an older job whose conversation now has a running follow-up. No new job or queued prompt is created. Decide whether to wait or cancel from the task's needs; do not retry in a loop. The active job ID in the response is the one to wait for or cancel.
+
+If cancellation reports an error, diagnose and confirm termination before launching another turn. After an interruption, check any partial artifacts or workspace changes relevant to the task; cancellation does not roll them back. The saved conversation may not contain the last interrupted step, so tell the worker to reconcile actual progress before repeating actions. If no usable conversation exists, start a fresh task with the updated brief and retained work; `restart` repeats the original task and does not incorporate a new brief. Timeout recovery still follows the confirmation rules below.
 
 ## Progress and recovery
 

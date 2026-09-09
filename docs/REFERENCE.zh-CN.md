@@ -8,11 +8,13 @@
 
 | 角色技能 | companion 命令 | 用途 | 默认模型 | 执行方式 |
 | --- | --- | --- | --- | --- |
-| `ask` | `ask` | 不使用工具的单轮问答，也可用于安装后的简单验证 | `gemini-3.8-flash-low` | 同步返回答案 |
+| `ask` | `ask` | 不使用工具的安装验证或明确的测试 | `gemini-3.8-flash-low` | 同步返回答案 |
 | `staffer` | `staffer` | 通用任务，由任务描述决定具体工作 | `gemini-3.8-flash-medium` | 返回后台任务 ID |
 | `researcher` | `research` | 调研并引用来源，注明尚未验证的结论 | `gemini-3.8-flash-high` | 返回后台任务 ID |
 | `reviewer` | `review` | 审查代码、方案或决策 | `gemini-3.8-flash-medium` | 返回后台任务 ID |
 | `implementer` | `implement` | 完成范围明确的编码任务 | `gemini-3.8-flash-high` | 返回后台任务 ID |
+
+`lead` 为当前主 agent 提供编排指导，默认使用 `staffer` 完成跨调查、分析、写作、规划和实现的完整任务。用户指定或专门指导确有帮助时，再选择 specialist；`ask` 仅用于安装验证或明确的测试。lead 编写委派说明、审查证据并整合结果，不沿用直接调用 persona 时原样返回的规则。它复用现有模式和 jobs，不新增调度器。Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`；见 `skills/lead/SKILL.md`。
 
 `staffer` 不预设专业分工或固定的报告格式，但仍遵守共享的操作约定。`reviewer` 会根据对象选择审查方式：代码问题按严重程度列出，并附上 `file:line` 位置；方案和决策审查则检查假设、风险和取舍。`implementer` 可以直接修改工作区，也可以完成任务明确要求的提交、推送或 PR 操作。
 
@@ -206,6 +208,12 @@ review --prompt "Review the patch at /tmp/change.patch"
 继续或重启前，应先用 `git status` 和 `git diff` 检查上一次执行留下的修改。你可以从同一 Git 工作树（worktree）的根目录或任意子目录发起恢复，任务实际执行时会回到原工作目录。通用 `continue` 命令遇到未登记的会话 ID 会报错，不会搜索其他工作树或启动 AGY。
 
 恢复会创建新任务，保留原任务的最终记录，并重新获得默认 60 分钟的执行时限；也可以用 `--timeout` 指定其他时长。恢复信息提供 `requires_user_confirmation`、建议的 `suggested_timeout` 和具体续跑命令。建议超时为原时长的两倍，后台最多 120 分钟；已到上限时应缩小任务。主 agent 必须询问你是否继续或停下查看工作区，得到明确确认后才执行。companion 不会自动重试或续跑。前台 `ask` 的历史会话配置也按会话 ID 保存，不会因后续任务覆盖而丢失。
+
+### 追加要求
+
+`continue` 在已记录的会话中启动新一轮调用。任务完成后可以直接追加要求；需要把派发后在主会话中确定的新决策写进任务说明，AGY 不会自动收到这些交流。如果后续要求可以等待，就先收取当前任务的结果；如果需要立即改变当前工作，先取消正在运行的任务，确认停止，再带着新范围继续。检查相关的部分产物和已有修改：取消不会撤销它们，有会话 ID 也不代表中断前最后一步已完整保存。没有可用会话时，用更新后的任务说明和保留的工作启动新任务。
+
+所选任务还在初始化，或目标会话仍有后台任务运行时，续跑立即返回退出码 `2`。标准输出为 JSON，包含 `status: "running"`、`reason: "conversation_running"`、正在运行的 `job_id`、`conversation_id`（初始化期间可能为 null），以及 `prompt_accepted: false`。不会创建新任务，也不会把 prompt 排队。检查覆盖 `continue --job`、`continue --conversation`、默认 `continue` 和各模式的 `--continue` / `--conversation`，也覆盖选中旧任务但同一会话的下一轮仍在运行的情况。调用方根据任务需要决定等待还是取消，使用返回的当前任务 ID。并发后台续跑会在注册任务的锁内再次检查。检查范围限于本仓库中 companion 记录的任务，不追踪从其他入口启动的 AGY 进程。
 
 ### 退出码
 

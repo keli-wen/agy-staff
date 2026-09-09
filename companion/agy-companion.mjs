@@ -859,6 +859,20 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
 // run (research / review / implement / continue)
 // ---------------------------------------------------------------------------
 
+function requireIdleConversation(state, conversation, jobId = null) {
+  if (!conversation && !jobId) return;
+  const active = (state.jobs || []).find((job) =>
+    ((conversation && job.conversation_id === conversation) || (jobId && job.id === jobId)) &&
+    liveJobStatus(job) === 'running');
+  if (!active) return;
+  process.stdout.write(JSON.stringify({
+    status: 'running', reason: 'conversation_running', job_id: active.id,
+    conversation_id: active.conversation_id || null, prompt_accepted: false,
+  }) + '\n');
+  die(`Conversation is still running in job ${active.id}; the follow-up was not sent or queued. ` +
+    `Wait for that job, or cancel ${active.id} and confirm it has stopped before continuing with updated instructions.`, 2);
+}
+
 function resolveRun(mode, opts, priorJob = null) {
   // likely a typo for --restricted; --restrict (per-repo policy) belongs to setup
   if (opts.restrict !== undefined) {
@@ -913,6 +927,7 @@ function resolveRun(mode, opts, priorJob = null) {
     if (!conversation) die(`--continue given but no previous ${mode} conversation is recorded in state.json`);
   }
 
+  requireIdleConversation(state, conversation);
   const recorded = state.conversation_configs?.[conversation];
   const prior = priorJob || (conversation ? [...(state.jobs || [])].reverse().find((j) => j.conversation_id === conversation && j.mode === mode) : null)
     || (recorded?.mode === mode ? recorded : null)
@@ -1167,8 +1182,6 @@ async function dispatch(resolved, prompt, opts) {
   const specFile = path.join(jobsDir, `${jobId}.spec.json`);
   const resultFile = path.join(jobsDir, `${jobId}.result.md`);
 
-  fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
-
   // Register the job BEFORE spawning: a fast worker's own state update must
   // find the record already present, or it gets lost in its read-modify-write.
   const record = {
@@ -1181,7 +1194,14 @@ async function dispatch(resolved, prompt, opts) {
     events_file: path.join(jobsDir, `${jobId}.events.jsonl`),
     progress_file: path.join(jobsDir, `${jobId}.progress.json`),
   };
-  updateState((state) => { state.jobs ||= []; state.jobs.push(record); });
+  updateState((state) => {
+    // Recheck under the registration lock: concurrent continuations may both
+    // have resolved an idle conversation before either registered a job.
+    requireIdleConversation(state, resolved.conversation);
+    fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
+    state.jobs ||= [];
+    state.jobs.push(record);
+  });
   fs.appendFileSync(logFile, `[agy-staff] dispatch registered ${jobId} at ${record.started_at}\n`);
 
   const logFd = fs.openSync(logFile, 'a');
@@ -1605,6 +1625,8 @@ function cmdContinue(opts) {
   const legacyMode = Object.entries(state.conversations || {}).find(([, id]) => id === targetId)?.[0];
   const mode = prior?.mode || legacyMode || (state.last?.id === targetId ? state.last?.mode : null);
   const conversation = prior?.conversation_id || targetId;
+  // A selected job can still be initializing before AGY returns its ID.
+  requireIdleConversation(state, opts.job ? prior?.conversation_id : conversation, opts.job);
   if (!mode || !conversation) die('no previous agy-staff conversation recorded in this repository for this target; use restart <job-id> when no conversation is available');
   if (opts.job && opts.conversation && opts.conversation !== prior.conversation_id) die('--job and --conversation identify different conversations');
   if (opts.job && !prior.conversation_id) die('this job has no known conversation; use restart <job-id>');

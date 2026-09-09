@@ -6,7 +6,9 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex** 和 **Pi** 的「agy 员工」。
+**Task orchestration with AGY.**
+
+agy:lead, a task orchestration skill for your agent. 支持 **Claude Code**、**OpenAI Codex** 和 **Pi**。
 
 ![agy-staff 设计图](assets/design.png)
 
@@ -14,9 +16,9 @@
 
 ## 它适合做什么
 
-agy-staff 提供五种角色（persona）。`staffer` 适合通用任务；`researcher` 负责调研；`reviewer` 审查代码、方案和决策；`implementer` 处理编码任务；`ask` 用于不需要工具的简短问答。前四种角色都使用相同的后台任务机制，由 `jobs` 技能负责等待、查看进度和收取结果。
+`lead` 指导当前主 agent 将实质性工作委派给 AGY，并负责关键决策、审查和最终交付。默认使用 `staffer`，由任务说明定义具体工作；专门的指导适合当前任务时，再选用 `researcher`、`reviewer` 或 `implementer`。`ask` 仅用于安装验证或明确的测试。共享的 `jobs` 技能负责收取结果和继续会话。
 
-为什么需要它：GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。这些任务可以交给 agy：它几秒钟就能给出第二意见，调研和审查以 Flash 的速度完成，范围明确的实现任务放到后台执行，你继续做手头的事。另外，即使不追求速度，让另一个模型家族审同一份代码，也能发现主力 agent 自己发现不了的问题。
+AGY 可以承担调查、分析、写作、规划和实现，当前主 agent 保留整体上下文，判断下一步。你可以根据反馈继续已有的 worker 会话，也可以在需要时获得独立审查。
 
 ![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
 
@@ -72,7 +74,7 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 ## 使用
 
-在 Claude Code 中输入 `/agy:`，就能选择要使用的角色：
+在 Claude Code 中使用 `/agy:lead <任务>`，Codex 使用 `$agy:lead <任务>`，Pi 使用 `/skill:agy-lead <任务>`。也可以从技能菜单直接调用 persona；以下截图来自加入 lead 之前的版本：
 
 ![Claude Code 中的 /agy: 命令菜单](assets/claude-code-screenshot.png)
 
@@ -84,7 +86,8 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 | 想做的事 | 示例 |
 | --- | --- |
-| 问一个简短的问题 | `/agy:ask 你的后端模型是什么` |
+| 编排持续推进的任务 | `/agy:lead 调研可选方案，起草提案，再根据我的反馈修订` |
+| 验证安装 | `/agy:ask reply with OK` |
 | 交办一个通用任务 | `/agy:staffer 汇总这个仓库里所有未完成的 TODO` |
 | 生成图片 | `/agy:staffer 生成一个像素风机器人吉祥物，存为 assets/mascot.png` |
 | 审查当前改动 | `/agy:reviewer 检查当前工作区的改动` |
@@ -100,7 +103,9 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 ## 核心设计
 
-`ask` 会在同一次调用中返回答案。其他角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
+`lead` 使用简短的 orchestrator–worker 循环：委派完整的交付目标，评估结果，再决定继续、调整或交付。默认使用 `staffer`，相关工作在上下文仍有价值时继续同一会话。独立任务可以并行；共享产物需要明确归属和共同决策。当前主 agent 编写任务说明并整合结果，保持用户要求的范围与工作阶段。
+
+`ask` 是同步返回的测试入口。四种 worker 角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
 
 主 agent 默认等待最终结果，不为例行汇报主动查询。你明确询问中间进展时，它才用 `observe` 查看当前快照，其中包含最近的工具活动和回答片段。任务完成后，`wait` 或 `result` 负责返回完整结果。
 
@@ -109,6 +114,8 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 [![后台任务从委派到完成的过程：主 agent 等待或查看进度时，worker 持续保存 AGY 的输出，最终交付完整报告](assets/integration.png)](assets/integration.svg)
 
 等待到期不会停止后台任务。任务本身有独立的执行时限，默认 60 分钟，可以在启动时用 `--timeout` 调整，最长 120 分钟。需要停止时使用 `cancel`；需要继续或重新开始时，由主 agent 根据你的要求调用 `continue` 或 `restart`。模型何时收到后台结果，仍由你使用的 agent 环境决定。
+
+任务完成后，使用 `continue` 给原会话追加要求。执行中需要立即纠偏时，先取消当前任务，确认停止后再带着新要求继续。目标会话仍有后台任务运行时，续跑命令会立即返回退出码 `2` 和当前任务 ID；新 prompt 尚未发送或排队。
 
 关于参数、权限、进度快照和恢复方式，可以查阅[完整参考手册](docs/REFERENCE.zh-CN.md)。各版本的改动记录在[发布说明](docs/releases/)中。
 

@@ -6,11 +6,13 @@ Back to the [README](../README.md). See the [Chinese reference](REFERENCE.zh-CN.
 
 | Persona (skill) | Companion mode | What it is | Default model | Profile | Execution |
 |---|---|---|---|---|---|
-| `ask` | `ask` | Cheap zero-tool one-shot Q&A (~3s); doubles as the post-install smoke test | `gemini-3.8-flash-low` | restricted (prompt-only) | synchronous — the answer comes back in the same call |
+| `ask` | `ask` | Tool-free installation smoke test or explicit test | `gemini-3.8-flash-low` | restricted (prompt-only) | synchronous — the answer comes back in the same call |
 | `staffer` | `staffer` | General-purpose delegation without a specialist role or fixed output format; shared operational guardrails still apply | `gemini-3.8-flash-medium` | unrestricted | background job — returns a job id |
 | `researcher` | `research` | Deep survey with cited sources and explicit unverified-claims marking | `gemini-3.8-flash-high` | unrestricted | background job — returns a job id |
 | `reviewer` | `review` | Second-opinion verifier, two flavors routed by subject: code review (severity-ranked findings with `file:line` refs) and general review (multi-angle challenge of a plan, design, or decision) | `gemini-3.8-flash-medium` | unrestricted | background job — returns a job id |
 | `implementer` | `implement` | Well-scoped coding task; agy edits the working tree and can perform explicitly requested Git delivery | `gemini-3.8-flash-high` | unrestricted | background job — returns a job id |
+
+`lead` is orchestration guidance for the current host agent. It defaults to `staffer` for coherent assignments across research, analysis, writing, planning, and implementation. Choose a specialist when requested or when its guidance materially helps; reserve `ask` for installation smoke tests or explicit testing. The lead composes briefs, reviews evidence, and integrates results instead of following direct personas' verbatim-delivery rules. It reuses existing modes and jobs, with no new scheduler. Invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, or `/skill:agy-lead` in Pi; see `skills/lead/SKILL.md`.
 
 Execution style is fixed per mode and cannot be overridden by a flag. `continue` inherits the resolved mode's style (continuing an `ask` stays synchronous; continuing the others returns a job id).
 
@@ -182,6 +184,12 @@ Use one independent background wait per job where the harness supports it, never
 Per-repository state lives in `<repo>/.agy-staff/`. `state.json` stores conversations, configuration history indexed by conversation ID (including foreground ask), and lifecycle records, protected by short write transactions; observation reads remain read-only. `config.json` holds optional permission policy. Each job has a spec, diagnostic log, result, final status sidecar, raw stdout (`.events.jsonl`) and atomically published bounded snapshot (`.progress.json`). Raw records may include unknown/malformed events. Missing activity files on legacy jobs yield a status-only snapshot.
 
 After warning-free success, results and metadata become durable before the raw stream/snapshot are deleted. Failures, cancellation, hard timeout and warning results retain intermediates. Results, diagnostic logs, conversation metadata and AGY's own conversation storage are retained. Readers racing with cleanup recheck terminal state: observe returns terminal metadata; wait returns the result. Observe never reads result-file contents, even after successful intermediates have been deleted. Crash-without-result reports include dispatch/worker-start evidence, process IDs, log existence/size and next-inspection/recovery commands without copying prompts or environment values.
+
+### Appending instructions
+
+`continue` starts a new invocation in the recorded conversation. After a finished job, continue directly with the follow-up brief. Include relevant decisions made in the host conversation since dispatch: AGY does not automatically receive them. If a follow-up can wait, collect the active job before submitting it. If current work must change now, cancel the active job, confirm termination, and continue with the updated scope. Account for partial artifacts and changes; cancellation does not undo them, and a conversation ID does not guarantee the interrupted step was fully saved. If no usable conversation exists, launch a fresh task with the updated brief and retained work.
+
+Continuation returns immediately with exit `2` when the selected job is initializing or the target conversation has a running background job. Stdout is JSON containing `status: "running"`, `reason: "conversation_running"`, the active `job_id`, `conversation_id` (or null during initialization), and `prompt_accepted: false`. No new job or queued prompt is created. This applies to `continue --job`, `continue --conversation`, default `continue`, and persona `--continue` / `--conversation` paths, including selection of an older completed job with a running successor. The caller decides whether to wait or cancel; use the active job ID returned by the check. Concurrent background continuations are checked again under the job-registration lock. The guard covers jobs recorded in this repository; it does not detect AGY processes started outside the companion.
 
 ### Keeping `.agy-staff/` out of git
 

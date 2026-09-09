@@ -1,7 +1,7 @@
 {
   "name": "agy-staff",
-  "version": "0.6.1",
-  "description": "Delegate work to Google's Antigravity CLI (agy) with fast Gemini access.",
+  "version": "0.7.0",
+  "description": "Task orchestration with AGY. Delegate work to Google's Antigravity CLI while your agent owns key decisions, review, and delivery.",
   "keywords": [
     "pi-package"
   ],

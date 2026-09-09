@@ -1,0 +1,39 @@
+---
+name: agy-lead
+description: Orchestrate an ongoing task with AGY while the current agent owns key decisions, review, and delivery. Use when the user invokes /skill:agy-lead or asks you to coordinate a task using AGY.
+---
+
+<!-- Generated from skills/lead/SKILL.md; run npm run generate:pi. Do not edit here. -->
+
+# agy lead
+
+Task orchestration with AGY. You are the lead in the current harness. With an argument, work on that task; otherwise apply this guidance to the active task. Extend it across the session only when the user asks.
+
+## Working with AGY
+
+1. **Delegate substantive work.** Use AGY to advance the task while you own user communication, consequential decisions, acceptance, and delivery. Handle small matters directly when delegation and review would cost more. Stay within the user's requested scope and stage: discussing a proposal does not authorize implementing it.
+2. **Default to staffer.** Its brief defines the work, including research, analysis, writing, planning, and implementation. Choose a specialist when the user requests it or its guidance materially improves the assignment: `researcher` for a source-backed survey, `reviewer` for independent critique, `implementer` for a scoped code change with verification. Reserve `ask` for installation smoke tests or explicit testing; do not route ordinary work to it.
+3. **Delegate coherent outcomes.** Assign the whole task or a useful result that enables your next decision. Give the worker room to choose its approach. Adapt subsequent assignments to discoveries instead of prescribing every step upfront. Keep related work together when splitting it would create more handoffs than value.
+4. **Supply the needed context.** Include the outcome, relevant background and settled decisions, constraints, and evidence or artifacts to return. Preserve explicit authorizations accurately without expanding them. Ask the worker to report consequential assumptions, decisions, and unresolved issues. AGY sees its brief and its conversation, not the host's intervening discussion.
+5. **Coordinate by dependencies.** Parallelize independent work when useful. For shared artifacts, establish distinct ownership and communicate shared design decisions and other workers' responsibilities. While AGY runs, advance a different part of the task or wait; avoid duplicating delegated work.
+6. **Review, then decide the next step.** Check the evidence that matters for acceptance, including relevant diffs and verification for edits. Integrate useful results and give concrete feedback for gaps. Continue the same conversation when its context helps, supplying new user decisions. Use a fresh conversation for an independent opinion or different context. Take over when another handoff is unlikely to help; deliver when the task is satisfied. Add review rounds only when they resolve meaningful uncertainty.
+
+## Dispatch and follow through
+
+Read `../agy-jobs/SKILL.md` for result collection, cancellation, continuation, and recovery. This skill lives at `<plugin-root>/pi-skills/agy-lead/SKILL.md`. Write the brief to a temporary file and call the shared companion:
+
+```bash
+node "<skill-dir>/../../companion/agy-companion.mjs" staffer --prompt-file "<brief-path>"
+```
+
+For a specialist, replace `staffer` with `research`, `review`, or `implement`. When requesting code review, use the review-brief guidance in `../agy-reviewer/references/code-review.md`. Modes retain their existing model and permission defaults; honor user overrides. Run unsandboxed as described in `../agy-jobs/references/troubleshooting.md` (escalated execution in Codex).
+
+Keep each returned job ID with its assignment and collect the result through jobs. Prefer `continue --job <id>` for follow-ups. Let useful running work finish when feedback can wait; for an immediate change, follow jobs' cancel, confirm termination, then continue sequence. Account for partial work after interruption and follow the existing timeout recovery rules.
+
+In this workflow you compose briefs and synthesize results. The persona skills' thin-shell and verbatim-delivery instructions apply to direct persona invocations. Preserve exact quotes, figures, errors, and evidence references when integrating results. The lead skill uses existing companion modes; it adds no scheduler.
+
+## Host compatibility
+
+When this skill or its referenced instructions require a tool that the current environment does not provide, use available capabilities to achieve an equivalent result. Adapt only the tool-specific execution method; preserve the task goal, authorization requirements, explicit confirmation steps, result delivery, and stopping conditions.
+
+If an equivalent result cannot be achieved, or you cannot establish that an alternative is equivalent, explain the missing capability and its impact, and ask the user for help. Do not silently skip requirements or bypass the environment's restrictions.
