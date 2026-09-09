@@ -117,7 +117,7 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 `ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 
-Ask your main agent about progress and it can use `observe` to read a snapshot of recent tool activity and response text. Once the task finishes, `wait` or `result` delivers the full report. Expiring a wait leaves the worker running.
+The main agent waits for the final result by default. If you explicitly ask about progress, it can use `observe` to read a snapshot of recent tool activity and response text; it does not query progress for routine updates. Once the task finishes, `wait` or `result` delivers the full report. Expiring a wait leaves the worker running.
 
 The timeline below follows a background task from delegation to completion. The host agent can continue other work, check progress when needed, and collect the final report.
 

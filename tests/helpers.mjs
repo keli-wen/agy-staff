@@ -145,7 +145,7 @@ export async function waitForJob(sb, jobId, { tries = 40, delayMs = 100 } = {}) 
     const r = run(sb, ['status', jobId]);
     const m = /"status":\s*"([a-z]+)"/.exec(r.stdout);
     last = m ? m[1] : `unknown (${r.stdout.trim() || r.stderr.trim()})`;
-    if (last === 'done' || last === 'error' || last === 'crashed' || last === 'canceled') return last;
+    if (last === 'done' || last === 'error' || last === 'crashed' || last === 'canceled' || last === 'attention') return last;
     await sleep(delayMs);
   }
   throw new Error(`job ${jobId} never left "running" (last: ${last})`);

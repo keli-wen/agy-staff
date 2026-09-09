@@ -65,7 +65,7 @@ try {
     fs.writeFileSync(path.join(cwd, 'terminal-observation.json'), JSON.stringify(terminalObservation, null, 2));
     fs.writeFileSync(path.join(cwd, 'delivery.txt'), delivery.stdout);
     console.log(JSON.stringify(record));
-    assert.equal(result.code, kind === 'cancel' ? 4 : kind === 'hard_timeout' ? 3 : 0, result.stdout + result.stderr);
+    assert.equal(result.code, kind === 'cancel' ? 4 : kind === 'hard_timeout' ? 5 : 0, result.stdout + result.stderr);
     assert.equal(survivors.length, 0, `surviving execution processes: ${survivors}`);
     assert.ok(job.conversation_id);
     if (stop) {

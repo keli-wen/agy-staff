@@ -26,7 +26,7 @@ If they chose none AND the step-1 output shows the allowlist already installed, 
 **Step 3 — allowlist.** If any mode is restricted (by policy or because the user wants `--restricted` runs) and rules are missing, present the step-1 dry-run output in full: which rules would be added, to which file, and that the file is backed up first. Be explicit about two things before asking for confirmation:
 
 - **Scope is global.** The rules go into agy's global settings file, so they apply to every project on this machine, not just this repository.
-- **Rules are prefix-matched.** `command(git)` and `command(gh)` also match write commands such as `git push` or `gh pr merge`. This is an evidence-gathering allowlist, not a read-only one — never describe it as read-only.
+- **Rules are prefix-matched.** Setup adds git/gh evidence subcommands such as `command(git diff)`, `command(git branch --show-current)` and `command(gh pr view)`, not broad git/gh grants. Existing broad rules are preserved and reported; remove them manually if desired. Other allowed commands can still write (for example `find -delete`), so this is an evidence-gathering allowlist, not a read-only boundary.
 
 Then use `AskUserQuestion` exactly once: `Apply the allowlist (Recommended)` / `Skip for now`.
 

@@ -105,19 +105,19 @@ test('pending wait receives a durable canceled report immediately, including aft
   assert.equal(run(sb, ['result', id]).stdout, result.stdout);
 });
 
-test('a complete result survives hard expiry; an empty result still fails', () => {
+test('a complete result survives hard expiry; an empty result needs attention', () => {
   for (const response of ['complete answer', '']) {
     const sb = sandbox('result-at-deadline');
     const id = jobIdOf(run(sb, ['research', '--timeout', '2s', '--prompt', 'task'], {
       FAKE_AGY_SLEEP_MS: '0', FAKE_AGY_RESPONSE: response, FAKE_AGY_AFTER_RESULT_MS: '10000', FAKE_AGY_IGNORE_TERM: '1',
     }).stdout);
     const r = run(sb, ['wait', id]);
-    assert.equal(r.code, response ? 0 : 3, r.stdout + r.stderr);
+    assert.equal(r.code, response ? 0 : 5, r.stdout + r.stderr);
     assert.ok(fs.existsSync(job(sb, id).events_file));
     if (response) { assert.match(r.stdout, /complete answer/); assert.equal(job(sb, id).warnings, true); }
     else {
       const packet = JSON.parse(r.stdout.slice(r.stdout.indexOf('{')));
-      assert.equal(packet.reason, 'hard_timeout'); assert.equal(packet.status, 'error');
+      assert.equal(packet.reason, 'hard_timeout'); assert.equal(packet.status, 'attention');
       assert.equal(packet.finished_at, job(sb, id).finished_at); assert.equal(packet.result_exists, true);
     }
   }

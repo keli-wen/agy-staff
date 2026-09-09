@@ -44,15 +44,15 @@ test('observe stays bounded after legacy completion; independent reads never con
   }
 });
 
-test('error and cancellation return terminal metadata/recovery rather than full failure reports', () => {
-  for (const [status, code] of [['error', 3], ['canceled', 4]]) {
-    const { sb, job } = storedJob(status, { reason: status === 'error' ? 'hard_timeout' : 'canceled' });
+test('error, attention and cancellation return terminal metadata/recovery rather than full failure reports', () => {
+  for (const [status, code] of [['error', 3], ['attention', 5], ['canceled', 4]]) {
+    const { sb, job } = storedJob(status, { reason: status === 'canceled' ? 'canceled' : 'hard_timeout' });
     const s = observation(sb, job.id, code);
     assert.equal(s.reason, job.reason);
     assert.equal(s.conversation_id, 'original-conversation');
     assert.equal(s.model, 'original-model'); assert.equal(s.profile, 'restricted');
     assert.match(s.recovery.continue, /continue --job example-job/);
-    assert.equal(s.recovery.restart, 'restart example-job');
+    assert.equal(s.recovery.restart, status === 'canceled' ? 'restart example-job' : 'restart example-job --timeout 120m');
     const result = run(sb, ['wait', job.id]);
     assert.equal(result.code, code); assert.ok(result.stdout.endsWith(body));
   }
@@ -63,6 +63,12 @@ test('terminal sidecar race and a crash without a result still produce inspectab
   fs.writeFileSync(job.result_file + '.status.json', JSON.stringify({ status: 'error', reason: 'hard_timeout', finished_at: '2026-09-07T00:02:00Z' }));
   const s = observation(sb, job.id, 3);
   assert.equal(s.status, 'error'); assert.equal(s.reason, 'hard_timeout'); assert.equal(s.elapsed_seconds, 120);
+  fs.writeFileSync(job.result_file + '.status.json', JSON.stringify({ status: 'attention', reason: 'response_timeout', finished_at: '2026-09-07T00:02:00Z' }));
+  const attention = observation(sb, job.id, 5);
+  assert.equal(attention.status, 'attention'); assert.equal(attention.reason, 'response_timeout');
+  assert.equal(attention.recovery.requires_user_confirmation, true);
+  assert.equal(attention.recovery.suggested_timeout, '120m');
+  assert.equal(run(sb, ['result', job.id]).code, 5);
   fs.unlinkSync(job.result_file + '.status.json'); fs.unlinkSync(job.result_file);
   const crashed = observation(sb, job.id, 3);
   assert.equal(crashed.status, 'crashed'); assert.equal(crashed.result_available, false);

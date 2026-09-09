@@ -82,7 +82,7 @@ if (touch) {
 
 const streaming = argv[argv.indexOf('--output-format') + 1] === 'stream-json';
 if (streaming && !process.env.FAKE_AGY_NO_JSON) {
-  process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: process.env.FAKE_AGY_CONVERSATION_ID || 'conv-1' } }) + '\n');
+  process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: process.env.FAKE_AGY_CONVERSATION_ID ?? 'conv-1' } }) + '\n');
   if (process.env.FAKE_AGY_EVENTS) {
     for (const event of JSON.parse(process.env.FAKE_AGY_EVENTS)) process.stdout.write(JSON.stringify(event) + '\n');
   }
@@ -119,7 +119,7 @@ if (process.env.FAKE_AGY_NO_JSON) {
 const payload = {
   status: process.env.FAKE_AGY_STATUS || 'SUCCESS',
   response: process.env.FAKE_AGY_RESPONSE ?? 'fake answer',
-  conversation_id: process.env.FAKE_AGY_CONVERSATION_ID || 'conv-1',
+  conversation_id: process.env.FAKE_AGY_CONVERSATION_ID ?? 'conv-1',
   duration_seconds: 1,
   num_turns: 1,
   usage: { input_tokens: 1, output_tokens: 1 },
