@@ -75,9 +75,9 @@ Pi 加载的入口位于 `pi-skills/`，由 `npm run generate:pi` 根据 `skills
 
 如果需要配置 `restricted` 模式，可以让主 agent 执行 `setup`，例如直接说“帮我配置 agy 的受限运行权限”。这是 companion 的管理命令，由 `jobs` 技能处理。
 
-`setup` 会检查 agy 是否可用，并展示计划写入 `~/.gemini/antigravity-cli/settings.json` 的命令允许列表。默认只预览，不修改文件。经你明确确认后，它才会备份原文件并追加配置。
+`setup` 会检查 agy 是否可用，并展示计划写入 `~/.gemini/antigravity-cli/settings.json` 的命令 allow/deny 规则。默认只预览，不修改文件。经你明确确认后，它才会备份原文件并追加配置。
 
-允许列表按子命令前缀匹配：setup 添加 `git status/diff/log/show/blame/rev-parse/ls-files/shortlog/describe`、`git branch --show-current`、`gh pr view/diff/list`、`gh issue view/list` 和 `gh repo view`，不再添加宽泛的 `command(git)` / `command(gh)`。已有规则会保留；如果仍有宽泛 git/gh 规则，setup 会提示你按需手动移除。其他允许的命令仍可能写入，例如 `find -delete`，因此不能把这份列表视为只读边界。
+setup 保留宽泛的 `command(git)` / `command(gh)`，只为五个命令前缀添加 deny：`git push`、`git reset --hard`、`git clean`、`gh pr merge` 和 `gh release delete`。[AGY 按 deny > ask > allow 的顺序处理规则](https://www.antigravity.google/docs/cli/permissions/)，companion 只安装配置，不自己解析命令，也不预测每个任务会用哪些子命令。已有 allow/deny/ask 规则会保留；对先前收窄过的配置执行 setup，会添加预览中展示的宽泛允许项。这组前缀用于防常见误操作，不能覆盖所有参数排列、别名、脚本或 API，因此不保证只读或拦住所有不可逆影响。任务正文授权不会覆盖 deny；确需执行时，应明确调整设置。
 
 其次，配置文件是全局的，规则会影响这台机器上的其他 agy 任务。允许列表中没有单独的联网搜索规则；在项目测试过的 agy v1.1.13 中，`search_web` 无需这类规则就能在非交互模式下运行。
 

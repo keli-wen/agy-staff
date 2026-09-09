@@ -25,7 +25,7 @@ The profile for a run is resolved in this order: CLI flag > recorded conversatio
 | | **unrestricted** (default: staffer, research, review, implement) | **restricted** (opt-in hardening; forced for ask) |
 |---|---|---|
 | agy invocation | `--dangerously-skip-permissions` | no permission skipping — fail-closed, every unlisted tool call is auto-denied |
-| What agy can do | anything, including editing files and running commands | workspace file reads plus evidence gathering via narrow git/gh subcommands and `cat head ls grep find rg wc` (prefix-matched commands) |
+| What agy can do | anything, including editing files and running commands | workspace file reads plus `git gh cat head ls grep find rg wc`, with five targeted git/gh deny prefixes (AGY permission rules) |
 | Safety net | prompt-level guardrails (default-deny on irreversible/costly actions) + the tiered git guards below | agy stays inside agy's own permission enforcement |
 | Typical use | the normal path: Q&A, surveys, reviews, coding tasks | hardened runs: untrusted input, or machines where skipping agy's permission prompts is unacceptable |
 
@@ -69,11 +69,11 @@ The default optimizes for the common case: your own code on your own machine. Un
 
 ### Optional hardening (setup)
 
-`setup` is an optional companion management command handled by the `jobs` skill. Ask your host agent to configure agy's restricted mode when you need it. The command checks the `agy` binary and previews an **evidence-gathering command allowlist** for `~/.gemini/antigravity-cli/settings.json`. Only after explicit confirmation does it back up the file and append the configuration. Default unrestricted tasks and tool-free ask do not depend on setup.
+`setup` is an optional companion management command handled by the `jobs` skill. Ask your host agent to configure agy's restricted mode when you need it. The command checks the `agy` binary and previews **evidence-gathering allow/deny rules** for `~/.gemini/antigravity-cli/settings.json`. Only after explicit confirmation does it back up the file and append the configuration. Default unrestricted tasks and tool-free ask do not depend on setup.
 
-Two properties of that allowlist you should know before applying it:
+Two properties of these rules you should know before applying them:
 
-- **It uses subcommand prefixes, not a read-only boundary.** Setup adds `git status/diff/log/show/blame/rev-parse/ls-files/shortlog/describe`, `git branch --show-current`, `gh pr view/diff/list`, `gh issue view/list` and `gh repo view`. It does not add broad `command(git)` or `command(gh)` rules. Other allowed commands can still write (for example `find -delete`). Existing rules are preserved, with a notice if broad git/gh grants remain; upgrading does not silently remove user configuration.
+- **It allows broad commands with a small deny list.** Setup keeps `command(git)` / `command(gh)` and adds deny prefixes for `git push`, `git reset --hard`, `git clean`, `gh pr merge` and `gh release delete`. [AGY evaluates deny before ask before allow](https://www.antigravity.google/docs/cli/permissions/); the companion only installs configuration, with no command parser or per-task allowlist. Existing allow/deny/ask rules are preserved. Applying setup to an earlier narrow configuration adds the broad grants shown in its dry run. These prefixes prevent common mistakes, not all irreversible actions: other argument arrangements, aliases, scripts, APIs and other allowed commands are not comprehensively covered. The setup is not a read-only boundary. A denied operation stays denied even if requested in the task; change the settings explicitly when needed.
 - **It is global.** The file is `~/.gemini/antigravity-cli/settings.json`, so the rules apply to every `agy` run on the machine, not only to agy-staff jobs. That is the intended product path ("set up once, use everywhere").
 
 Web search is not in the allowlist and does not need to be: on the tested agy (v1.1.13) `search_web` runs headless without an allow rule.
@@ -93,7 +93,7 @@ The policy is written to `<repo>/.agy-staff/config.json` and applied automatical
 - **Scope.** `.agy-staff/` is normally git-ignored, so the policy is a personal, per-machine preference — it is not shared with your team through the repo.
 - **What it is not.** This is a run policy for consistency and accident prevention, not a security boundary: it feeds the same `--restricted` machinery, with the same caveats (needs the global allowlist, prefix-matched, some tools ignore allow-rules headless). For genuinely untrusted input, use an isolated checkout.
 
-Note the two files are different things: the **allowlist** (what a restricted agy may execute) is global by agy's design; the **policy** (which modes default to restricted) is per-repo by ours.
+Note the two files are different things: the **allow/deny rules** (what a restricted agy may execute) is global by agy's design; the **policy** (which modes default to restricted) is per-repo by ours.
 
 ### Advanced: project-scoped permissions
 

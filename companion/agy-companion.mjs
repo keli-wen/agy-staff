@@ -174,26 +174,11 @@ function normalizeModel(raw, effort) {
   );
 }
 
-// Evidence-gathering command allowlist installed by `setup` into the GLOBAL
-// agy settings file. Use git/gh subcommands because command rules match
-// prefixes. This is still not a read-only boundary (e.g. find -delete).
+// Optional GLOBAL setup rules. AGY owns prefix matching and deny precedence;
+// the small deny list prevents common mistakes, not every destructive action.
 const EVIDENCE_ALLOWLIST = [
-  'command(git status)',
-  'command(git diff)',
-  'command(git log)',
-  'command(git show)',
-  'command(git blame)',
-  'command(git rev-parse)',
-  'command(git ls-files)',
-  'command(git shortlog)',
-  'command(git describe)',
-  'command(git branch --show-current)',
-  'command(gh pr view)',
-  'command(gh pr diff)',
-  'command(gh pr list)',
-  'command(gh issue view)',
-  'command(gh issue list)',
-  'command(gh repo view)',
+  'command(git)',
+  'command(gh)',
   'command(cat)',
   'command(head)',
   'command(ls)',
@@ -201,6 +186,13 @@ const EVIDENCE_ALLOWLIST = [
   'command(find)',
   'command(rg)',
   'command(wc)',
+];
+const EVIDENCE_DENYLIST = [
+  'command(git push)',
+  'command(git reset --hard)',
+  'command(git clean)',
+  'command(gh pr merge)',
+  'command(gh release delete)',
 ];
 
 // ~200KB task-text ceiling; macOS ARG_MAX is ~1MB and the prompt
@@ -1712,10 +1704,14 @@ function cmdSetup(opts) {
   try {
     settings = JSON.parse(fs.readFileSync(AGY_SETTINGS, 'utf8'));
     exists = true;
-  } catch {}
+  } catch (error) {
+    if (error.code !== 'ENOENT') die(`cannot read settings ${AGY_SETTINGS}: ${error.message}`);
+  }
 
   const current = settings.permissions?.allow || [];
+  const denied = settings.permissions?.deny || [];
   const missing = EVIDENCE_ALLOWLIST.filter((r) => !current.includes(r));
+  const missingDeny = EVIDENCE_DENYLIST.filter((r) => !denied.includes(r));
 
   process.stdout.write(`agy CLI: OK (version ${v.out})\n`);
   const profiles = loadProjectConfig()?.profiles || {};
@@ -1726,11 +1722,8 @@ function cmdSetup(opts) {
     : '(none — built-in defaults apply)';
   process.stdout.write(`Project policy (${configPath()}): ${policyLine}\n`);
   process.stdout.write(`Global settings file: ${AGY_SETTINGS} ${exists ? '(exists)' : '(will be created)'}\n\n`);
-  const broad = current.filter((rule) => ['command(git)', 'command(gh)'].includes(rule));
-  if (broad.length) process.stdout.write(`Existing broad rules remain active: ${broad.join(', ')}. Setup preserves user rules; remove these manually if you want narrower permissions.\n\n`);
-
-  if (!missing.length) {
-    process.stdout.write('The evidence-gathering command allowlist is already installed. Nothing to do.\n');
+  if (!missing.length && !missingDeny.length) {
+    process.stdout.write('The evidence-gathering allow/deny rules are already installed. Nothing to do.\n');
     printSetupNotes();
     return;
   }
@@ -1739,22 +1732,26 @@ function cmdSetup(opts) {
     'Setup is optional hardening: research/review/implement already run unrestricted by default.\n' +
       'It only matters if you use `--restricted`, which keeps agy\'s permission enforcement on.\n'
   );
-  process.stdout.write('For a restricted run to gather evidence autonomously it needs this command allowlist:\n\n');
+  process.stdout.write('Evidence-gathering rules for restricted runs — permissions.allow:\n\n');
   for (const r of EVIDENCE_ALLOWLIST) {
     process.stdout.write(`  ${r}${current.includes(r) ? '  (already present)' : ''}\n`);
   }
-  process.stdout.write(`\nThey will be appended to "permissions.allow" in ${AGY_SETTINGS}.\n`);
+  process.stdout.write('\npermissions.deny (AGY evaluates deny before ask before allow):\n\n');
+  for (const r of EVIDENCE_DENYLIST) {
+    process.stdout.write(`  ${r}${denied.includes(r) ? '  (already present)' : ''}\n`);
+  }
+  process.stdout.write(`\nMissing rules will be appended to "permissions.allow" and "permissions.deny" in ${AGY_SETTINGS}.\n`);
   process.stdout.write(
     'Scope: this file is GLOBAL — the rules apply to every agy run on this machine, not just this repository.\n' +
-      'Git/GitHub rules use evidence subcommands; setup does not add broad git or gh grants.\n' +
-      'These rules are NOT read-only: prefix-matched command arguments can still write (for example find -delete).\n'
+      'Broad git/gh grants avoid enumerating every task\'s commands; five deny prefixes block common risky operations.\n' +
+      'These rules are NOT read-only: other command forms, scripts and APIs can still write or cause external effects.\n'
   );
 
   if (!opts.apply) {
     process.stdout.write(
       policyWritten
-        ? '\nALLOWLIST DRY RUN — the global settings file was not touched (only the project policy above was written).\n' +
-            'The settings file will be backed up first. To apply the allowlist: rerun with --apply after the user confirms.\n'
+        ? '\nRULES DRY RUN — the global settings file was not touched (only the project policy above was written).\n' +
+            'The settings file will be backed up first. To apply the rules: rerun with --apply after the user confirms.\n'
         : '\nDRY RUN — nothing written. The settings file will be backed up first.\n' +
             'To apply: rerun with --apply after the user confirms.\n'
     );
@@ -1772,20 +1769,21 @@ function cmdSetup(opts) {
 
   settings.permissions = settings.permissions || {};
   settings.permissions.allow = [...current, ...missing];
+  settings.permissions.deny = [...denied, ...missingDeny];
   fs.writeFileSync(AGY_SETTINGS, JSON.stringify(settings, null, 2) + '\n');
-  process.stdout.write(`Wrote ${missing.length} allow-rule(s) to ${AGY_SETTINGS}. Setup complete.\n`);
+  process.stdout.write(`Wrote ${missing.length} allow-rule(s) and ${missingDeny.length} deny-rule(s) to ${AGY_SETTINGS}. Setup complete.\n`);
   printSetupNotes();
 }
 
 function printSetupNotes() {
   process.stdout.write(
     '\nNotes:\n' +
-      '- Scope: the allowlist lives in the GLOBAL settings file above, so it applies to every agy run on\n' +
+      '- Scope: these rules live in the GLOBAL settings file above, so they apply to every agy run on\n' +
       '  this machine, in any repository — not only where you ran setup.\n' +
-      '- Command rules are prefix-matched: command(git diff) allows "git diff --stat"; the new rules\n' +
-      '  do not grant git push/reset/clean or gh pr merge. Existing broad rules are preserved. Other\n' +
-      '  allowed commands can still write (for example find -delete). This is an evidence-gathering\n' +
-      '  allowlist, not a read-only one.\n' +
+      '- Command rules are prefix-matched by AGY, with deny > ask > allow. Existing rules are preserved.\n' +
+      '  Denied operations stay denied even when requested in the prompt; change the rules explicitly if needed.\n' +
+      '  Other command forms, scripts and APIs are not covered. This is an evidence-gathering setup,\n' +
+      '  not a read-only one or a guarantee that every irreversible action is blocked.\n' +
       '- Security-sensitive users can scope permissions per project instead: agy supports project-scoped\n' +
       '  permission rules (highest priority) tied to its --project system, but the exact project-settings\n' +
       '  file path is undocumented/unverified, so this setup only edits the global file above. If a rule\n' +

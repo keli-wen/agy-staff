@@ -136,32 +136,48 @@ test('#9 non-git workspace attaches the launch directory', () => {
   assert.equal(argv[argv.indexOf('--add-dir') + 1], sb.repo);
 });
 
-test('#10 setup adds narrow evidence rules without widening or replacing existing permissions', () => {
-  const sb = sandbox('narrow-setup');
+test('#10 setup merges broad allow and targeted deny rules, preserving user settings', () => {
+  const sb = sandbox('deny-setup');
   const settings = path.join(sb.home, '.gemini/antigravity-cli/settings.json');
   fs.mkdirSync(path.dirname(settings), { recursive: true });
-  const original = { custom: true, permissions: { allow: ['command(git diff)', 'custom(rule)'], deny: ['command(git push)'] } };
+  const original = { custom: true, permissions: {
+    allow: ['command(git)', 'command(gh)', 'command(git diff)', 'custom(rule)'],
+    deny: ['command(git push)', 'command(custom-blocked)'], ask: ['command(gh api)'],
+  } };
   fs.writeFileSync(settings, JSON.stringify(original));
-  assert.equal(run(sb, ['setup']).code, 0);
+  const preview = run(sb, ['setup']);
+  assert.equal(preview.code, 0);
+  assert.match(preview.stdout, /permissions\.allow/);
+  assert.match(preview.stdout, /permissions\.deny/);
   assert.deepEqual(JSON.parse(fs.readFileSync(settings)), original);
   assert.equal(run(sb, ['setup', '--apply']).code, 0);
   const applied = JSON.parse(fs.readFileSync(settings));
-  assert.ok(!applied.permissions.allow.includes('command(git)'));
-  assert.ok(!applied.permissions.allow.includes('command(gh)'));
-  assert.ok(!applied.permissions.allow.includes('command(git branch)'));
-  for (const rule of ['command(git status)', 'command(git branch --show-current)', 'command(gh pr view)', 'command(gh issue view)']) assert.ok(applied.permissions.allow.includes(rule), rule);
-  assert.deepEqual(applied.permissions.deny, original.permissions.deny);
+  assert.ok(applied.permissions.allow.includes('command(git)'));
+  assert.ok(applied.permissions.allow.includes('command(gh)'));
+  for (const command of ['git push', 'git reset --hard', 'git clean', 'gh pr merge', 'gh release delete']) {
+    assert.ok(applied.permissions.deny.includes(`command(${command})`), command);
+  }
+  for (const rule of original.permissions.allow) assert.ok(applied.permissions.allow.includes(rule));
+  assert.ok(applied.permissions.deny.includes('command(custom-blocked)'));
+  assert.deepEqual(applied.permissions.ask, original.permissions.ask);
   assert.equal(applied.custom, true);
-  assert.ok(applied.permissions.allow.includes('custom(rule)'));
-  assert.equal(new Set(applied.permissions.allow).size, applied.permissions.allow.length);
+  for (const kind of ['allow', 'deny']) assert.equal(new Set(applied.permissions[kind]).size, applied.permissions[kind].length);
   const backups = fs.readdirSync(path.dirname(settings)).filter(f => f.includes('.bak-'));
   assert.equal(backups.length, 1);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(path.dirname(settings), backups[0]))), original);
   assert.equal(run(sb, ['setup', '--apply']).code, 0);
   assert.deepEqual(JSON.parse(fs.readFileSync(settings)), applied);
-  applied.permissions.allow.push('command(git)', 'command(gh)');
-  fs.writeFileSync(settings, JSON.stringify(applied));
-  const existing = run(sb, ['setup', '--apply']);
-  assert.match(existing.stdout, /Existing broad rules remain active/);
-  assert.deepEqual(JSON.parse(fs.readFileSync(settings)), applied, 'existing broad grants must not be silently removed');
+  assert.equal(fs.readdirSync(path.dirname(settings)).filter(f => f.includes('.bak-')).length, 1);
+
+  // An existing installation may have all allows but lack the new denies.
+  const missingDenies = { ...applied, permissions: { ...applied.permissions, deny: original.permissions.deny } };
+  fs.writeFileSync(settings, JSON.stringify(missingDenies));
+  const pending = run(sb, ['setup']);
+  assert.equal(pending.code, 0);
+  assert.match(pending.stdout, /command\(gh pr merge\)/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(settings)), missingDenies);
+  const upgrade = run(sb, ['setup', '--apply']);
+  assert.equal(upgrade.code, 0);
+  assert.match(upgrade.stdout, /Wrote 0 allow-rule\(s\) and 4 deny-rule\(s\)/);
+  assert.deepEqual(JSON.parse(fs.readFileSync(settings)), applied);
 });

@@ -116,7 +116,7 @@ Show the user the full dry-run output and state these four things plainly before
 
 1. Which command rules would be added, and that they exist so `--restricted` runs can gather evidence unattended.
 2. The target file is the **global** `~/.gemini/antigravity-cli/settings.json`, so the rules apply to every `agy` run on this machine — not only to agy-staff jobs.
-3. The rules are **prefix-matched, so this is not a read-only allowlist**. Setup adds git/gh evidence subcommands (for example `command(git diff)` and `command(gh pr view)`) rather than broad grants; other allowed commands can still write, such as `find -delete`. Existing broad rules are preserved and reported.
+3. Setup keeps broad git/gh grants and adds five native deny prefixes: `git push`, `git reset --hard`, `git clean`, `gh pr merge`, and `gh release delete`. AGY evaluates deny > ask > allow. Existing rules are preserved, and the dry run shows any additions. This prevents common mistakes, not every irreversible action: alternate command forms, scripts and APIs are not comprehensively covered. Task authorization does not override deny.
 4. The existing file is backed up before writing.
 
 Apply only after the user explicitly agrees. If they decline, nothing is lost from the default experience — all four modes keep working; they simply cannot harden a run with `--restricted` until the allowlist exists.
@@ -133,7 +133,7 @@ Per-repo state lives in `<repo>/.agy-staff/`; the companion git-ignores it autom
 
 ## 6. Report back
 
-Tell the user, in **their** language: whether install succeeded (name the version and whether it came from the GitHub slug or a local checkout), the smoke-test result, whether a restart is still needed before the skills load, and whether the optional setup allowlist was applied, declined, or never offered (the default unrestricted profile does not need it).
+Tell the user, in **their** language: whether install succeeded (name the version and whether it came from the GitHub slug or a local checkout), the smoke-test result, whether a restart is still needed before the skills load, and whether the optional setup rules were applied, declined, or never offered (the default unrestricted profile does not need it).
 
 Default: prepare the prompt, dispatch, wait for the final result, then validate as needed. On wait exit 2, wait again for the same job without extra progress checks. While running, do not proactively observe, read logs or inspect intermediate artifacts, including for routine updates. Observe only when the user explicitly asks for progress; diagnose after a failure or a result requiring intervention. Host collection of a pending wait command is necessary result collection, not active observation. Prefer background completion delivery or the longest practical blocking wait the host supports; avoid short empty polls and sleep/observe loops. The worker's hard limit and explicit recovery protocol remain separate from wait soft expiry.
 
