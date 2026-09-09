@@ -76,7 +76,7 @@
  *
  * Job exit codes (`status <id>` and `wait`): 0 = done, 2 = running (for wait:
  * still running when its own timeout expired — call it again), 3 = error or
- * crashed, 4 = canceled. 1 stays the generic companion error (bad id, etc.),
+ * crashed, 4 = canceled, 5 = attention (resumable timeout). 1 stays the generic companion error (bad id, etc.),
  * so a caller can loop on "exit code 2" with zero output parsing.
  *
  * Review is prompt-based: the subject ("Review PR #730", "Review changes
@@ -92,7 +92,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { boundSnapshot } from './observation.mjs';
+import { boundSnapshot, excerpt } from './observation.mjs';
 import { atomicJSON, runStreaming, processIdentity } from './stream-worker.mjs';
 import { withStateLock } from './state-lock.mjs';
 
@@ -174,10 +174,8 @@ function normalizeModel(raw, effort) {
   );
 }
 
-// Evidence-gathering command allowlist installed by `setup` into the GLOBAL
-// agy settings file. Not a read-only allowlist: agy command rules are
-// prefix-matched on the command target, so "command(git)" matches "git log"
-// but equally "git push", and "command(gh)" matches "gh pr merge".
+// Optional GLOBAL setup rules. AGY owns prefix matching and deny precedence;
+// the small deny list prevents common mistakes, not every destructive action.
 const EVIDENCE_ALLOWLIST = [
   'command(git)',
   'command(gh)',
@@ -188,6 +186,13 @@ const EVIDENCE_ALLOWLIST = [
   'command(find)',
   'command(rg)',
   'command(wc)',
+];
+const EVIDENCE_DENYLIST = [
+  'command(git push)',
+  'command(git reset --hard)',
+  'command(git clean)',
+  'command(gh pr merge)',
+  'command(gh release delete)',
 ];
 
 // ~200KB task-text ceiling; macOS ARG_MAX is ~1MB and the prompt
@@ -373,6 +378,9 @@ function rememberConversation(resolved, id, jobId) {
     state.conversations ||= {};
     state.conversations[resolved.mode] = id;
     state.last = { mode: resolved.mode, id, model: resolved.model, profile: resolved.profile };
+    state.conversation_configs ||= {};
+    state.conversation_configs[id] = { mode: resolved.mode, model: resolved.model,
+      profile: resolved.profile, cwd: process.cwd() };
     const job = state.jobs?.find((j) => j.id === jobId);
     if (job) job.conversation_id = id;
   });
@@ -682,11 +690,17 @@ function handleUnsupportedModel({ requestedModel, errText, originalError, convNo
   die(msg + (convNote || ''));
 }
 
-function runAgy({ prompt, model, timeout, conversation, unrestricted, jsonSchema }) {
-  const args = ['-p', prompt, '--model', model, '--output-format', 'json', '--print-timeout', timeout];
+function agyArgs({ prompt, model, timeout, conversation, unrestricted, jsonSchema, workspace }, format) {
+  const args = ['-p', prompt, '--model', model, '--output-format', format, '--print-timeout', timeout, '--add-dir', workspace];
   if (conversation) args.push('--conversation', conversation);
   if (unrestricted) args.push('--dangerously-skip-permissions');
   if (jsonSchema) args.push('--json-schema', jsonSchema);
+  return args;
+}
+
+function runAgy(invoke) {
+  const { model, timeout } = invoke;
+  const args = agyArgs(invoke, 'json');
 
   const budget = (durationToMs(timeout) ?? 600_000) + 60_000; // grace over agy's own timeout
   const r = spawnSync(AGY_BIN, args, {
@@ -745,14 +759,13 @@ function runAgy({ prompt, model, timeout, conversation, unrestricted, jsonSchema
 
 /** Triage the agy result into distinct classes with distinct guidance
  *  (never cross-suggested), or return the response text on success.
- *  1. status ERROR / nonzero exit, but a complete response came back
- *     → done_with_warnings: the deliverable exists, so return it (exit 0)
- *       and put the error on stderr. Discarding a finished answer because
- *       a late tool call failed loses data.
+ *  1. status ERROR / nonzero exit, but response text came back
+ *     → return the text (exit 0) and put diagnostics on stderr.
+ *       The orchestrator judges task completion; nonempty text is not proof.
  *  2. status ERROR / nonzero exit, no response
  *     → agy's own error verbatim; NEVER suggest --unrestricted. Cause
  *       hints are appended only when the error text actually matches them.
- *  3. timeout                      → say so plainly.
+ *  3. response timeout             → attention when the conversation is resumable.
  *  4. status SUCCESS, empty body   → permission fail-closed signature; only a
  *                                    --restricted run gets the setup hint
  *                                    (unrestricted runs have no rules to fix).
@@ -764,20 +777,20 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
     ? `\nConversation id (you can still continue it): ${payload.conversation_id}`
     : '';
 
-  if (status.includes('TIMEOUT') && !response) {
-    die(
-      `agy timed out (status ${payload.status}) before finishing.` +
-        ` Retry with a larger --timeout (at most 120m for background jobs), or narrow the task.${convNote}`
-    );
+  // Match AGY's response deadline, not a tool/network timeout embedded in an
+  // unrelated error. Response text keeps the done-with-warnings delivery contract.
+  if (!response && (['TIMEOUT', 'TIMED_OUT', 'RESPONSE_TIMEOUT'].includes(status) ||
+      (status === 'ERROR' && /^timeout waiting for response[.!]?$/i.test(String(payload.error || '').trim())))) {
+    throw Object.assign(new Error(`agy timed out (status ${payload.status}) before finishing.` +
+      (payload.error ? `\nagy error: ${payload.error}` : '') + convNote), { reason: 'response_timeout' });
   }
 
   if ((status && status !== 'SUCCESS') || exit !== 0) {
     if (response) {
-      // done_with_warnings: the answer was produced before whatever failed
-      // (e.g. one tool call timing out during wrap-up). Deliver it.
+      // Preserve response text and diagnostics for the orchestrator to assess.
       process.stderr.write(
         `agy-staff warning: agy reported status ${payload.status || 'unknown'} (exit ${exit}) ` +
-          'but returned a complete response — delivering it anyway.\n' +
+          'but returned response text — delivering it for assessment.\n' +
           (payload.error ? `agy error: ${payload.error}\n` : '') +
           (stderr ? `agy stderr: ${stderr}\n` : '')
       );
@@ -900,13 +913,16 @@ function resolveRun(mode, opts, priorJob = null) {
     if (!conversation) die(`--continue given but no previous ${mode} conversation is recorded in state.json`);
   }
 
-  const prior = priorJob || (conversation ? [...(state.jobs || [])].reverse().find((j) => j.conversation_id === conversation && j.mode === mode) : null);
+  const recorded = state.conversation_configs?.[conversation];
+  const prior = priorJob || (conversation ? [...(state.jobs || [])].reverse().find((j) => j.conversation_id === conversation && j.mode === mode) : null)
+    || (recorded?.mode === mode ? recorded : null)
+    || (state.last?.id === conversation && state.last?.mode === mode ? { model: state.last.model, profile: state.last.profile } : null);
   if (prior) {
     if (!opts.model && !opts.effort && prior.model) model = prior.model;
     if (!opts.restricted && !opts.unrestricted && prior.profile) { profile = prior.profile; profileSource = 'inherited'; }
   }
   if (profileSource === 'project') process.stderr.write(`agy-staff: profile=${profile} set by project policy (${configPath()})\n`);
-  return { mode, model, profile, profileSource, background, timeout, conversation, parentJobId: prior?.id || null };
+  return { mode, model, profile, profileSource, background, timeout, conversation, parentJobId: prior?.id || null, originalCwd: prior?.cwd || null };
 }
 
 /** Task text comes from exactly one source: --prompt, --prompt-file, or
@@ -1064,23 +1080,42 @@ function treeDeltaReport(mode, before, after) {
 }
 
 async function executeRun(resolved, prompt, opts, execution = null) {
-  const implementBefore = implementGuardApplies(resolved) ? porcelainSnapshot() : null;
-  const treeBefore = treeReportApplies(resolved) ? porcelainSnapshot() : null;
+  const workspaceBefore = resolved.mode === 'ask' ? null : porcelainSnapshot();
+  const implementBefore = implementGuardApplies(resolved) ? workspaceBefore : null;
+  const treeBefore = treeReportApplies(resolved) ? workspaceBefore : null;
 
   const invoke = {
     prompt,
+    workspace: repoRoot(),
     model: resolved.model,
     timeout: resolved.timeout,
     conversation: resolved.conversation,
     unrestricted: resolved.profile === 'unrestricted',
     jsonSchema: opts.json && resolved.mode === 'review' ? REVIEW_JSON_SCHEMA : null,
   };
-  const result = execution ? await execution(invoke) : runAgy(invoke);
-  const treeAfter = treeBefore ? porcelainSnapshot() : null;
+  let result, response;
+  try {
+    result = execution ? await execution(invoke) : runAgy(invoke);
+    rememberConversation(resolved, result.payload.conversation_id, opts.jobId);
+    response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model);
+  } catch (error) {
+    error.workspace = {
+      before: excerpt(workspaceBefore?.join('\n') ?? 'Git status unavailable', 3000),
+      after: excerpt(porcelainSnapshot()?.join('\n') ?? 'Git status unavailable', 3000),
+      note: 'Inspect git status --short, git diff and git diff --cached. Status cannot detect further edits to already dirty files; no workspace rollback was performed.' };
+    if (error.reason === 'response_timeout' && !resolved.background) {
+      const conversation = result.payload.conversation_id;
+      const recovery = timeoutRecovery({ ...resolved, conversation_id: conversation });
+      die(`${error.message}\n${JSON.stringify({
+        status: conversation ? 'attention' : 'error', reason: error.reason,
+        conversation_id: conversation || null, mode: resolved.mode, model: resolved.model,
+        profile: resolved.profile, recovery,
+      }, null, 2)}`, conversation ? 5 : 1);
+    }
+    throw error;
+  }
   const payload = result.payload;
-
-  rememberConversation(resolved, payload.conversation_id, opts.jobId);
-  const response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model);
+  const treeAfter = treeBefore ? porcelainSnapshot() : null;
   opts.warnings = !!(result.stderr || result.observationWarnings?.length || result.exit !== 0 || (payload.status && payload.status.toUpperCase() !== 'SUCCESS'));
 
   // Telemetry is plumbing, not content: it goes to stderr so it never mixes
@@ -1089,6 +1124,7 @@ async function executeRun(resolved, prompt, opts, execution = null) {
   // it lands there as the job's provenance record.
   process.stderr.write(
     `[agy-staff] mode=${resolved.mode} profile=${resolved.profile} model=${resolved.model} ` +
+      `agy_status=${payload.status || 'unknown'} agy_exit=${result.exit} ` +
       `duration=${payload.duration_seconds ?? '?'}s turns=${payload.num_turns ?? '?'} tokens(${fmtTokens(payload.usage)})\n` +
       `conversation: ${payload.conversation_id || 'unknown'} (follow up with --continue)\n`
   );
@@ -1104,6 +1140,7 @@ async function executeRun(resolved, prompt, opts, execution = null) {
 function cmdRun(mode, opts) {
   const task = taskText(opts); // Resolve prompt-file/stdin in the caller's cwd.
   const resolved = resolveRun(mode, opts);
+  enterOriginalWorkspace(resolved.originalCwd);
   if (resolved.parentJobId) {
     const prior = findJob(resolved.parentJobId);
     enterOriginalWorkspace(prior.cwd);
@@ -1169,8 +1206,8 @@ async function dispatch(resolved, prompt, opts) {
       `model: ${resolved.model}  profile: ${resolved.profile}  timeout: ${resolved.timeout}\n` +
       `result file (written when the job finishes): ${resultFile}\n` +
       `Collect: run \`wait ${jobId} --timeout 10m\` as a background command ` +
-      `(one background wait per job; exit 0 = result printed, 2 = still running — inspect the attached snapshot and decide whether to wait again).\n` +
-      `Peek: \`observe ${jobId}\`   Stop: \`cancel ${jobId}\`\n`
+      `(one background wait per job; exit 0 = result printed, 2 = still running — wait again for the same job, without extra progress checks).\n` +
+      `Progress only if the user asks: \`observe ${jobId}\`   Stop: \`cancel ${jobId}\`\n`
   );
 }
 
@@ -1195,10 +1232,7 @@ async function workerMain(jobId) {
     const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
     const opts = { ...spec.opts, jobId };
     const output = await executeRun(spec.resolved, spec.prompt, opts, (invoke) => {
-      const args = ['-p', invoke.prompt, '--model', invoke.model, '--output-format', 'stream-json', '--print-timeout', invoke.timeout];
-      if (invoke.conversation) args.push('--conversation', invoke.conversation);
-      if (invoke.unrestricted) args.push('--dangerously-skip-permissions');
-      if (invoke.jsonSchema) args.push('--json-schema', invoke.jsonSchema);
+      const args = agyArgs(invoke, 'stream-json');
       return runStreaming({ binary: AGY_BIN, args, job,
         budget: durationToMs(spec.resolved.timeout) - (Date.now() - started), signal: controller.signal,
         update: (fields) => updateJob(jobId, fields),
@@ -1223,12 +1257,14 @@ async function workerMain(jobId) {
     job = loadState().jobs?.find((j) => j.id === jobId);
     if (!job) throw error;
     const reason = job.cancel_requested_at ? 'canceled' : error.reason || 'agy_error';
-    const status = job.status === 'canceled' || reason === 'canceled' ? 'canceled' : 'error';
+    const status = job.status === 'canceled' || reason === 'canceled' ? 'canceled'
+      : isTimeoutReason(reason) && job.conversation_id ? 'attention' : 'error';
     job = finishJob(jobId, (completed) => {
-      const report = { ...diagnosticPacket(completed), result_exists: true, reason: completed.reason, last_snapshot: readObservation(completed) };
-      return `Job failed:\n${completed.reason === 'canceled' ? 'Execution canceled.' : error.message}\n\n${JSON.stringify(report, null, 2)}\n`;
+      const report = { ...diagnosticPacket(completed), result_exists: true, reason: completed.reason,
+        workspace: error.workspace, last_snapshot: readObservation(completed) };
+      return `${completed.status === 'attention' ? 'Job needs attention' : 'Job failed'}:\n${completed.reason === 'canceled' ? 'Execution canceled.' : error.message}\n\n${JSON.stringify(report, null, 2)}\n`;
     }, (current) => current.cancel_requested_at ? { status: 'canceled', reason: 'canceled' } : { status, reason });
-    process.exitCode = job.status === 'canceled' ? 4 : 1;
+    process.exitCode = JOB_EXIT_CODES[job.status] ?? 1;
   } finally {
     clearInterval(cancelTimer);
     process.removeListener('SIGTERM', onSignal);
@@ -1248,10 +1284,10 @@ function refreshJobs(state) {
 }
 
 function liveJobStatus(job) {
-  if (['done', 'canceled', 'error'].includes(job.status)) return job.status;
+  if (['done', 'canceled', 'error', 'attention'].includes(job.status)) return job.status;
   try {
     const final = JSON.parse(fs.readFileSync(job.result_file + '.status.json', 'utf8'));
-    if (['done', 'error', 'canceled'].includes(final.status)) return final.status;
+    if (['done', 'error', 'canceled', 'attention'].includes(final.status)) return final.status;
   } catch {}
   if (pidAlive(job.pid)) return 'running';
   // New jobs publish an explicit result status; never infer success from an
@@ -1262,7 +1298,7 @@ function liveJobStatus(job) {
 // Machine-readable job exit codes shared by `status <id>` and `wait`.
 // 1 stays the generic companion error, so callers can loop on "code 2"
 // without parsing any output.
-const JOB_EXIT_CODES = { done: 0, running: 2, error: 3, crashed: 3, canceled: 4 };
+const JOB_EXIT_CODES = { done: 0, running: 2, error: 3, crashed: 3, canceled: 4, attention: 5 };
 
 function cmdStatus(opts) {
   const state = loadState();
@@ -1365,6 +1401,31 @@ function readTail(file, limit = 8192) {
   } catch { return ''; } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 
+function isTimeoutReason(reason) {
+  return reason === 'response_timeout' || reason === 'hard_timeout';
+}
+
+function shellArg(value) {
+  return /^[a-zA-Z0-9_./:-]+$/.test(value) ? value : "'" + String(value).replaceAll("'", "'\\''") + "'";
+}
+
+function timeoutRecovery(job) {
+  const previous = durationToMs(job.timeout) || durationToMs(DEFAULTS.timeout[job.mode]) || 3600000;
+  const next = job.mode === 'ask' ? previous * 2 : Math.min(previous * 2, 7200000);
+  const suggested = next % 60000 === 0 ? `${next / 60000}m` : `${next / 1000}s`;
+  const target = job.id ? `--job ${shellArg(job.id)}` : `--conversation ${shellArg(job.conversation_id || '')}`;
+  return {
+    inspect: 'git status --short; git diff; git diff --cached', spec_file: job.spec_file || null,
+    requires_user_confirmation: true, suggested_timeout: suggested, at_timeout_ceiling: next <= previous,
+    continue: job.conversation_id ? `continue ${target} --timeout ${suggested} --prompt "Continue after inspecting partial workspace changes"` : null,
+    restart: job.id ? `restart ${shellArg(job.id)} --timeout ${suggested}` : null,
+    note: job.conversation_id
+      ? 'Ask the user whether to continue ' + (next <= previous ? 'with a narrower task at the 120m ceiling' : `with a larger timeout (suggested: ${suggested})`) +
+        ' or stop and inspect the current workspace. No automatic retry or continuation.'
+      : 'No conversation ID is available. Inspect partial workspace changes and ask the user before restarting. No retry was started.',
+  };
+}
+
 function diagnosticPacket(job) {
   let logBytes = null;
   try { logBytes = fs.statSync(job.log_file).size; } catch {}
@@ -1374,7 +1435,7 @@ function diagnosticPacket(job) {
     log_state: logBytes === null ? 'missing' : logBytes === 0 ? 'empty' : 'present',
     result_exists: fs.existsSync(job.result_file), log_file: job.log_file, events_file: job.events_file || null,
     conversation_id: job.conversation_id || null, model: job.model || null, profile: job.profile || null,
-    recovery: { inspect: 'git status --short; git diff', spec_file: job.spec_file || null,
+    recovery: isTimeoutReason(job.reason) ? timeoutRecovery(job) : { inspect: 'git status --short; git diff', spec_file: job.spec_file || null,
       continue: job.conversation_id ? `continue --job ${job.id} --prompt "Continue after inspecting partial workspace changes"` : null,
       restart: `restart ${job.id}`, note: 'Inspect partial workspace changes first. Recovery creates a linked new job with a fresh budget; nothing is retried automatically.' },
   };
@@ -1398,11 +1459,12 @@ function readTerminalObservation(job, status) {
     },
   };
   if (status !== 'done') {
-    const packet = diagnosticPacket(job);
     const reason = job.reason || final.reason || (status === 'crashed' ? 'worker_crashed' : status === 'canceled' ? 'canceled' : 'job_error');
+    const packet = diagnosticPacket({ ...job, ...final, reason });
     Object.assign(snapshot, {
       reason,
-      summary: reason === 'hard_timeout' ? 'Execution stopped at its hard limit.' : `Job ${status}; inspect the retained report and diagnostics.`,
+      summary: status === 'attention' ? 'Timeout with a resumable conversation; ask the user whether to continue.'
+        : reason === 'hard_timeout' ? 'Execution stopped at its hard limit.' : `Job ${status}; inspect the retained report and diagnostics.`,
       conversation_id: job.conversation_id || null, model: job.model || null, profile: job.profile || null,
       worker_started_at: job.worker_started_at || null, pid: job.pid, agy_pid: job.agy_pid || null,
       log_state: packet.log_state, log_bytes: packet.log_bytes,
@@ -1434,6 +1496,10 @@ function renderJobResponse(initial, { observeOnly = false } = {}) {
     process.exitCode = JOB_EXIT_CODES[status] ?? 1;
     return;
   }
+  // Include warning metadata when the sidecar precedes the registry commit.
+  if (job.status === 'running') {
+    try { job = { ...job, ...JSON.parse(fs.readFileSync(job.result_file + '.status.json', 'utf8')) }; } catch {}
+  }
   if (fs.existsSync(job.result_file)) {
     process.stdout.write(`# Job ${job.id} (${job.mode}, ${status})\n\n`);
     process.stdout.write(fs.readFileSync(job.result_file, 'utf8'));
@@ -1441,6 +1507,9 @@ function renderJobResponse(initial, { observeOnly = false } = {}) {
     process.stdout.write(`Job ${job.id} (${job.mode}) finished with status ${status} and no stored result. Log: ${job.log_file}\n`);
     process.stdout.write(JSON.stringify(diagnosticPacket(job), null, 2) + '\n');
     if (status === 'crashed') process.stdout.write(`\n${CRASH_SANDBOX_HINT}\n`);
+  }
+  if (status === 'done' && job.warnings) {
+    process.stderr.write(`Job diagnostics (tail, up to 8192 bytes). Full log: ${job.log_file}\n${readTail(job.log_file)}\n`);
   }
   process.exitCode = JOB_EXIT_CODES[status] ?? 1;
 }
@@ -1468,8 +1537,9 @@ function cmdResult(opts) {
     }
     die(msg);
   }
-  process.stdout.write(`# Job ${job.id} (${job.mode}, ${job.status})\n\n`);
-  process.stdout.write(fs.readFileSync(job.result_file, 'utf8'));
+  renderJobResponse(job);
+  // Preserve result's historical exit contract for non-attention terminal states.
+  process.exitCode = job.status === 'attention' ? 5 : 0;
 }
 
 async function cmdCancel(opts) {
@@ -1530,7 +1600,8 @@ function enterOriginalWorkspace(cwd) {
 function cmdContinue(opts) {
   const state = loadState();
   const targetId = opts.conversation || state.last?.id;
-  const prior = opts.job ? findJob(opts.job) : [...(state.jobs || [])].reverse().find((j) => j.conversation_id === targetId);
+  const prior = opts.job ? findJob(opts.job) : [...(state.jobs || [])].reverse().find((j) => j.conversation_id === targetId)
+    || state.conversation_configs?.[targetId];
   const legacyMode = Object.entries(state.conversations || {}).find(([, id]) => id === targetId)?.[0];
   const mode = prior?.mode || legacyMode || (state.last?.id === targetId ? state.last?.mode : null);
   const conversation = prior?.conversation_id || targetId;
@@ -1637,10 +1708,14 @@ function cmdSetup(opts) {
   try {
     settings = JSON.parse(fs.readFileSync(AGY_SETTINGS, 'utf8'));
     exists = true;
-  } catch {}
+  } catch (error) {
+    if (error.code !== 'ENOENT') die(`cannot read settings ${AGY_SETTINGS}: ${error.message}`);
+  }
 
   const current = settings.permissions?.allow || [];
+  const denied = settings.permissions?.deny || [];
   const missing = EVIDENCE_ALLOWLIST.filter((r) => !current.includes(r));
+  const missingDeny = EVIDENCE_DENYLIST.filter((r) => !denied.includes(r));
 
   process.stdout.write(`agy CLI: OK (version ${v.out})\n`);
   const profiles = loadProjectConfig()?.profiles || {};
@@ -1651,9 +1726,8 @@ function cmdSetup(opts) {
     : '(none — built-in defaults apply)';
   process.stdout.write(`Project policy (${configPath()}): ${policyLine}\n`);
   process.stdout.write(`Global settings file: ${AGY_SETTINGS} ${exists ? '(exists)' : '(will be created)'}\n\n`);
-
-  if (!missing.length) {
-    process.stdout.write('The evidence-gathering command allowlist is already installed. Nothing to do.\n');
+  if (!missing.length && !missingDeny.length) {
+    process.stdout.write('The evidence-gathering allow/deny rules are already installed. Nothing to do.\n');
     printSetupNotes();
     return;
   }
@@ -1662,22 +1736,26 @@ function cmdSetup(opts) {
     'Setup is optional hardening: research/review/implement already run unrestricted by default.\n' +
       'It only matters if you use `--restricted`, which keeps agy\'s permission enforcement on.\n'
   );
-  process.stdout.write('For a restricted run to gather evidence autonomously it needs this command allowlist:\n\n');
+  process.stdout.write('Evidence-gathering rules for restricted runs — permissions.allow:\n\n');
   for (const r of EVIDENCE_ALLOWLIST) {
     process.stdout.write(`  ${r}${current.includes(r) ? '  (already present)' : ''}\n`);
   }
-  process.stdout.write(`\nThey will be appended to "permissions.allow" in ${AGY_SETTINGS}.\n`);
+  process.stdout.write('\npermissions.deny (AGY evaluates deny before ask before allow):\n\n');
+  for (const r of EVIDENCE_DENYLIST) {
+    process.stdout.write(`  ${r}${denied.includes(r) ? '  (already present)' : ''}\n`);
+  }
+  process.stdout.write(`\nMissing rules will be appended to "permissions.allow" and "permissions.deny" in ${AGY_SETTINGS}.\n`);
   process.stdout.write(
     'Scope: this file is GLOBAL — the rules apply to every agy run on this machine, not just this repository.\n' +
-      'These rules are NOT read-only: agy prefix-matches the command target, so command(git) also permits\n' +
-      '`git push` / `git reset --hard` and command(gh) also permits `gh pr merge`.\n'
+      'Broad git/gh grants avoid enumerating every task\'s commands; five deny prefixes block common risky operations.\n' +
+      'These rules are NOT read-only: other command forms, scripts and APIs can still write or cause external effects.\n'
   );
 
   if (!opts.apply) {
     process.stdout.write(
       policyWritten
-        ? '\nALLOWLIST DRY RUN — the global settings file was not touched (only the project policy above was written).\n' +
-            'The settings file will be backed up first. To apply the allowlist: rerun with --apply after the user confirms.\n'
+        ? '\nRULES DRY RUN — the global settings file was not touched (only the project policy above was written).\n' +
+            'The settings file will be backed up first. To apply the rules: rerun with --apply after the user confirms.\n'
         : '\nDRY RUN — nothing written. The settings file will be backed up first.\n' +
             'To apply: rerun with --apply after the user confirms.\n'
     );
@@ -1695,20 +1773,21 @@ function cmdSetup(opts) {
 
   settings.permissions = settings.permissions || {};
   settings.permissions.allow = [...current, ...missing];
+  settings.permissions.deny = [...denied, ...missingDeny];
   fs.writeFileSync(AGY_SETTINGS, JSON.stringify(settings, null, 2) + '\n');
-  process.stdout.write(`Wrote ${missing.length} allow-rule(s) to ${AGY_SETTINGS}. Setup complete.\n`);
+  process.stdout.write(`Wrote ${missing.length} allow-rule(s) and ${missingDeny.length} deny-rule(s) to ${AGY_SETTINGS}. Setup complete.\n`);
   printSetupNotes();
 }
 
 function printSetupNotes() {
   process.stdout.write(
     '\nNotes:\n' +
-      '- Scope: the allowlist lives in the GLOBAL settings file above, so it applies to every agy run on\n' +
+      '- Scope: these rules live in the GLOBAL settings file above, so they apply to every agy run on\n' +
       '  this machine, in any repository — not only where you ran setup.\n' +
-      '- Command rules are prefix-matched on the command target: command(git) matches "git add" but not\n' +
-      '  "github". Prefix matching does not distinguish reads from writes — command(git) also allows\n' +
-      '  "git push" and "git reset --hard", command(gh) also allows "gh pr merge". Treat this as an\n' +
-      '  evidence-gathering allowlist, not a read-only one.\n' +
+      '- Command rules are prefix-matched by AGY, with deny > ask > allow. Existing rules are preserved.\n' +
+      '  Denied operations stay denied even when requested in the prompt; change the rules explicitly if needed.\n' +
+      '  Other command forms, scripts and APIs are not covered. This is an evidence-gathering setup,\n' +
+      '  not a read-only one or a guarantee that every irreversible action is blocked.\n' +
       '- Security-sensitive users can scope permissions per project instead: agy supports project-scoped\n' +
       '  permission rules (highest priority) tied to its --project system, but the exact project-settings\n' +
       '  file path is undocumented/unverified, so this setup only edits the global file above. If a rule\n' +

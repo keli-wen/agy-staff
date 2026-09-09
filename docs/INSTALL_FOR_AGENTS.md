@@ -116,7 +116,7 @@ Show the user the full dry-run output and state these four things plainly before
 
 1. Which command rules would be added, and that they exist so `--restricted` runs can gather evidence unattended.
 2. The target file is the **global** `~/.gemini/antigravity-cli/settings.json`, so the rules apply to every `agy` run on this machine — not only to agy-staff jobs.
-3. The rules are **prefix-matched, so this is not a read-only allowlist**: `command(git)` also matches `git push`, `command(gh)` also matches `gh pr merge`.
+3. Setup keeps broad git/gh grants and adds five native deny prefixes: `git push`, `git reset --hard`, `git clean`, `gh pr merge`, and `gh release delete`. AGY evaluates deny > ask > allow. Existing rules are preserved, and the dry run shows any additions. This prevents common mistakes, not every irreversible action: alternate command forms, scripts and APIs are not comprehensively covered. Task authorization does not override deny.
 4. The existing file is backed up before writing.
 
 Apply only after the user explicitly agrees. If they decline, nothing is lost from the default experience — all four modes keep working; they simply cannot harden a run with `--restricted` until the allowlist exists.
@@ -127,12 +127,14 @@ If the user is security-sensitive and the machine-wide scope is unacceptable, te
 
 `ask` returns its answer synchronously. `staffer`, `research`, `review` and `implement` return a job id, and the job-start output prints the exact collect command (`wait <id> --timeout 10m`). Run that as a background command — one background wait per job — and deliver the result when it exits; exit code 2 means still running, so run the same `wait` again (`cancel <id>` stops the job). Do not leave a started job unreported.
 
+Exit 5 signals a timeout with a resumable conversation. Inspect the retained workspace changes and ask whether to continue with the suggested timeout or stop; recover only after explicit user confirmation. The continuation command preserves the original persona/model/profile. This also applies to synchronous `ask`; no run automatically retries or continues.
+
 Per-repo state lives in `<repo>/.agy-staff/`; the companion git-ignores it automatically on first use (via `.git/info/exclude` — the tracked `.gitignore` is never touched).
 
 ## 6. Report back
 
-Tell the user, in **their** language: whether install succeeded (name the version and whether it came from the GitHub slug or a local checkout), the smoke-test result, whether a restart is still needed before the skills load, and whether the optional setup allowlist was applied, declined, or never offered (the default unrestricted profile does not need it).
+Tell the user, in **their** language: whether install succeeded (name the version and whether it came from the GitHub slug or a local checkout), the smoke-test result, whether a restart is still needed before the skills load, and whether the optional setup rules were applied, declined, or never offered (the default unrestricted profile does not need it).
 
-On wait exit 2, inspect the attached snapshot before deciding whether to wait again, inspect bounded log excerpts or cancel. `observe <id>` is immediate. The worker has a separate 60m hard limit; its error report contains explicit job-linked recovery commands. The host controls tool-result delivery and future model invocations; use shorter waits if it cannot deliver background completion.
+Default: prepare the prompt, dispatch, wait for the final result, then validate as needed. On wait exit 2, wait again for the same job without extra progress checks. While running, do not proactively observe, read logs or inspect intermediate artifacts, including for routine updates. Observe only when the user explicitly asks for progress; diagnose after a failure or a result requiring intervention. Host collection of a pending wait command is necessary result collection, not active observation. Prefer background completion delivery or the longest practical blocking wait the host supports; avoid short empty polls and sleep/observe loops. The worker's hard limit and explicit recovery protocol remain separate from wait soft expiry.
 
 `observe <id>` always returns bounded JSON, including after completion. Its exit 0 means the job finished; collect the existing wait session or use `result <id>` to obtain the full report. Observation does not consume the waiting command’s output.

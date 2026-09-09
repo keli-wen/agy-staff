@@ -1,6 +1,8 @@
 # Companion regression tests
 
-Regression tests for the 0.6.0 companion interface: black-box CLI tests for `companion/agy-companion.mjs`, plus focused tests for observation parsing, byte budgets and state locking.
+Regression tests for the 0.6.1 companion interface: black-box CLI tests for `companion/agy-companion.mjs`, plus focused tests for observation parsing, byte budgets and state locking.
+
+`issue-regressions.test.mjs` covers #8 response-timeout attention and conversation configuration history, #9 workspace attachment across execution/recovery paths, and #10 broad allow plus targeted deny setup rules, preserving existing settings and upgrading deny-only gaps. Timeout tests distinguish complete answers, unrelated errors, absent conversation IDs and the background timeout ceiling; terminal-observation tests cover attention publication races. All use fake AGY and temporary workspaces/settings.
 The standard suite uses Node's built-in test runner and assertions, with no test dependencies or model/network calls. Run unsandboxed when the host restricts process inspection/signals: lifecycle tests use `ps` to verify detached descendant cleanup. Packaging tests also use npm and tar. The optional Pi integration suite uses a separately installed Pi CLI, never a model provider; the opt-in real AGY suite below does make model calls.
 
 ## Run

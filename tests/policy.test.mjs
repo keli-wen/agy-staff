@@ -28,7 +28,7 @@ describe('setup --restrict writes the project policy', () => {
     // honest framing: preference, not enforcement
     assert.match(r.stdout, /run policy for\s+consistency, not a security\s+boundary|not a security\s*boundary/);
     // the allowlist part of setup stays a dry run
-    assert.match(r.stdout, /ALLOWLIST DRY RUN/);
+    assert.match(r.stdout, /RULES DRY RUN/);
     assert.deepEqual(fs.readdirSync(sb.home), [], 'policy write must not touch HOME');
 
     const cfg = JSON.parse(fs.readFileSync(configFile(sb), 'utf8'));

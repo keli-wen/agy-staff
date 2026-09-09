@@ -14,15 +14,12 @@ import path from 'node:path';
 import { sandbox, run } from './helpers.mjs';
 
 const EVIDENCE_ALLOWLIST = [
-  'command(git)',
-  'command(gh)',
-  'command(cat)',
-  'command(head)',
-  'command(ls)',
-  'command(grep)',
-  'command(find)',
-  'command(rg)',
-  'command(wc)',
+  'command(git)', 'command(gh)', 'command(cat)', 'command(head)',
+  'command(ls)', 'command(grep)', 'command(find)', 'command(rg)', 'command(wc)',
+];
+const EVIDENCE_DENYLIST = [
+  'command(git push)', 'command(git reset --hard)', 'command(git clean)',
+  'command(gh pr merge)', 'command(gh release delete)',
 ];
 
 describe('setup dry run', () => {
@@ -36,9 +33,12 @@ describe('setup dry run', () => {
     assert.match(r.stdout, new RegExp(`${sb.home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     assert.match(r.stdout, /\.gemini\/antigravity-cli\/settings\.json \(will be created\)/);
 
-    for (const rule of EVIDENCE_ALLOWLIST) {
-      assert.ok(r.stdout.includes(rule), `missing allow-rule ${rule} in setup output`);
+    for (const rule of [...EVIDENCE_ALLOWLIST, ...EVIDENCE_DENYLIST]) {
+      assert.ok(r.stdout.includes(rule), `missing rule ${rule} in setup output`);
     }
+
+    assert.match(r.stdout, /permissions\.deny/);
+    assert.match(r.stdout, /deny > ask > allow/);
 
     // round-2 framing: optional hardening, tied to --restricted, not a
     // prerequisite for the tool-using modes
@@ -79,4 +79,18 @@ describe('setup dry run', () => {
     assert.match(r.stdout, /DRY RUN — nothing written/);
     assert.deepEqual(fs.readdirSync(sb.home), []);
   });
+});
+
+
+test('setup refuses malformed settings without replacing the original', () => {
+  const sb = sandbox('setup-invalid');
+  const settings = path.join(sb.home, '.gemini/antigravity-cli/settings.json');
+  fs.mkdirSync(path.dirname(settings), { recursive: true });
+  const original = '{"permissions":{"deny":[';
+  fs.writeFileSync(settings, original);
+  const result = run(sb, ['setup', '--apply']);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /cannot read settings/);
+  assert.equal(fs.readFileSync(settings, 'utf8'), original);
+  assert.deepEqual(fs.readdirSync(path.dirname(settings)), ['settings.json']);
 });

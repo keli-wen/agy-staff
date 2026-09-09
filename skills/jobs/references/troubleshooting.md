@@ -16,12 +16,12 @@ Fix: run job management commands (`wait`, `status`, `result`, `cancel`) in the s
 
 The fail-closed signature of a restricted run: headless agy auto-denies every unlisted tool call, so agy finishes "successfully" with nothing to say. The companion's error message carries the exact guidance — run `setup` once to install the evidence-gathering allowlist (see `setup.md`), or pass `--unrestricted` explicitly when authorized (continuations inherit the previous profile; new tool-using tasks default to unrestricted). Note that some agy tools ignore allow-rules in headless mode entirely, so even a complete allowlist cannot make them work; those need an unrestricted run. An empty response from an *unrestricted* run is not a permission issue — report it.
 
-## done_with_warnings (error status, complete response)
+## done_with_warnings (error status, response text)
 
-When agy reports an error but a complete response came back (e.g. one tool call timed out during wrap-up), the companion delivers the response anyway: exit 0, response on stdout, warning on stderr (in the job log for background runs). Deliver the response; mention the warning. Only a run with *no* response is a failure.
+When agy reports an error but response text came back, the companion delivers the response anyway: exit 0, response on stdout, warning on stderr (retained in the job log and included as a bounded tail during background result collection). Assess the response against the task and review the diagnostics before deciding whether more work is needed. An empty response at a deadline with a known conversation instead needs attention (exit 5); other empty responses remain failures.
 
 ## Retry rules
 
 - Do not retry with different flags unless the error message itself names the exact flag.
-- For a timeout, inspect the retained result and workspace before explicit recovery. Background `--timeout` defaults to 60m and accepts at most 120m; increase it only below that ceiling, otherwise narrow the task. A known conversation ID lets `continue` resume with its recorded configuration. A response already received before the hard deadline is delivered with a warning, so do not restart a completed job merely because cleanup timed out.
+- For a timeout, inspect the retained result and workspace. Exit 5 means the conversation is resumable: ask the user whether to continue with the suggested timeout or stop, and recover only after explicit confirmation. Background `--timeout` defaults to 60m and accepts at most 120m; increase it only below that ceiling, otherwise narrow the task. A known conversation ID lets `continue` resume with its recorded configuration. A response already received before the hard deadline is delivered with a warning, so do not restart a completed job merely because cleanup timed out.
 - Model-id errors fail pre-flight with the valid ids in the message (`agy models` lists them); expired auth means running `agy` interactively once to re-login.

@@ -50,7 +50,7 @@ test('hard deadline keeps init metadata and recovery configuration despite unrel
   const sb = sandbox('hard-deadline');
   const id = jobIdOf(run(sb, ['review', '--restricted', '--model', 'gemini-3.8-flash-high', '--timeout', '800ms', '--prompt', 'review this'], { FAKE_AGY_SLEEP_MS: '5000' }).stdout);
   const result = run(sb, ['wait', id]);
-  assert.equal(result.code, 3, result.stdout + result.stderr);
+  assert.equal(result.code, 5, result.stdout + result.stderr);
   assert.match(result.stdout, /hard_timeout/);
   const old = job(sb, id);
   assert.equal(old.reason, 'hard_timeout');
@@ -86,7 +86,7 @@ test('cancel stops execution and late completion cannot overwrite its record', a
 });
 
 test('warning results and ERROR timeout payloads retain streams and conversations', () => {
-  for (const [response, expected] of [['deliverable', 0], ['', 3]]) {
+  for (const [response, expected] of [['deliverable', 0], ['', 5]]) {
     const sb = sandbox('stream-error');
     const id = jobIdOf(run(sb, ['research', '--prompt', 'test'], { FAKE_AGY_RESPONSE: response, FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_ERROR: 'timeout waiting for response', FAKE_AGY_EXIT: '1' }).stdout);
     const result = run(sb, ['wait', id]);
@@ -138,7 +138,7 @@ test('hard stop escalates for a SIGTERM-resistant CLI and detached descendant', 
   const id = jobIdOf(run(sb, ['staffer', '--timeout', '1500ms', '--prompt', 'test'], { FAKE_AGY_SLEEP_MS: '9000', FAKE_AGY_IGNORE_TERM: '1', FAKE_AGY_CHILD_PID_FILE: pidFile }).stdout);
   await waitForCalls(sb, 1);
   const result = run(sb, ['wait', id]);
-  assert.equal(result.code, 3, result.stdout + result.stderr);
+  assert.equal(result.code, 5, result.stdout + result.stderr);
   assert.match(result.stdout, /hard_timeout/);
   assert.equal(alive(job(sb, id).agy_pid), false);
   const pid = Number(fs.readFileSync(pidFile, 'utf8'));
@@ -175,4 +175,21 @@ test('mode --continue also preserves original configuration and links the job', 
   assert.equal(job(sb, next).parent_job_id, id);
   assert.equal(job(sb, next).model, 'gemini-3.8-flash-low');
   assert.equal(job(sb, next).profile, 'restricted');
+});
+
+
+test('native SUCCESS and background-cleanup diagnostics are delivered without task-completion inference', () => {
+  const sb = sandbox('native-response-delivery');
+  const response = 'Command launched. Waiting for completion.';
+  const diagnostics = 'root agent idle; waiting for 1 background task(s) (bounded by --print-timeout)\nterminating 1 background task(s) on exit';
+  const id = jobIdOf(run(sb, ['staffer', '--prompt', 'test'], { FAKE_AGY_RESPONSE: response, FAKE_AGY_STDERR: diagnostics }).stdout);
+  for (const command of ['wait', 'result']) {
+    const r = run(sb, [command, id]);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.ok(r.stdout.endsWith(response + '\n'));
+    assert.ok(r.stderr.includes(diagnostics));
+    assert.match(r.stderr, /agy_status=SUCCESS agy_exit=0/);
+  }
+  assert.equal(job(sb, id).status, 'done');
+  assert.ok(fs.existsSync(job(sb, id).events_file));
 });

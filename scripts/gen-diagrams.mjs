@@ -227,7 +227,7 @@ function diagramIntegration() {
   ${chevron(T2.x + T2.w + 10, midY)}
   ${turn(T3, 'Keep working', ['Use other tools,', 'delegate more work,', 'or talk to the user.'])}
   ${chevron(T3.x + T3.w + 10, midY)}
-  ${turn(T4, 'Check progress', ['Call observe when', 'progress matters.', 'Read a small snapshot.'], OBS_C)}
+  ${turn(T4, 'If user asks', ['Observe only on a', 'user progress request.', 'Otherwise wait.'], OBS_C)}
   ${chevron(T4.x + T4.w + 10, midY)}
   ${turn(T5, 'Use the result', ['The wait finishes.', 'The host returns the', 'report to the agent.'], DONE_C)}
 
@@ -285,7 +285,7 @@ function diagramIntegration() {
   ${fact(px(CLOCK, 340, 592, 2, AMBER), 338, 370, 607, 'Host schedules agent turns')}
   ${px(PLUG, 615, 592, 2, LINK)}<text x="644" y="607" font-size="12.5"><tspan font-weight="700" fill="${LINK}">Skills + shell tools</tspan></text>`;
 
-  return shell(W, H, 'agy-staff exposes asynchronous agent work through persona skills and ordinary shell tool calls. The host agent delegates a task, receives a job ID, and starts a background wait where supported. It can continue other work or request a bounded progress snapshot. The worker runs AGY independently, continuously drains its stream-json output, stores events and progress, and saves a final report. Wait expiry leaves execution running. The host controls model scheduling while the worker enforces a separate deadline, default 60 minutes and configurable up to 120 minutes.', body);
+  return shell(W, H, 'agy-staff exposes asynchronous agent work through persona skills and ordinary shell tool calls. The host agent delegates a task, receives a job ID, and starts a background wait where supported. It can continue other work; only an explicit user progress question triggers a bounded snapshot. The worker runs AGY independently, continuously drains its stream-json output, stores events and progress, and saves a final report. Wait expiry leaves execution running. The host controls model scheduling while the worker enforces a separate deadline, default 60 minutes and configurable up to 120 minutes.', body);
 }
 
 // Keep the optional integration argument compatible with earlier regeneration commands.
