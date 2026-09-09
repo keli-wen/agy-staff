@@ -28,6 +28,7 @@ function observation(sb, id, code) {
 
 test('observe stays bounded after legacy completion; independent reads never consume the full result', () => {
   const { sb, job, stateFile } = storedJob('done', { warnings: true });
+  fs.writeFileSync(job.log_file, 'OLD_DIAGNOSTIC\n' + 'x'.repeat(16000) + '\nNATIVE_DIAGNOSTIC\n');
   const before = fs.readFileSync(stateFile, 'utf8');
   for (let i = 0; i < 2; i++) {
     const s = observation(sb, job.id, 0);
@@ -41,6 +42,9 @@ test('observe stays bounded after legacy completion; independent reads never con
   for (const command of ['wait', 'result']) {
     const r = run(sb, [command, job.id]);
     assert.equal(r.code, 0); assert.equal(r.stdout, `# Job ${job.id} (research, done)\n\n` + body);
+    assert.match(r.stderr, /NATIVE_DIAGNOSTIC/);
+    assert.doesNotMatch(r.stderr, /OLD_DIAGNOSTIC/);
+    assert.ok(Buffer.byteLength(r.stderr) < 10000);
   }
 });
 
@@ -60,6 +64,9 @@ test('error, attention and cancellation return terminal metadata/recovery rather
 
 test('terminal sidecar race and a crash without a result still produce inspectable bounded JSON', () => {
   const { sb, job, stateFile } = storedJob('running', { spec_file: '/stored.spec', finished_at: null });
+  fs.writeFileSync(job.log_file, 'SIDECAR_WARNING');
+  fs.writeFileSync(job.result_file + '.status.json', JSON.stringify({ status: 'done', warnings: true }));
+  for (const command of ['wait', 'result']) assert.match(run(sb, [command, job.id]).stderr, /SIDECAR_WARNING/);
   fs.writeFileSync(job.result_file + '.status.json', JSON.stringify({ status: 'error', reason: 'hard_timeout', finished_at: '2026-09-07T00:02:00Z' }));
   const s = observation(sb, job.id, 3);
   assert.equal(s.status, 'error'); assert.equal(s.reason, 'hard_timeout'); assert.equal(s.elapsed_seconds, 120);
@@ -69,7 +76,7 @@ test('terminal sidecar race and a crash without a result still produce inspectab
   assert.equal(attention.recovery.requires_user_confirmation, true);
   assert.equal(attention.recovery.suggested_timeout, '120m');
   assert.equal(run(sb, ['result', job.id]).code, 5);
-  fs.unlinkSync(job.result_file + '.status.json'); fs.unlinkSync(job.result_file);
+  fs.unlinkSync(job.result_file + '.status.json'); fs.unlinkSync(job.result_file); fs.unlinkSync(job.log_file);
   const crashed = observation(sb, job.id, 3);
   assert.equal(crashed.status, 'crashed'); assert.equal(crashed.result_available, false);
   assert.equal(crashed.log_state, 'missing'); assert.match(crashed.liveness_note, /permission or sandbox context/);

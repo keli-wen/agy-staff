@@ -176,3 +176,20 @@ test('mode --continue also preserves original configuration and links the job', 
   assert.equal(job(sb, next).model, 'gemini-3.8-flash-low');
   assert.equal(job(sb, next).profile, 'restricted');
 });
+
+
+test('native SUCCESS and background-cleanup diagnostics are delivered without task-completion inference', () => {
+  const sb = sandbox('native-response-delivery');
+  const response = 'Command launched. Waiting for completion.';
+  const diagnostics = 'root agent idle; waiting for 1 background task(s) (bounded by --print-timeout)\nterminating 1 background task(s) on exit';
+  const id = jobIdOf(run(sb, ['staffer', '--prompt', 'test'], { FAKE_AGY_RESPONSE: response, FAKE_AGY_STDERR: diagnostics }).stdout);
+  for (const command of ['wait', 'result']) {
+    const r = run(sb, [command, id]);
+    assert.equal(r.code, 0, r.stdout + r.stderr);
+    assert.ok(r.stdout.endsWith(response + '\n'));
+    assert.ok(r.stderr.includes(diagnostics));
+    assert.match(r.stderr, /agy_status=SUCCESS agy_exit=0/);
+  }
+  assert.equal(job(sb, id).status, 'done');
+  assert.ok(fs.existsSync(job(sb, id).events_file));
+});

@@ -16,9 +16,9 @@ Fix: run job management commands (`wait`, `status`, `result`, `cancel`) in the s
 
 The fail-closed signature of a restricted run: headless agy auto-denies every unlisted tool call, so agy finishes "successfully" with nothing to say. The companion's error message carries the exact guidance — run `setup` once to install the evidence-gathering allowlist (see `setup.md`), or pass `--unrestricted` explicitly when authorized (continuations inherit the previous profile; new tool-using tasks default to unrestricted). Note that some agy tools ignore allow-rules in headless mode entirely, so even a complete allowlist cannot make them work; those need an unrestricted run. An empty response from an *unrestricted* run is not a permission issue — report it.
 
-## done_with_warnings (error status, complete response)
+## done_with_warnings (error status, response text)
 
-When agy reports an error but a complete response came back (e.g. one tool call timed out during wrap-up), the companion delivers the response anyway: exit 0, response on stdout, warning on stderr (in the job log for background runs). Deliver the response; mention the warning. An empty response at a deadline with a known conversation instead needs attention (exit 5); other empty responses remain failures.
+When agy reports an error but response text came back, the companion delivers the response anyway: exit 0, response on stdout, warning on stderr (retained in the job log and included as a bounded tail during background result collection). Assess the response against the task and review the diagnostics before deciding whether more work is needed. An empty response at a deadline with a known conversation instead needs attention (exit 5); other empty responses remain failures.
 
 ## Retry rules
 

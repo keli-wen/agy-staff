@@ -759,10 +759,9 @@ function runAgy(invoke) {
 
 /** Triage the agy result into distinct classes with distinct guidance
  *  (never cross-suggested), or return the response text on success.
- *  1. status ERROR / nonzero exit, but a complete response came back
- *     → done_with_warnings: the deliverable exists, so return it (exit 0)
- *       and put the error on stderr. Discarding a finished answer because
- *       a late tool call failed loses data.
+ *  1. status ERROR / nonzero exit, but response text came back
+ *     → return the text (exit 0) and put diagnostics on stderr.
+ *       The orchestrator judges task completion; nonempty text is not proof.
  *  2. status ERROR / nonzero exit, no response
  *     → agy's own error verbatim; NEVER suggest --unrestricted. Cause
  *       hints are appended only when the error text actually matches them.
@@ -779,7 +778,7 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
     : '';
 
   // Match AGY's response deadline, not a tool/network timeout embedded in an
-  // unrelated error. A complete answer keeps the done-with-warnings contract.
+  // unrelated error. Response text keeps the done-with-warnings delivery contract.
   if (!response && (['TIMEOUT', 'TIMED_OUT', 'RESPONSE_TIMEOUT'].includes(status) ||
       (status === 'ERROR' && /^timeout waiting for response[.!]?$/i.test(String(payload.error || '').trim())))) {
     throw Object.assign(new Error(`agy timed out (status ${payload.status}) before finishing.` +
@@ -788,11 +787,10 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
 
   if ((status && status !== 'SUCCESS') || exit !== 0) {
     if (response) {
-      // done_with_warnings: the answer was produced before whatever failed
-      // (e.g. one tool call timing out during wrap-up). Deliver it.
+      // Preserve response text and diagnostics for the orchestrator to assess.
       process.stderr.write(
         `agy-staff warning: agy reported status ${payload.status || 'unknown'} (exit ${exit}) ` +
-          'but returned a complete response — delivering it anyway.\n' +
+          'but returned response text — delivering it for assessment.\n' +
           (payload.error ? `agy error: ${payload.error}\n` : '') +
           (stderr ? `agy stderr: ${stderr}\n` : '')
       );
@@ -1126,6 +1124,7 @@ async function executeRun(resolved, prompt, opts, execution = null) {
   // it lands there as the job's provenance record.
   process.stderr.write(
     `[agy-staff] mode=${resolved.mode} profile=${resolved.profile} model=${resolved.model} ` +
+      `agy_status=${payload.status || 'unknown'} agy_exit=${result.exit} ` +
       `duration=${payload.duration_seconds ?? '?'}s turns=${payload.num_turns ?? '?'} tokens(${fmtTokens(payload.usage)})\n` +
       `conversation: ${payload.conversation_id || 'unknown'} (follow up with --continue)\n`
   );
@@ -1497,6 +1496,10 @@ function renderJobResponse(initial, { observeOnly = false } = {}) {
     process.exitCode = JOB_EXIT_CODES[status] ?? 1;
     return;
   }
+  // Include warning metadata when the sidecar precedes the registry commit.
+  if (job.status === 'running') {
+    try { job = { ...job, ...JSON.parse(fs.readFileSync(job.result_file + '.status.json', 'utf8')) }; } catch {}
+  }
   if (fs.existsSync(job.result_file)) {
     process.stdout.write(`# Job ${job.id} (${job.mode}, ${status})\n\n`);
     process.stdout.write(fs.readFileSync(job.result_file, 'utf8'));
@@ -1504,6 +1507,9 @@ function renderJobResponse(initial, { observeOnly = false } = {}) {
     process.stdout.write(`Job ${job.id} (${job.mode}) finished with status ${status} and no stored result. Log: ${job.log_file}\n`);
     process.stdout.write(JSON.stringify(diagnosticPacket(job), null, 2) + '\n');
     if (status === 'crashed') process.stdout.write(`\n${CRASH_SANDBOX_HINT}\n`);
+  }
+  if (status === 'done' && job.warnings) {
+    process.stderr.write(`Job diagnostics (tail, up to 8192 bytes). Full log: ${job.log_file}\n${readTail(job.log_file)}\n`);
   }
   process.exitCode = JOB_EXIT_CODES[status] ?? 1;
 }
@@ -1531,11 +1537,9 @@ function cmdResult(opts) {
     }
     die(msg);
   }
-  process.stdout.write(`# Job ${job.id} (${job.mode}, ${job.status})\n\n`);
-  process.stdout.write(fs.readFileSync(job.result_file, 'utf8'));
-  // Preserve the historical result exit contract except for the new attention
-  // signal, which must reach callers collecting a timeout through result.
-  if (job.status === 'attention') process.exitCode = 5;
+  renderJobResponse(job);
+  // Preserve result's historical exit contract for non-attention terminal states.
+  process.exitCode = job.status === 'attention' ? 5 : 0;
 }
 
 async function cmdCancel(opts) {

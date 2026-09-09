@@ -64,8 +64,19 @@ try {
     fs.writeFileSync(path.join(cwd, 'observations.json'), JSON.stringify(samples, null, 2));
     fs.writeFileSync(path.join(cwd, 'terminal-observation.json'), JSON.stringify(terminalObservation, null, 2));
     fs.writeFileSync(path.join(cwd, 'delivery.txt'), delivery.stdout);
+    fs.writeFileSync(path.join(cwd, 'delivery.stderr.txt'), delivery.stderr);
     console.log(JSON.stringify(record));
-    assert.equal(result.code, kind === 'cancel' ? 4 : kind === 'hard_timeout' ? 5 : 0, result.stdout + result.stderr);
+    const nativeResult = kind === 'hard_timeout'
+      ? fs.readFileSync(job.events_file, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)).findLast(e => e.event === 'result')?.result
+      : null;
+    const deliveredText = !!nativeResult?.response?.trim();
+    assert.equal(result.code, kind === 'cancel' ? 4 : kind === 'hard_timeout' && !deliveredText ? 5 : 0, result.stdout + result.stderr);
+    if (kind === 'hard_timeout' && deliveredText) {
+      assert.ok(delivery.stdout.includes(nativeResult.response.trim()));
+      assert.ok(job.warnings, 'unfinished background cleanup must retain diagnostics');
+      assert.match(delivery.stderr, /Job diagnostics/);
+      assert.ok(delivery.stderr.includes(`agy_status=${nativeResult.status}`));
+    }
     assert.equal(survivors.length, 0, `surviving execution processes: ${survivors}`);
     assert.ok(job.conversation_id);
     if (stop) {
@@ -73,7 +84,7 @@ try {
       assert.ok(fs.existsSync(job.events_file));
       assert.ok(fs.existsSync(path.join(cwd, 'smoke-tool.pid')), 'a real tool must have started before stopping');
       if (kind === 'cancel') assert.ok(canceled);
-      else assert.equal(job.reason, 'hard_timeout');
+      else if (!deliveredText) assert.ok(['hard_timeout', 'response_timeout'].includes(job.reason));
     } else if (kind === 'normal') assert.match(delivery.stdout, /STREAM_SMOKE_OK/);
     else assert.match(delivery.stdout, /"verdict"\s*:\s*"approve"/);
   }
