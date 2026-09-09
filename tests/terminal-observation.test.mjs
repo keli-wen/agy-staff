@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { sandbox, run, jobIdOf, waitForCalls, COMPANION } from './helpers.mjs';
-const body = 'FULL_REPORT_ONLY_IN_DELIVERY\n' + '报告内容😀'.repeat(4500);
+const body = 'FULL_REPORT_ONLY_IN_DELIVERY\n' + '\u62a5\u544a\u5185\u5bb9😀'.repeat(4500);
 function storedJob(status, extra = {}) {
   const sb = sandbox(`terminal-${status}`);
   const dir = path.join(sb.repo, '.agy-staff');
@@ -22,7 +22,7 @@ function observation(sb, id, code) {
   assert.equal(r.code, code, r.stdout + r.stderr);
   assert.equal(r.stderr, '');
   assert.ok(Buffer.byteLength(r.stdout) <= 8192);
-  assert.doesNotMatch(r.stdout, /FULL_REPORT_ONLY_IN_DELIVERY|报告内容/);
+  assert.doesNotMatch(r.stdout, /FULL_REPORT_ONLY_IN_DELIVERY|\u62a5\u544a\u5185\u5bb9/);
   return JSON.parse(r.stdout);
 }
 
@@ -78,7 +78,7 @@ test('terminal sidecar race and a crash without a result still produce inspectab
 });
 
 test('nested recovery metadata obeys the same 8 KiB ceiling and marks shortening', () => {
-  const long = '路径😀'.repeat(2000);
+  const long = '\u8def\u5f84😀'.repeat(2000);
   const { sb, job } = storedJob('error', { conversation_id: long, model: long, profile: long, spec_file: long });
   const s = observation(sb, job.id, 3);
   assert.equal(s.status, 'error'); assert.equal(s.truncated, true); assert.equal(s.details_truncated, true);

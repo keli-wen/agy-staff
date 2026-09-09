@@ -6,10 +6,10 @@ const step = (index, type, state, extra = {}) => ({ event: 'step_update', step_u
 test('UTF-8 chunks, multiple records, malformed/oversized lines and unterminated final record', () => {
   const events = [], warnings = [];
   const parser = createParser((e) => events.push(e), (w) => warnings.push(w), 100);
-  const input = Buffer.from('{"text":"中文😀"}\nnope\n' + 'x'.repeat(200) + '\n{"last":true}');
+  const input = Buffer.from('{"text":"\u4e2d\u6587😀"}\nnope\n' + 'x'.repeat(200) + '\n{"last":true}');
   for (const byte of input) parser.write(Buffer.from([byte]));
   parser.end();
-  assert.deepEqual(events, [{ text: '中文😀' }, { last: true }]);
+  assert.deepEqual(events, [{ text: '\u4e2d\u6587😀' }, { last: true }]);
   assert.equal(warnings.length, 2);
 });
 
@@ -17,8 +17,8 @@ test('tool snapshots merge, recent text concatenates DONE delta and stays indepe
   const p = createProjection();
   for (let i = 0; i < 7; i++) p.accept(step(i, 'tool', 'ACTIVE', { tool_name: 'shell', tool_info: { parameters: { command: String(i) } } }));
   p.accept(step(6, 'tool', 'DONE', { tool_info: { output: 'out' } }));
-  p.accept(step(8, 'agent_response', 'ACTIVE', { text_delta: '你' }));
-  p.accept(step(8, 'agent_response', 'ACTIVE', { text_delta: '好' }));
+  p.accept(step(8, 'agent_response', 'ACTIVE', { text_delta: '\u4f60' }));
+  p.accept(step(8, 'agent_response', 'ACTIVE', { text_delta: '\u597d' }));
   assert.equal(p.snapshot().latest_text.incomplete, true);
   p.accept(step(8, 'agent_response', 'DONE', { text_delta: '😀' }));
   const s = p.snapshot();
@@ -26,14 +26,14 @@ test('tool snapshots merge, recent text concatenates DONE delta and stays indepe
   assert.deepEqual(s.recent_activities.map((a) => a.step_index), [2, 3, 4, 5, 6]);
   assert.equal(s.recent_activities.at(-1).output_preview, 'out');
   assert.equal(s.recent_activities.at(-1).input_preview, '{"command":"6"}');
-  assert.equal(s.latest_text.text, '你好😀');
+  assert.equal(s.latest_text.text, '\u4f60\u597d😀');
   assert.equal(s.latest_text.incomplete, false);
   assert.deepEqual(p.snapshot(), s, 'reads do not consume shared history');
 });
 
 test('serialized budgets include JSON escaping, Unicode and metadata', () => {
   const p = createProjection();
-  const large = '中文😀\u0000"\\'.repeat(8000);
+  const large = '\u4e2d\u6587😀\u0000"\\'.repeat(8000);
   for (let i = 0; i < 7; i++) p.accept(step(i, 'tool', 'DONE', { tool_name: large, tool_info: { parameters: large, output: large } }));
   for (let i = 0; i < 10; i++) p.accept(step(8, 'agent_response', 'ACTIVE', { text_delta: large }));
   const s = p.snapshot();
