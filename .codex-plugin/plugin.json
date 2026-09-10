@@ -1,7 +1,7 @@
 {
   "name": "agy",
   "version": "0.7.0",
-  "description": "Task orchestration with AGY. Delegate work to Google's Antigravity CLI while your agent owns key decisions, review, and delivery.",
+  "description": "Delegate work to Google's Antigravity CLI (agy) with fast Gemini access - five personas: staffer (general), researcher, reviewer (code and plans), implementer, ask.",
   "author": {
     "name": "Keli Wen",
     "url": "https://github.com/keli-wen"
@@ -18,15 +18,15 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "AGY Staff",
-    "shortDescription": "Task orchestration with AGY.",
-    "longDescription": "agy:lead, a task orchestration skill for your agent. Default to staffer; use specialists when their guidance fits the task.",
+    "shortDescription": "Delegate tasks to Google Antigravity CLI (agy)",
+    "longDescription": "Delegate work to Google's Antigravity CLI (agy) with fast Gemini access - five personas: staffer (general), researcher, reviewer (code and plans), implementer, ask.",
     "developerName": "Keli Wen",
     "category": "Engineering",
     "capabilities": [
       "Instructions"
     ],
     "defaultPrompt": [
-      "Use agy:lead to orchestrate this task with AGY staffers."
+      "Use agy to research, review, and implement tasks."
     ]
   }
 }

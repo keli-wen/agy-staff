@@ -4,12 +4,12 @@
     "name": "Keli Wen",
     "url": "https://github.com/keli-wen"
   },
-  "description": "Task orchestration with AGY for Claude Code, Codex, and Pi.",
+  "description": "agy-staff: delegate work to Google's Antigravity CLI (agy) from Claude Code and Codex.",
   "plugins": [
     {
       "name": "agy",
       "source": "./",
-      "description": "Task orchestration with AGY. Delegate work to Google's Antigravity CLI while your agent owns key decisions, review, and delivery.",
+      "description": "Five personas over agy (fast Gemini) - staffer, researcher, reviewer, implementer, ask - with a two-profile permission model and background jobs.",
       "tags": ["antigravity", "gemini", "delegation", "code-review"]
     }
   ]

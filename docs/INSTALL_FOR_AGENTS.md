@@ -80,7 +80,7 @@ Restart Pi or run `/reload` afterwards. Use `pi list` to verify the package is r
 
 ## 3. Smoke test
 
-Run the tool-free `ask` installation smoke test — it needs no allowlist:
+Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
 
 - Claude Code: `/agy:ask "reply with OK"` — **after the restart**, otherwise you are testing the old copy or nothing at all
 - Codex: `$agy:ask reply with OK`
