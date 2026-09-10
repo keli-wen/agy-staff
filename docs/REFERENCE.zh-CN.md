@@ -14,6 +14,8 @@
 | `reviewer` | `review` | 审查代码、方案或决策 | `gemini-3.8-flash-medium` | 返回后台任务 ID |
 | `implementer` | `implement` | 完成范围明确的编码任务 | `gemini-3.8-flash-high` | 返回后台任务 ID |
 
+`lead` 为当前主 agent 提供任务编排指导，复用现有 companion 模式，没有自己的运行模式；Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`。
+
 `staffer` 不预设专业分工或固定的报告格式，但仍遵守共享的操作约定。`reviewer` 会根据对象选择审查方式：代码问题按严重程度列出，并附上 `file:line` 位置；方案和决策审查则检查假设、风险和取舍。`implementer` 可以直接修改工作区，也可以完成任务明确要求的提交、推送或 PR 操作。
 
 执行方式由模式决定，不能通过参数切换。继续一个 `ask` 会话时，答案仍在同一次调用中返回；继续其他模式时，会创建新的后台任务。
