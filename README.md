@@ -99,6 +99,7 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 | Use case | Invocation |
 |---|---|
+| Lead an ongoing task | `/agy:lead investigate the options, draft a proposal, and revise it with my feedback` |
 | Quick second opinion | `/agy:ask what's your backend model` |
 | A general task | `/agy:staffer summarize the open TODOs in this repo` |
 | Generate an image | `/agy:staffer generate a pixel-art robot mascot, save it as assets/mascot.png` |
@@ -114,6 +115,8 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 `staffer` also covers agy's native tools without a dedicated specialist persona, including **image generation** (`generate_image`). A trial on agy v1.1.15 produced a 1024×1024 PNG in about 30 seconds; actual time depends on the task and environment.
 
 ## Core design
+
+`lead` adds task orchestration guidance for your current agent. Within lead, delegate substantive work to `staffer` by default, use specialists when their guidance helps, and reserve `ask` for testing. The host owns decisions, review, and delivery, using the existing jobs workflow. Invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, or `/skill:agy-lead` in Pi.
 
 `ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 

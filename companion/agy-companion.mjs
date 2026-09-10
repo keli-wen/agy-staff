@@ -856,6 +856,19 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
 }
 
 // ---------------------------------------------------------------------------
+// A follow-up targets a conversation whose execution has stopped. While the
+// job is still running, report its status and id instead of queueing: the
+// orchestrator decides whether to wait or cancel first.
+function refuseRunningFollowUp(state, conversation, jobId = null) {
+  if (!conversation && !jobId) return;
+  const active = (state.jobs || []).find(j =>
+    ((conversation && j.conversation_id === conversation) || (jobId && j.id === jobId)) &&
+    liveJobStatus(j) === 'running');
+  if (!active) return;
+  die(`job ${active.id} is still running (status: running); the follow-up was not accepted or queued. ` +
+    `Collect it with \`wait ${active.id}\` and continue afterwards, or \`cancel ${active.id}\` first for an immediate change of direction.`);
+}
+
 // run (research / review / implement / continue)
 // ---------------------------------------------------------------------------
 
@@ -917,6 +930,9 @@ function resolveRun(mode, opts, priorJob = null) {
   const prior = priorJob || (conversation ? [...(state.jobs || [])].reverse().find((j) => j.conversation_id === conversation && j.mode === mode) : null)
     || (recorded?.mode === mode ? recorded : null)
     || (state.last?.id === conversation && state.last?.mode === mode ? { model: state.last.model, profile: state.last.profile } : null);
+  // Configuration may come from an earlier job; occupancy belongs to the
+  // whole conversation, including jobs launched through another mode.
+  refuseRunningFollowUp(state, conversation);
   if (prior) {
     if (!opts.model && !opts.effort && prior.model) model = prior.model;
     if (!opts.restricted && !opts.unrestricted && prior.profile) { profile = prior.profile; profileSource = 'inherited'; }
@@ -1167,8 +1183,6 @@ async function dispatch(resolved, prompt, opts) {
   const specFile = path.join(jobsDir, `${jobId}.spec.json`);
   const resultFile = path.join(jobsDir, `${jobId}.result.md`);
 
-  fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
-
   // Register the job BEFORE spawning: a fast worker's own state update must
   // find the record already present, or it gets lost in its read-modify-write.
   const record = {
@@ -1181,7 +1195,14 @@ async function dispatch(resolved, prompt, opts) {
     events_file: path.join(jobsDir, `${jobId}.events.jsonl`),
     progress_file: path.join(jobsDir, `${jobId}.progress.json`),
   };
-  updateState((state) => { state.jobs ||= []; state.jobs.push(record); });
+  updateState((state) => {
+    // Two callers can both resolve an idle conversation. Recheck under the
+    // registration lock before accepting either the job or its prompt file.
+    refuseRunningFollowUp(state, resolved.conversation);
+    fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
+    state.jobs ||= [];
+    state.jobs.push(record);
+  });
   fs.appendFileSync(logFile, `[agy-staff] dispatch registered ${jobId} at ${record.started_at}\n`);
 
   const logFd = fs.openSync(logFile, 'a');
@@ -1605,6 +1626,7 @@ function cmdContinue(opts) {
   const legacyMode = Object.entries(state.conversations || {}).find(([, id]) => id === targetId)?.[0];
   const mode = prior?.mode || legacyMode || (state.last?.id === targetId ? state.last?.mode : null);
   const conversation = prior?.conversation_id || targetId;
+  if (opts.job) refuseRunningFollowUp(state, prior?.conversation_id, prior?.id);
   if (!mode || !conversation) die('no previous agy-staff conversation recorded in this repository for this target; use restart <job-id> when no conversation is available');
   if (opts.job && opts.conversation && opts.conversation !== prior.conversation_id) die('--job and --conversation identify different conversations');
   if (opts.job && !prior.conversation_id) die('this job has no known conversation; use restart <job-id>');

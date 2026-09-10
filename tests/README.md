@@ -96,4 +96,16 @@ AGY_REAL_SMOKE=1 node tests/real-agy.integration.mjs
 
 Run it unsandboxed in the same permission context as AGY. It creates disposable directories, validates real streaming and structured review output, then cancels and hard-stops jobs after their shell tools start. It records observed process IDs, checks for surviving processes and unintended completion markers, and prints the retained evidence directory. It never changes global settings. The shortened hard deadline exercises the worker timer; it does not claim a full-hour endurance test.
 
+The separate real continuation suite verifies rejection across all entrypoints, simultaneous follow-ups, independent conversations, continuation after completion, and cancel-then-continue:
+
+```sh
+AGY_REAL_CONTINUATION=1 node tests/real-continuation.integration.mjs
+# Optional: running-guards, simultaneous, or cancel-continue.
+AGY_REAL_CONTINUATION=1 AGY_REAL_CONTINUATION_CASE=running-guards node tests/real-continuation.integration.mjs
+```
+
+It uses the existing AGY login and `gemini-3.8-flash-low` by default (`AGY_REAL_MODEL` overrides it). Each case creates a temporary Git repository and a real conversation. A supplied shell-tool script records timestamps while waiting for a local release signal. The simultaneous case holds the companion's existing state lock until both callers reach registration; it does not replace AGY or patch the runtime. Jobs have 120-second deadlines, the tool gate has a 65-second bound, and cleanup cancels unfinished jobs. A failed case stops the suite without an automatic retry.
+
+Assertions check that rejected requests create no job or spec, do not execute later, and identify the active job. The suite also checks that another conversation completes while the first is busy, that explicit resubmission works after completion, that prior context and configuration survive normal continuation, and that cancel-then-continue does not restart the canceled command. It records the CLI version before and after each case. The retained `summary.json`, deliveries, native logs, and captured events provide the evidence; exit 0 means the assertions passed. This opt-in suite uses model quota and is excluded from `npm test`. These bounded cases do not establish lossless recovery after arbitrary interruptions.
+
 `terminal-observation.test.mjs` verifies bounded JSON for done/error/canceled/crashed and legacy jobs, terminal-sidecar races, nested recovery metadata, and observe alongside a pending wait with a large report. Observe never consumes or duplicates full result delivery.
