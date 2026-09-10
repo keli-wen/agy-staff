@@ -203,7 +203,7 @@ review --prompt "Review the patch at /tmp/change.patch"
 
 `restart <id>` 会用原任务和配置重新开始，但不复用原会话。新任务会重新生成当前工作区的上下文。对于旧版本保存的任务规格，companion 会将其中的旧快照标记为历史信息，再追加当前上下文。
 
-继续或重启前，应先用 `git status` 和 `git diff` 检查上一次执行留下的修改。你可以从同一 Git 工作树（worktree）的根目录或任意子目录发起恢复，任务实际执行时会回到原工作目录。通用 `continue` 命令遇到未登记的会话 ID 会报错，不会搜索其他工作树或启动 AGY。
+继续或重启前，应先用 `git status` 和 `git diff` 检查上一次执行留下的修改。你可以从同一 Git 工作树（worktree）的根目录或任意子目录发起恢复，任务实际执行时会回到原工作目录。通用 `continue` 命令遇到未登记的会话 ID 会报错，不会搜索其他工作树或启动 AGY。如果目标会话对应的任务仍在运行（无论是通用 `continue`，还是某个模式的 `--continue`/`--conversation`），companion 会以退出码 1 拒绝，并返回该任务的 ID 和状态；后续指令不会排队，需要先等待或取消。
 
 恢复会创建新任务，保留原任务的最终记录，并重新获得默认 60 分钟的执行时限；也可以用 `--timeout` 指定其他时长。恢复信息提供 `requires_user_confirmation`、建议的 `suggested_timeout` 和具体续跑命令。建议超时为原时长的两倍，后台最多 120 分钟；已到上限时应缩小任务。主 agent 必须询问你是否继续或停下查看工作区，得到明确确认后才执行。companion 不会自动重试或续跑。前台 `ask` 的历史会话配置也按会话 ID 保存，不会因后续任务覆盖而丢失。
 

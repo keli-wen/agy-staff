@@ -64,7 +64,7 @@ Cancel records a request first and returns success only after the worker has sto
 
 ## Follow-up instructions
 
-Use `continue --job <id>` to target an existing AGY conversation. It starts a new invocation; submit the follow-up after the current execution has stopped.
+Use `continue --job <id>` to target an existing AGY conversation. It starts a new invocation once the current execution has stopped. While that job is still running, the companion refuses the follow-up with exit 1, reporting the job ID and status; nothing is queued. Decide whether to wait or cancel.
 
 - **Finished:** continue directly with the next assignment or revision.
 - **Running, feedback can wait:** collect the current result, then continue.
