@@ -2,10 +2,12 @@ name: Generated skills consistency
 on:
   push:
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   consistency:
+    # Required status check (ruleset "Generated skills consistency"); runs automatically.
     name: Generated skills consistency
     runs-on: ubuntu-latest
     steps:
@@ -14,4 +16,25 @@ jobs:
         with:
           node-version: '24'
       - run: npm run check:pi
+
+  test-ubuntu:
+    name: Tests (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm test
+
+  test-windows:
+    # Gated by the "manual-tests" environment: a reviewer must approve before it runs.
+    name: Tests (Windows)
+    runs-on: windows-latest
+    environment: manual-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - run: npm test
