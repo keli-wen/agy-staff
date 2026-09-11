@@ -1,6 +1,7 @@
 name: Generated skills consistency
 on:
   push:
+    branches: [master]
   pull_request:
   workflow_dispatch:
 permissions:
