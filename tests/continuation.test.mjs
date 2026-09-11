@@ -82,7 +82,7 @@ test('simultaneous follow-ups recheck occupancy inside registration and leave no
   fs.mkdirSync(lock); fs.writeFileSync(path.join(lock, owner), '');
   const invoke = () => new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [COMPANION, 'continue', '--conversation', conversation, '--prompt', 'contender'], {
-      cwd: sb.repo, env: { ...process.env, HOME: sb.home, AGY_BIN: FAKE_AGY,
+      cwd: sb.repo, env: { ...process.env, HOME: sb.home, USERPROFILE: sb.home, AGY_BIN: FAKE_AGY,
         FAKE_AGY_ARGV_FILE: sb.argvFile, FAKE_AGY_RELEASE_FILE: release },
     });
     let stdout = '', stderr = '';
