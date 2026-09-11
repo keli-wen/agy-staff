@@ -21,6 +21,7 @@ jobs:
   test-ubuntu:
     name: Tests (Ubuntu)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,9 +34,12 @@ jobs:
     name: Tests (Windows)
     runs-on: windows-latest
     environment: manual-tests
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm test
+      # Per-test timeout so a hung test surfaces as one failure instead of
+      # stalling the whole job until timeout-minutes cancels it.
+      - run: node --test --test-timeout=60000 tests/*.test.mjs
