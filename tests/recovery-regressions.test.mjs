@@ -137,7 +137,7 @@ test('CLI exit cleans inherited output pipes before the hard deadline', async ()
   assert.equal(alive(pid), false);
 });
 
-test('one failed process inspection preserves tracked descendants after reparenting', async t => {
+test('one failed process inspection preserves tracked descendants after reparenting', { skip: process.platform === 'win32' && 'shims POSIX ps; Windows inspects via PowerShell' }, async t => {
   const sb = sandbox('inspection-retry');
   const pidFile = path.join(sb.root, 'descendant.pid');
   const release = path.join(sb.root, 'orphan');

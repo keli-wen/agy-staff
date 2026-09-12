@@ -24,7 +24,9 @@ export const FAKE_AGY = path.join(HERE, 'fake-agy.mjs');
  * the round-2 "implement outside a git repo warns and proceeds" rule needs.
  */
 export function sandbox(label = 'case', { git = true } = {}) {
-  const root = fs.realpathSync(
+  // .native also expands Windows 8.3 short names (RUNNER~1), which git and
+  // realpath'd companion output report in long form.
+  const root = fs.realpathSync.native(
     fs.mkdtempSync(path.join(os.tmpdir(), `agy-staff-test-${label}-`))
   );
   const repo = path.join(root, 'repo');
