@@ -16,10 +16,10 @@ async function until(predicate) {
 }
 function refused(result, active) {
   assert.equal(result.code, 1, result.stdout + result.stderr);
-  assert.ok(result.stderr.includes(`job ${active} is still running (status: running)`));
-  assert.match(result.stderr, /not accepted or queued/);
-  assert.ok(result.stderr.includes(`wait ${active}`));
-  assert.ok(result.stderr.includes(`cancel ${active}`));
+  assert.ok(result.stderr.includes(`job ${active} is still running (status: running)`), result.stderr);
+  assert.match(result.stderr, /not accepted or queued/, result.stderr);
+  assert.ok(result.stderr.includes(`wait ${active}`), result.stderr);
+  assert.ok(result.stderr.includes(`cancel ${active}`), result.stderr);
   assert.equal(result.stdout, '');
 }
 

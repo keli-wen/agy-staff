@@ -254,7 +254,9 @@ function repoRoot() {
   const cwd = process.cwd();
   if (repoRootCache.has(cwd)) return repoRootCache.get(cwd);
   const r = sh('git', ['rev-parse', '--show-toplevel']);
-  const root = r.code === 0 && r.out ? r.out : cwd;
+  // git prints forward slashes even on Windows; normalize so the root compares
+  // equal to process.cwd()-derived paths and reads naturally in agy arguments.
+  const root = r.code === 0 && r.out ? path.normalize(r.out) : cwd;
   repoRootCache.set(cwd, root);
   return root;
 }
