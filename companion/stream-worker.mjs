@@ -8,16 +8,108 @@ export function atomicJSON(file, value) {
   fs.renameSync(tmp, file);
 }
 
-export function signalGroup(pid, signal) {
+export function signalGroup(pid, signal, runner = spawnSync, platform = process.platform) {
   if (!Number.isInteger(pid) || pid <= 1) return;
+  if (platform === 'win32') {
+    try {
+      const res = runner('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+      if (res?.error || (res?.status != null && res.status !== 0)) {
+        try { process.kill(pid); } catch { /* already exited */ }
+      }
+    } catch {
+      try { process.kill(pid); } catch { /* already exited */ }
+    }
+    return;
+  }
   try { process.kill(-pid, signal); } catch { /* already exited */ }
+}
+export const terminateProcessGroup = signalGroup;
+
+export function parseWindowsProcessTable(stdout) {
+  if (!stdout || typeof stdout !== 'string') return [];
+  const lines = stdout.trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  let format = 'powershell';
+  const firstLine = lines[0];
+  if (/^CreationDate/i.test(firstLine)) {
+    format = 'wmic';
+  }
+
+  const rows = [];
+  for (const line of lines) {
+    if (/^(ProcessId|ParentProcessId|CreationDate|--+)/i.test(line)) continue;
+    if (format === 'wmic') {
+      const match = /^(\S+)\s+(\d+)\s+(\d+)$/.exec(line);
+      if (match) {
+        const born = match[1];
+        const parent = Number(match[2]);
+        const pid = Number(match[3]);
+        rows.push({ pid, parent, group: pid, born });
+      }
+    } else {
+      const match = /^(\d+)\s+(\d+)\s*(.*)$/.exec(line);
+      if (match) {
+        const pid = Number(match[1]);
+        const parent = Number(match[2]);
+        const born = match[3].trim() || 'unknown';
+        rows.push({ pid, parent, group: pid, born });
+      }
+    }
+  }
+  return rows;
+}
+
+export function windowsProcessTable(runner = spawnSync) {
+  let res;
+  try {
+    res = runner('powershell', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CreationDate',
+    ], { encoding: 'utf8', timeout: 3000, windowsHide: true });
+  } catch (err) {
+    res = { error: err };
+  }
+
+  if (res?.error || res?.status !== 0) {
+    try {
+      res = runner('wmic', [
+        'process',
+        'get',
+        'ProcessId,ParentProcessId,CreationDate',
+      ], { encoding: 'utf8', timeout: 3000, windowsHide: true });
+    } catch (err) {
+      res = { error: err };
+    }
+  }
+
+  if (res?.error || res?.status !== 0 || !res?.stdout) {
+    return null;
+  }
+  return parseWindowsProcessTable(res.stdout);
 }
 
 // Track process birth stamps so a previously observed PID cannot cause cleanup
 // to kill an unrelated process after PID reuse. Tool shells may create groups.
 let inspectionUnavailable = false;
-function processTable() {
-  const ps = spawnSync('ps', ['-axo', 'pid=,ppid=,pgid=,lstart='], { encoding: 'utf8', timeout: 1000, env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' } });
+export function processTable() {
+  if (process.platform === 'win32') {
+    const table = windowsProcessTable();
+    if (!table) {
+      if (!inspectionUnavailable) process.stderr.write('agy-staff warning: process-tree inspection unavailable; run unsandboxed to verify descendant cleanup.\n');
+      inspectionUnavailable = true;
+      return null;
+    }
+    return table;
+  }
+  const ps = spawnSync('ps', ['-axo', 'pid=,ppid=,pgid=,lstart='], {
+    encoding: 'utf8',
+    timeout: 1000,
+    windowsHide: true,
+    env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' },
+  });
   if (ps.error || ps.status !== 0) {
     if (!inspectionUnavailable) process.stderr.write('agy-staff warning: process-tree inspection unavailable; run unsandboxed to verify descendant cleanup.\n');
     inspectionUnavailable = true;
@@ -114,7 +206,13 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
   };
   try {
     publish();
-    child = spawn(binary, args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    // On Windows, detached: true creates a new console window; piped stdio keeps the
+    // process stream connected. On POSIX, detached: true creates a new process group.
+    child = spawn(binary, args, {
+      detached: process.platform !== 'win32',
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     const exited = new Promise((resolve) => {
       child.once('error', (error) => { spawnError = error; resolve({ exit: null, killedSignal: null }); });
       child.once('exit', (exit, killedSignal) => resolve({ exit, killedSignal }));

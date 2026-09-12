@@ -31,7 +31,7 @@ describe('setup dry run', () => {
     // probed the (fake) agy binary
     assert.match(r.stdout, /agy CLI: OK \(version 1\.1\.13-fake\)/);
     assert.match(r.stdout, new RegExp(`${sb.home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
-    assert.match(r.stdout, /\.gemini\/antigravity-cli\/settings\.json \(will be created\)/);
+    assert.match(r.stdout, /\.gemini[\\/]antigravity-cli[\\/]settings\.json \(will be created\)/);
 
     for (const rule of [...EVIDENCE_ALLOWLIST, ...EVIDENCE_DENYLIST]) {
       assert.ok(r.stdout.includes(rule), `missing rule ${rule} in setup output`);
