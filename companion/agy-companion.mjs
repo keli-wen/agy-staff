@@ -245,13 +245,18 @@ function die(msg, code = 1) {
 }
 
 function sh(cmd, args, opts = {}) {
-  const r = spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts });
+  const r = spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true, ...opts });
   return { code: r.status ?? -1, out: (r.stdout || '').trim(), err: (r.stderr || '').trim() };
 }
 
+const repoRootCache = new Map();
 function repoRoot() {
+  const cwd = process.cwd();
+  if (repoRootCache.has(cwd)) return repoRootCache.get(cwd);
   const r = sh('git', ['rev-parse', '--show-toplevel']);
-  return r.code === 0 && r.out ? r.out : process.cwd();
+  const root = r.code === 0 && r.out ? r.out : cwd;
+  repoRootCache.set(cwd, root);
+  return root;
 }
 
 function stateDir() {
@@ -585,6 +590,7 @@ function queryAgyModels() {
     const r = spawnSync(agy.cmd, agy.args, {
       encoding: 'utf8',
       timeout: 10_000,
+      windowsHide: true,
     });
     if (r.error) {
       return { ok: false, error: r.error.message };
@@ -717,6 +723,7 @@ function runAgy(invoke) {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     timeout: budget,
+    windowsHide: true,
   });
   if (r.error && r.error.code === 'ETIMEDOUT') {
     die(`agy timed out: no result within ${timeout} plus 60s grace. Retry with a larger --timeout, or narrow the task.`);
@@ -1216,9 +1223,14 @@ async function dispatch(resolved, prompt, opts) {
   fs.appendFileSync(logFile, `[agy-staff] dispatch registered ${jobId} at ${record.started_at}\n`);
 
   const logFd = fs.openSync(logFile, 'a');
+  // detached on every platform: on POSIX it isolates the process group; on
+  // Windows it is DETACHED_PROCESS, so the worker has no console (with
+  // windowsHide its own children get none either) and outlives the terminal
+  // that dispatched it, including its Ctrl+C.
   const child = spawn(process.execPath, [SELF, '_worker', jobId], {
     cwd: process.cwd(),
     detached: true,
+    windowsHide: true,
     stdio: ['ignore', logFd, logFd],
   });
   child.unref();
@@ -1598,7 +1610,9 @@ async function cmdCancel(opts) {
   if (!changed) { process.stdout.write(`Job ${id} is not running (status: ${status}).\n`); return; }
   // The worker polls the request even if PID inspection/signaling is blocked.
   // Never send signals to the stored AGY PID: the worker owns that child.
-  const current = job.worker_identity ? processIdentity(job.pid) : null;
+  // On Windows process.kill() is TerminateProcess: the worker would die without
+  // running its cleanup and orphan the agy tree, so rely on the marker alone there.
+  const current = job.worker_identity && process.platform !== 'win32' ? processIdentity(job.pid) : null;
   if (current && current.pid === job.worker_identity.pid && current.born === job.worker_identity.born) {
     try { process.kill(current.pid, 'SIGTERM'); } catch {}
   }
@@ -1626,6 +1640,8 @@ function enterOriginalWorkspace(cwd) {
   const targetRoot = fs.realpathSync(git.code === 0 && git.out ? git.out : target);
   if (root !== targetRoot) die(`recovery cannot switch worktrees; run from the original workspace: ${cwd}`);
   process.chdir(target);
+  repoRootCache.set(target, git.code === 0 && git.out ? git.out : target);
+  repoRootCache.set(process.cwd(), git.code === 0 && git.out ? git.out : target);
 }
 
 function cmdContinue(opts) {

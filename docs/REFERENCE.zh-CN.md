@@ -341,6 +341,10 @@ AGY 会读取工作区中的 `AGENTS.md`、`GEMINI.md` 和 `.agents/rules/*.md`�
 
 如果已安装的 AGY 不支持默认模型，companion 会报错，不会自动换成别的模型。它会查询 `agy models`，列出可用 ID，并推荐相同推理强度的兼容选项，例如 `--model gemini-3.7-flash-high`。你可以显式指定兼容模型，也可以更新 AGY 后再使用默认值。
 
+## Windows 支持
+
+Windows 为尽力支持，由 CI 的 `Tests (Windows)` 任务覆盖，尚未在真实的 Windows `agy` 安装上验证。子进程均以 `windowsHide: true` 启动，避免后台执行期间弹出控制台窗口。任务取消与进程清理通过 PowerShell（`Get-CimInstance Win32_Process`）发现子孙进程，并使用 `taskkill /PID <pid> /T /F` 终止脱离父进程的进程树。状态锁针对 Windows 目录与标记文件的重命名和删除瞬态错误（`EPERM`/`EBUSY`/`EACCES`）进行了自动重试。
+
 ## 升级
 
 Claude Code 和 Codex 按版本号缓存插件，例如 `cache/agy-staff/agy/0.4.0`。缓存是否需要更新取决于版本号，而不是仓库的最新提交。因此，准备发布时需要同步更新两个插件 manifest 和 `package.json` 中的版本。
