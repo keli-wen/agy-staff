@@ -56,6 +56,7 @@ export function run(sb, args, extraEnv = {}, { input } = {}) {
     env: {
       ...process.env,
       HOME: sb.home,
+      USERPROFILE: sb.home, // os.homedir() reads this on Windows, HOME elsewhere
       AGY_BIN: FAKE_AGY,
       FAKE_AGY_ARGV_FILE: sb.argvFile,
       // The fake agy answers in microseconds; a real one takes seconds. Keep a

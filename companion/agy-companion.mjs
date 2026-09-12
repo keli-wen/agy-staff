@@ -99,6 +99,14 @@ import { withStateLock } from './state-lock.mjs';
 const SELF = fileURLToPath(import.meta.url);
 const TEMPLATES_DIR = path.join(path.dirname(SELF), '..', 'templates');
 const AGY_BIN = process.env.AGY_BIN || 'agy';
+
+/** How to launch agy. AGY_BIN normally names an executable; when it names a
+ *  Node script (the test fake), run it through the current Node binary so the
+ *  launch does not depend on shebang support (Windows has none: EFTYPE). */
+function agyCommand(args) {
+  if (/\.(mjs|cjs|js)$/i.test(AGY_BIN)) return { cmd: process.execPath, args: [AGY_BIN, ...args] };
+  return { cmd: AGY_BIN, args };
+}
 const AGY_SETTINGS = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'settings.json');
 
 const MODES = ['staffer', 'research', 'review', 'implement', 'ask'];
@@ -573,7 +581,8 @@ function durationToMs(d) {
 
 function queryAgyModels() {
   try {
-    const r = spawnSync(AGY_BIN, ['models'], {
+    const agy = agyCommand(['models']);
+    const r = spawnSync(agy.cmd, agy.args, {
       encoding: 'utf8',
       timeout: 10_000,
     });
@@ -703,7 +712,8 @@ function runAgy(invoke) {
   const args = agyArgs(invoke, 'json');
 
   const budget = (durationToMs(timeout) ?? 600_000) + 60_000; // grace over agy's own timeout
-  const r = spawnSync(AGY_BIN, args, {
+  const agy = agyCommand(args);
+  const r = spawnSync(agy.cmd, agy.args, {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     timeout: budget,
@@ -1253,8 +1263,8 @@ async function workerMain(jobId) {
     const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
     const opts = { ...spec.opts, jobId };
     const output = await executeRun(spec.resolved, spec.prompt, opts, (invoke) => {
-      const args = agyArgs(invoke, 'stream-json');
-      return runStreaming({ binary: AGY_BIN, args, job,
+      const agy = agyCommand(agyArgs(invoke, 'stream-json'));
+      return runStreaming({ binary: agy.cmd, args: agy.args, job,
         budget: durationToMs(spec.resolved.timeout) - (Date.now() - started), signal: controller.signal,
         update: (fields) => updateJob(jobId, fields),
         conversation: (id) => rememberConversation(spec.resolved, id, jobId),
@@ -1714,7 +1724,8 @@ function applyProjectPolicy(value) {
 
 function cmdSetup(opts) {
   // check agy availability
-  const v = sh(AGY_BIN, ['--version']);
+  const probe = agyCommand(['--version']);
+  const v = sh(probe.cmd, probe.args);
   if (v.code !== 0) {
     die(
       `agy CLI not found or not working (tried \`${AGY_BIN} --version\`).\n` +
