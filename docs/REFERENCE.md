@@ -251,6 +251,10 @@ Management commands (`status`, `wait`, `result`, `cancel`, `setup`) are untouche
 
 If the installed `agy` CLI does not support Gemini 3.8 Flash, the companion fails clearly without silent fallback: it queries `agy models` and reports available models alongside the best same-effort compatible recommendation (e.g. `--model gemini-3.7-flash-high`), advising that updating `agy` is preferred to use the latest default.
 
+## Windows support
+
+Windows is supported on a best-effort basis and exercised by the `Tests (Windows)` CI job; it has not yet been validated against a real Windows `agy` installation. Subprocesses are spawned with `windowsHide: true` so no console windows appear during background execution. Job cancellation and process cleanup discover descendant processes via PowerShell (`Get-CimInstance Win32_Process`) and terminate detached process trees using `taskkill /PID <pid> /T /F`. State locking retries transient Windows errors (`EPERM`/`EBUSY`/`EACCES`) when renaming or unlinking lock directories and marker files.
+
 ## Upgrading
 
 Claude Code and Codex cache the plugin under a per-**version** directory (e.g. `cache/agy-staff/agy/0.4.0`) and key "is it current?" on that version string, not on the commit. Bump their manifests and `package.json` together when preparing a release. Pi's Git source instead follows the configured ref; local sources read the checkout directly.
