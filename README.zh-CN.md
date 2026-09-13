@@ -84,6 +84,7 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 | 想做的事 | 示例 |
 | --- | --- |
+| 编排持续推进的任务 | `/agy:lead 调研可选方案，起草提案，再根据我的反馈修订` |
 | 问一个简短的问题 | `/agy:ask 你的后端模型是什么` |
 | 交办一个通用任务 | `/agy:staffer 汇总这个仓库里所有未完成的 TODO` |
 | 生成图片 | `/agy:staffer 生成一个像素风机器人吉祥物，存为 assets/mascot.png` |
@@ -99,6 +100,8 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 `staffer` 没有预设的专业分工，因此也适合调用其他角色没有专门介绍的 agy 原生工具，例如 `generate_image`。项目曾在 agy v1.1.15 上验证图像生成：一次调用约 30 秒生成了 1024×1024 的 PNG。这个记录可以作为使用示例，实际耗时取决于任务和运行环境。
 
 ## 核心设计
+
+`lead` 为当前主 agent 增加任务编排指导。在 lead 工作流中，默认用 `staffer` 承担实质性工作，专门指导有帮助时再选择 specialist，`ask` 仅用于测试。主 agent 负责决策、审查和交付，复用现有 jobs 工作流。Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`。
 
 `ask` 会在同一次调用中返回答案。其他角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
 

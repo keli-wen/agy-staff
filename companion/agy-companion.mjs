@@ -99,6 +99,14 @@ import { withStateLock } from './state-lock.mjs';
 const SELF = fileURLToPath(import.meta.url);
 const TEMPLATES_DIR = path.join(path.dirname(SELF), '..', 'templates');
 const AGY_BIN = process.env.AGY_BIN || 'agy';
+
+/** How to launch agy. AGY_BIN normally names an executable; when it names a
+ *  Node script (the test fake), run it through the current Node binary so the
+ *  launch does not depend on shebang support (Windows has none: EFTYPE). */
+function agyCommand(args) {
+  if (/\.(mjs|cjs|js)$/i.test(AGY_BIN)) return { cmd: process.execPath, args: [AGY_BIN, ...args] };
+  return { cmd: AGY_BIN, args };
+}
 const AGY_SETTINGS = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'settings.json');
 
 const MODES = ['staffer', 'research', 'review', 'implement', 'ask'];
@@ -573,7 +581,8 @@ function durationToMs(d) {
 
 function queryAgyModels() {
   try {
-    const r = spawnSync(AGY_BIN, ['models'], {
+    const agy = agyCommand(['models']);
+    const r = spawnSync(agy.cmd, agy.args, {
       encoding: 'utf8',
       timeout: 10_000,
     });
@@ -703,7 +712,8 @@ function runAgy(invoke) {
   const args = agyArgs(invoke, 'json');
 
   const budget = (durationToMs(timeout) ?? 600_000) + 60_000; // grace over agy's own timeout
-  const r = spawnSync(AGY_BIN, args, {
+  const agy = agyCommand(args);
+  const r = spawnSync(agy.cmd, agy.args, {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
     timeout: budget,
@@ -856,6 +866,19 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
 }
 
 // ---------------------------------------------------------------------------
+// A follow-up targets a conversation whose execution has stopped. While the
+// job is still running, report its status and id instead of queueing: the
+// orchestrator decides whether to wait or cancel first.
+function refuseRunningFollowUp(state, conversation, jobId = null) {
+  if (!conversation && !jobId) return;
+  const active = (state.jobs || []).find(j =>
+    ((conversation && j.conversation_id === conversation) || (jobId && j.id === jobId)) &&
+    liveJobStatus(j) === 'running');
+  if (!active) return;
+  die(`job ${active.id} is still running (status: running); the follow-up was not accepted or queued. ` +
+    `Collect it with \`wait ${active.id}\` and continue afterwards, or \`cancel ${active.id}\` first for an immediate change of direction.`);
+}
+
 // run (research / review / implement / continue)
 // ---------------------------------------------------------------------------
 
@@ -917,6 +940,9 @@ function resolveRun(mode, opts, priorJob = null) {
   const prior = priorJob || (conversation ? [...(state.jobs || [])].reverse().find((j) => j.conversation_id === conversation && j.mode === mode) : null)
     || (recorded?.mode === mode ? recorded : null)
     || (state.last?.id === conversation && state.last?.mode === mode ? { model: state.last.model, profile: state.last.profile } : null);
+  // Configuration may come from an earlier job; occupancy belongs to the
+  // whole conversation, including jobs launched through another mode.
+  refuseRunningFollowUp(state, conversation);
   if (prior) {
     if (!opts.model && !opts.effort && prior.model) model = prior.model;
     if (!opts.restricted && !opts.unrestricted && prior.profile) { profile = prior.profile; profileSource = 'inherited'; }
@@ -1167,8 +1193,6 @@ async function dispatch(resolved, prompt, opts) {
   const specFile = path.join(jobsDir, `${jobId}.spec.json`);
   const resultFile = path.join(jobsDir, `${jobId}.result.md`);
 
-  fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
-
   // Register the job BEFORE spawning: a fast worker's own state update must
   // find the record already present, or it gets lost in its read-modify-write.
   const record = {
@@ -1181,7 +1205,14 @@ async function dispatch(resolved, prompt, opts) {
     events_file: path.join(jobsDir, `${jobId}.events.jsonl`),
     progress_file: path.join(jobsDir, `${jobId}.progress.json`),
   };
-  updateState((state) => { state.jobs ||= []; state.jobs.push(record); });
+  updateState((state) => {
+    // Two callers can both resolve an idle conversation. Recheck under the
+    // registration lock before accepting either the job or its prompt file.
+    refuseRunningFollowUp(state, resolved.conversation);
+    fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
+    state.jobs ||= [];
+    state.jobs.push(record);
+  });
   fs.appendFileSync(logFile, `[agy-staff] dispatch registered ${jobId} at ${record.started_at}\n`);
 
   const logFd = fs.openSync(logFile, 'a');
@@ -1232,8 +1263,8 @@ async function workerMain(jobId) {
     const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
     const opts = { ...spec.opts, jobId };
     const output = await executeRun(spec.resolved, spec.prompt, opts, (invoke) => {
-      const args = agyArgs(invoke, 'stream-json');
-      return runStreaming({ binary: AGY_BIN, args, job,
+      const agy = agyCommand(agyArgs(invoke, 'stream-json'));
+      return runStreaming({ binary: agy.cmd, args: agy.args, job,
         budget: durationToMs(spec.resolved.timeout) - (Date.now() - started), signal: controller.signal,
         update: (fields) => updateJob(jobId, fields),
         conversation: (id) => rememberConversation(spec.resolved, id, jobId),
@@ -1605,6 +1636,7 @@ function cmdContinue(opts) {
   const legacyMode = Object.entries(state.conversations || {}).find(([, id]) => id === targetId)?.[0];
   const mode = prior?.mode || legacyMode || (state.last?.id === targetId ? state.last?.mode : null);
   const conversation = prior?.conversation_id || targetId;
+  if (opts.job) refuseRunningFollowUp(state, prior?.conversation_id, prior?.id);
   if (!mode || !conversation) die('no previous agy-staff conversation recorded in this repository for this target; use restart <job-id> when no conversation is available');
   if (opts.job && opts.conversation && opts.conversation !== prior.conversation_id) die('--job and --conversation identify different conversations');
   if (opts.job && !prior.conversation_id) die('this job has no known conversation; use restart <job-id>');
@@ -1692,7 +1724,8 @@ function applyProjectPolicy(value) {
 
 function cmdSetup(opts) {
   // check agy availability
-  const v = sh(AGY_BIN, ['--version']);
+  const probe = agyCommand(['--version']);
+  const v = sh(probe.cmd, probe.args);
   if (v.code !== 0) {
     die(
       `agy CLI not found or not working (tried \`${AGY_BIN} --version\`).\n` +

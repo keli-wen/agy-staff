@@ -236,6 +236,32 @@ test('unknown conversations and jobs from another worktree fail without launchin
   assert.equal(agyCalls(sb).length, count);
 });
 
+test('continuing a conversation whose job is still running is refused without queueing a follow-up', async () => {
+  const sb = sandbox('continue-running');
+  const id = jobIdOf(run(sb, ['research', '--prompt', 'slow task'], { FAKE_AGY_SLEEP_MS: '4000' }).stdout);
+  await waitForCalls(sb, 1);
+  const count = agyCalls(sb).length;
+  const generic = run(sb, ['continue', '--job', id, '--prompt', 'change direction']);
+  assert.equal(generic.code, 1);
+  assert.match(generic.stderr, new RegExp(`job ${id} is still running \\(status: running\\)`));
+  assert.match(generic.stderr, /not accepted or queued/);
+  assert.match(generic.stderr, new RegExp(`wait ${id}`)); assert.match(generic.stderr, new RegExp(`cancel ${id}`));
+  assert.equal(agyCalls(sb).length, count);
+  // The mode entry point's --continue resolves the same running job once its conversation id is recorded.
+  const deadline = Date.now() + 5000;
+  while (!job(sb, id).conversation_id && Date.now() < deadline) await pause(25);
+  assert.ok(job(sb, id).conversation_id, 'conversation id recorded while running');
+  const modeContinue = run(sb, ['research', '--continue', '--prompt', 'change direction']);
+  assert.equal(modeContinue.code, 1); assert.match(modeContinue.stderr, /still running/);
+  assert.equal(agyCalls(sb).length, count);
+  // After cancel, the follow-up is accepted on the same conversation.
+  assert.equal(run(sb, ['cancel', id]).code, 0);
+  const next = jobIdOf(run(sb, ['continue', '--job', id, '--prompt', 'change direction']).stdout);
+  assert.equal(run(sb, ['wait', next]).code, 0);
+  assert.equal(job(sb, next).parent_job_id, id);
+  assert.match(promptOf(agyCalls(sb).at(-1)), /change direction/);
+});
+
 test('continue --job preserves the selected job configuration after later turns change it', () => {
   const sb = sandbox('selected-job-config');
   const first = jobIdOf(run(sb, ['review', '--restricted', '--model', 'gemini-3.8-flash-low', '--json', '--prompt', 'review']).stdout);

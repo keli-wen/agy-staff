@@ -27,7 +27,7 @@ Default flow: prepare the prompt → dispatch → wait for the final result → 
 | 0 | Invocation ended; response text delivered | Assess whether it satisfies the task. Review attached diagnostics; inspect further only as needed. |
 | 2 | Still running; wait soft-expired | Wait again for the same job. The attached snapshot is not a request to inspect progress or intervene. |
 | 3 | Error or crash | Read the error and recovery information below. |
-| 4 | Canceled | Report cancellation. |
+| 4 | Canceled | Complete any already-authorized follow-up; otherwise report cancellation. |
 | 5 | Attention: resumable timeout | Inspect partial workspace changes; ask whether to continue with the suggested timeout or stop. Continue only after explicit user confirmation. |
 | 1 | Invalid command or other command error | Quote the error and correct the named problem. |
 
@@ -39,7 +39,7 @@ Collecting a pending wait command is necessary result collection, not active obs
 
 A wait expires without stopping the worker. Cancel only when the task calls for stopping; silence or soft expiry alone is not a reason. For a user-requested progress answer or diagnosis after failure/required intervention, read a bounded `details` excerpt only if the returned information leaves a specific question unanswered. Never inspect logs or intermediate artifacts for routine reassurance.
 
-Deliver short results verbatim; summarize long results with their file path. Keep quoted verdicts, numbers and errors exact. For implement, also report the workspace state and inspect changes with `git diff`; verify any Git delivery that the user explicitly requested.
+When using lead, let the lead assess and synthesize the results. For direct persona invocations, deliver short results verbatim; summarize long results with their file path. Keep quoted verdicts, numbers and errors exact. For implement, also report the workspace state and inspect changes with `git diff`; verify any Git delivery that the user explicitly requested.
 
 Follow through to a result unless the user asked only to launch. If the host cannot deliver background command results, use the longest practical wait within its tool-call limit (bare `wait` defaults to 100s). The host controls when the model receives a tool result; this plugin cannot schedule a future model invocation by itself.
 
@@ -61,6 +61,16 @@ Wait/observe default to the latest job. Observe uses the same status exit codes,
 Continuation and restart may be invoked from the root or any subdirectory of the same worktree; execution returns to the original cwd. Generic `continue` fails for an unrecorded conversation ID. It does not search other worktrees or infer configuration from an unrelated conversation. For continuation, explicit model/profile flags override the inherited values.
 
 Cancel records a request first and returns success only after the worker has stored the cancellation report and published `canceled`. A crashed job keeps its crash diagnostics. A cancellation error requires inspection; it does not mean execution has stopped.
+
+## Follow-up instructions
+
+Use `continue --job <id>` to target an existing AGY conversation. It starts a new invocation once the current execution has stopped. While that job is still running, the companion refuses the follow-up with exit 1, reporting the job ID and status; nothing is queued. Decide whether to wait or cancel.
+
+- **Finished:** continue directly with the next assignment or revision.
+- **Running, feedback can wait:** collect the current result, then continue.
+- **Running, direction must change now:** cancel the active job, confirm termination, then continue with the updated brief. An already-authorized change of direction does not require another confirmation solely for this sequence.
+
+Include relevant decisions made in the host conversation, what changed, and what the worker should do next. After interruption, reconcile partial artifacts before repeating work: cancellation does not roll back edits, and the conversation may not contain the last interrupted step. If no usable conversation exists, start a fresh task with the updated brief and retained work. Timeout recovery still follows the rules below.
 
 ## Progress and recovery
 

@@ -17,7 +17,7 @@ Pi packaging checks run in the standard suite (`pi-packaging.test.mjs`). They ch
 
 With Pi installed, `npm run test:pi` exercises its real package loader, skill-command expansion, and Bash tool, using disposable settings and fake agy. The suite discovers Pi from PATH, or accepts `AGY_PI_PACKAGE_ROOT`. It never reads credentials or calls a model; offline success does not prove LLM behavior. For manual testing in Pi, use `pi -e /path/to/checkout` (temporary session) or `pi install /path/to/checkout`. After editing canonical skills in `skills/`, re-run `npm run generate:pi` and run `/reload` in Pi.
 
-GitHub CI runs `npm run check:pi` and `npm test` on Ubuntu with Node 24 for pushes and pull requests. The job retains the required status-check name `Generated skills consistency`. Pi integration and real AGY smoke tests remain opt-in; CI does not install Pi or run a Node version matrix.
+GitHub CI has three jobs on pushes and pull requests, all on Node 24. `Generated skills consistency` runs `npm run check:pi` automatically and keeps the required status-check name. `Tests (Ubuntu)` runs `npm test` automatically. `Tests (Windows)` runs the same suite with a 60s per-test timeout (`node --test --test-timeout=60000 tests/*.test.mjs`) and a 30-minute job limit, gated by the `manual-tests` environment: a repository maintainer must approve the pending deployment before it starts. Windows is expected to fail until the companion gains Windows process handling (see issue #19). Pi integration and real AGY smoke tests remain opt-in; CI does not install Pi or run a Node version matrix.
 
 Note: `node --test tests/` does **not** work on Node >= 22 — positional
 arguments are glob patterns there, and a bare directory matches the directory
@@ -95,5 +95,17 @@ AGY_REAL_SMOKE=1 node tests/real-agy.integration.mjs
 ```
 
 Run it unsandboxed in the same permission context as AGY. It creates disposable directories, validates real streaming and structured review output, then cancels and hard-stops jobs after their shell tools start. It records observed process IDs, checks for surviving processes and unintended completion markers, and prints the retained evidence directory. It never changes global settings. The shortened hard deadline exercises the worker timer; it does not claim a full-hour endurance test.
+
+The separate real continuation suite verifies rejection across all entrypoints, simultaneous follow-ups, independent conversations, continuation after completion, and cancel-then-continue:
+
+```sh
+AGY_REAL_CONTINUATION=1 node tests/real-continuation.integration.mjs
+# Optional: running-guards, simultaneous, or cancel-continue.
+AGY_REAL_CONTINUATION=1 AGY_REAL_CONTINUATION_CASE=running-guards node tests/real-continuation.integration.mjs
+```
+
+It uses the existing AGY login and `gemini-3.8-flash-low` by default (`AGY_REAL_MODEL` overrides it). Each case creates a temporary Git repository and a real conversation. A supplied shell-tool script records timestamps while waiting for a local release signal. The simultaneous case holds the companion's existing state lock until both callers reach registration; it does not replace AGY or patch the runtime. Jobs have 120-second deadlines, the tool gate has a 65-second bound, and cleanup cancels unfinished jobs. A failed case stops the suite without an automatic retry.
+
+Assertions check that rejected requests create no job or spec, do not execute later, and identify the active job. The suite also checks that another conversation completes while the first is busy, that explicit resubmission works after completion, that prior context and configuration survive normal continuation, and that cancel-then-continue does not restart the canceled command. It records the CLI version before and after each case. The retained `summary.json`, deliveries, native logs, and captured events provide the evidence; exit 0 means the assertions passed. This opt-in suite uses model quota and is excluded from `npm test`. These bounded cases do not establish lossless recovery after arbitrary interruptions.
 
 `terminal-observation.test.mjs` verifies bounded JSON for done/error/canceled/crashed and legacy jobs, terminal-sidecar races, nested recovery metadata, and observe alongside a pending wait with a large report. Observe never consumes or duplicates full result delivery.

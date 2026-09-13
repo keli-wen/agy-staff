@@ -15,6 +15,7 @@ export function exec(command, args, options = {}) {
 export function pack(root) {
   const output = JSON.parse(exec('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', root], {
     cwd: ROOT,
+    shell: process.platform === 'win32', // npm is npm.cmd there and .cmd needs a shell
     env: { ...process.env, npm_config_cache: path.join(root, 'npm-cache'), npm_config_update_notifier: 'false' },
   }))[0];
   const extracted = path.join(root, 'extracted');

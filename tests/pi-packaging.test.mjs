@@ -9,7 +9,7 @@ import { sandbox, FAKE_AGY, jobIdOf } from './helpers.mjs';
 import { pack } from './pi-pack-helpers.mjs';
 
 const json = file => JSON.parse(fs.readFileSync(file, 'utf8'));
-const names = ['ask', 'implementer', 'jobs', 'researcher', 'reviewer', 'staffer'];
+const names = ['ask', 'implementer', 'jobs', 'lead', 'researcher', 'reviewer', 'staffer'];
 
 test('Pi adapters are current; canonical names and all relative resources remain valid', () => {
   assert.deepEqual(generatePiSkills({ check: true }).changed, []);
