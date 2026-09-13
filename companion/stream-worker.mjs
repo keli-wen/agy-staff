@@ -68,7 +68,9 @@ export function windowsProcessTable(runner = spawnSync) {
       '-NonInteractive',
       '-Command',
       'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CreationDate',
-    ], { encoding: 'utf8', timeout: 3000, windowsHide: true });
+    // A cold PowerShell start plus the CIM query can take several seconds on
+    // a busy host; a timeout here would make cleanup skip the tree entirely.
+    ], { encoding: 'utf8', timeout: 15000, windowsHide: true });
   } catch (err) {
     res = { error: err };
   }
@@ -79,7 +81,7 @@ export function windowsProcessTable(runner = spawnSync) {
         'process',
         'get',
         'ProcessId,ParentProcessId,CreationDate',
-      ], { encoding: 'utf8', timeout: 3000, windowsHide: true });
+      ], { encoding: 'utf8', timeout: 15000, windowsHide: true });
     } catch (err) {
       res = { error: err };
     }
