@@ -322,16 +322,22 @@ test('stopExecution: a real orphan whose parent PID a live root reuses survives 
 test('stopExecution: a descendant spawned during the grace period is adopted from its live parent and stopped', { skip: process.platform === 'win32' && 'SIGTERM is TerminateProcess on Windows; the root cannot react to it', timeout: 60000 }, async (t) => {
   const sb = sandbox('adopt-late-child');
   const pidFile = path.join(sb.root, 'late-child.pid');
+  const readyFile = path.join(sb.root, 'ready');
   // The root ignores SIGTERM and only then spawns a child: it exists in the
-  // second snapshot but not in the one cleanup started from.
+  // second snapshot but not in the one cleanup started from. It announces
+  // readiness after installing the handler; before that SIGTERM would still
+  // take the default action and end the root (seen on a fast Linux runner).
   const root = spawn(process.execPath, ['-e', `
     process.on('SIGTERM', () => {
       const child = require('child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore', windowsHide: true });
       require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
     });
+    require('fs').writeFileSync(${JSON.stringify(readyFile)}, 'ready');
     setInterval(() => {}, 1000);`], { stdio: 'ignore', windowsHide: true });
   t.after(() => { try { root.kill('SIGKILL'); } catch {} });
   t.after(() => { try { process.kill(Number(fs.readFileSync(pidFile, 'utf8')), 'SIGKILL'); } catch {} });
+  for (let i = 0; i < 100 && !fs.existsSync(readyFile); i++) await pause(50);
+  assert.ok(fs.existsSync(readyFile), 'the root installed its SIGTERM handler');
   let rootIdentity = null;
   for (let i = 0; i < 30 && !rootIdentity; i++) { rootIdentity = processIdentity(root.pid); if (!rootIdentity) await pause(100); }
   assert.ok(rootIdentity, 'root must be visible in the process table');
