@@ -288,8 +288,11 @@ test('stopExecution: a real orphan whose parent PID a live root reuses survives 
   // The stale link: the orphan's parent PID is the root's PID, but the orphan
   // was born earlier, so the root cannot be its parent.
   const staleLink = (rows) => rows?.map((row) => row.pid === orphan.pid ? { ...row, parent: root.pid } : row) ?? null;
-  const table = staleLink(processTable());
-  assert.deepEqual(tree(root.pid, table).map((row) => row.pid), [child.pid], 'the orphan is not a descendant; the real child is');
+  // Windows adds conhost.exe and similar helpers under the root, so the tree
+  // is checked for membership, not equality.
+  const members = tree(root.pid, staleLink(processTable())).map((row) => row.pid);
+  assert.ok(members.includes(child.pid), `the real child ${child.pid} is a descendant: ${members}`);
+  assert.ok(!members.includes(orphan.pid), `the orphan ${orphan.pid} is not a descendant: ${members}`);
   await stopExecution(rootIdentity, [], () => staleLink(processTable()));
   for (let i = 0; i < 50 && (alive(root.pid) || alive(child.pid)); i++) await pause(100);
   assert.equal(alive(root.pid), false, 'the root is stopped');
