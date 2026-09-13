@@ -167,17 +167,6 @@ export function bornAfterParent(child, parent) {
   return c >= p;
 }
 
-/** Identity stamps recorded by an earlier release may use a coarser
- *  rendering (locale time, one second) than the current table. Compare at
- *  the coarser precision so an upgrade does not orphan a running job. */
-export function sameBirth(a, b) {
-  if (a === b) return true;
-  const pa = parseBorn(a), pb = parseBorn(b);
-  if (pa === null || pb === null) return false;
-  const coarse = (stamp) => !/\.\d+/.test(stamp);
-  return coarse(a) || coarse(b) ? pa / 10_000_000n === pb / 10_000_000n : pa === pb;
-}
-
 export function tree(pid, rows = processTable()) {
   if (!rows || !pid) return [];
   const root = rows.find((row) => row.pid === pid);

@@ -12,7 +12,6 @@ import {
   signalGroup,
   parseBorn,
   bornAfterParent,
-  sameBirth,
   tree,
   processTable,
   processIdentity,
@@ -245,21 +244,6 @@ test('parseBorn: orders ISO-8601, WMIC and legacy stamps on one 100 ns scale', (
   assert.equal(parseBorn(undefined), null);
   assert.equal(bornAfterParent({ born: 'unknown' }, { born: '2026-09-13T11:33:32.5460000+00:00' }), true, 'an unreadable child stamp keeps the edge');
   assert.equal(bornAfterParent({ born: '2026-09-13T11:33:32.5460000+00:00' }, { born: 'unknown' }), true, 'an unreadable parent stamp keeps the edge');
-});
-
-test('sameBirth: an identity recorded in the 0.7.1 locale rendering still matches the round-trip table', () => {
-  const iso = '2026-09-13T11:33:32.5460000+00:00';
-  // 0.7.1 stored PowerShell's default rendering: local wall-clock time, no
-  // zone, one-second precision. It is read back on the same machine.
-  const at = new Date(Date.UTC(2026, 8, 13, 11, 33, 32));
-  const legacy = `${at.getMonth() + 1}/${at.getDate()}/${at.getFullYear()} ${at.getHours() % 12 || 12}:${String(at.getMinutes()).padStart(2, '0')}:${String(at.getSeconds()).padStart(2, '0')} ${at.getHours() < 12 ? 'AM' : 'PM'}`;
-  assert.equal(sameBirth(iso, iso), true);
-  assert.equal(sameBirth(legacy, iso), true, `${legacy} names the same second as ${iso}`);
-  assert.equal(sameBirth(iso, legacy), true);
-  assert.equal(sameBirth(legacy, '2026-09-13T11:33:33.0000000+00:00'), false, 'a different second is a different process');
-  assert.equal(sameBirth(iso, '2026-09-13T11:33:32.5460001+00:00'), false, 'two precise stamps must match exactly');
-  assert.equal(sameBirth('unknown', iso), false);
-  assert.equal(sameBirth('unknown', 'unknown'), true, 'identical strings always match, as before');
 });
 
 test('tree: a row born before its recorded parent is an orphan behind a reused PID, not a descendant', () => {
