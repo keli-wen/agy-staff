@@ -99,16 +99,11 @@ export function windowsProcessTable(runner = spawnSync) {
 // Track process birth stamps so a previously observed PID cannot cause cleanup
 // to kill an unrelated process after PID reuse. Tool shells may create groups.
 let inspectionUnavailable = false;
-// The Windows query costs seconds (PowerShell start + CIM); a worker's startup
-// identity check and its first tracking sample land within the same second,
-// so serve them from one query. ps is cheap, so POSIX always re-reads.
-let cachedTable = null, cachedAt = 0;
-const WIN_TABLE_TTL_MS = 1000;
+// No caching, even though the Windows query is slow: callers rely on a
+// process spawned a moment ago being visible (identity capture, hard stop).
 export function processTable() {
   if (process.platform === 'win32') {
-    if (cachedTable && Date.now() - cachedAt < WIN_TABLE_TTL_MS) return cachedTable;
     const table = windowsProcessTable();
-    cachedTable = table; cachedAt = Date.now();
     if (!table) {
       if (!inspectionUnavailable) process.stderr.write('agy-staff warning: process-tree inspection unavailable; run unsandboxed to verify descendant cleanup.\n');
       inspectionUnavailable = true;
