@@ -219,7 +219,9 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
     });
     const closed = new Promise((resolve) => child.once('close', resolve));
     track();
-    trackingTimer = setInterval(track, 1000);
+    // ps is cheap; the PowerShell CIM query on Windows takes 1-3 s and runs
+    // synchronously, so sample less often there to keep the event loop free.
+    trackingTimer = setInterval(track, process.platform === 'win32' ? 5000 : 1000);
     update({ agy_pid: child.pid, execution_started_at: new Date().toISOString(), hard_deadline_at: new Date(hardDeadline).toISOString() });
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) abort();

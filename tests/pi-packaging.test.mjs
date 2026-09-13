@@ -167,7 +167,8 @@ test('actual npm archive contains resources and runs ask + detached job collecti
   const id = jobIdOf(start.stdout);
   const brief = invoke('jobs', ['wait', id, '--timeout', '1ms']);
   assert.equal(brief.status, 2, brief.stderr);
-  const done = invoke('jobs', ['wait', id, '--timeout', '5s']);
+  // Windows workers pay a PowerShell process-table query at startup and per sample.
+  const done = invoke('jobs', ['wait', id, '--timeout', process.platform === 'win32' ? '20s' : '5s']);
   assert.equal(done.status, 0, done.stderr);
   assert.match(done.stdout, /packaged OK/);
 });

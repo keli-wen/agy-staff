@@ -26,7 +26,12 @@ export function withStateLock(lock, change) {
         lastError = error;
       }
       let entries = [];
-      try { entries = fs.readdirSync(lock); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      // Windows also reports EPERM/EBUSY/EACCES while another process is renaming
+      // or removing the lock directory; treat those like a busy lock and retry.
+      try { entries = fs.readdirSync(lock); } catch (error) {
+        if (!['ENOENT', 'ENOTDIR', 'EPERM', 'EBUSY', 'EACCES'].includes(error.code)) throw error;
+        if (error.code !== 'ENOENT') lastError = error;
+      }
       if (entries.length === 1) {
         const match = /^owner-(\d+)-[a-f0-9-]+$/.exec(entries[0]);
         if (match && Number(match[1]) > 1 && !alive(Number(match[1]))) {

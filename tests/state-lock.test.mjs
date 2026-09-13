@@ -120,6 +120,42 @@ test('stale-lock reaper branch tolerates transient EPERM during cleanup', () => 
   }
 });
 
+test('acquire tolerates transient EPERM from readdir while a holder releases', () => {
+  const sb = sandbox('lock-readdir-eperm');
+  const lock = path.join(sb.root, 'state.lock');
+  const origRename = fs.renameSync;
+  const origReaddir = fs.readdirSync;
+  let renames = 0, threw = false;
+  fs.renameSync = (src, dst) => {
+    if (dst === lock && renames++ === 0) {
+      const err = new Error('operation not permitted');
+      err.code = 'EPERM';
+      throw err;
+    }
+    return origRename(src, dst);
+  };
+  fs.readdirSync = (target, ...rest) => {
+    if (!threw && target === lock) {
+      threw = true;
+      const err = new Error('operation not permitted');
+      err.code = 'EPERM';
+      err.syscall = 'scandir';
+      throw err;
+    }
+    return origReaddir(target, ...rest);
+  };
+  try {
+    let executed = false;
+    withStateLock(lock, () => { executed = true; });
+    assert.equal(executed, true);
+    assert.equal(threw, true);
+    assert.equal(fs.existsSync(lock), false);
+  } finally {
+    fs.renameSync = origRename;
+    fs.readdirSync = origReaddir;
+  }
+});
+
 test('timeout error includes the last error code', () => {
   const sb = sandbox('lock-timeout-code');
   const lock = path.join(sb.root, 'state.lock');
