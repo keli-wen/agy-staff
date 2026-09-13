@@ -68,7 +68,9 @@ test('cleanup checks current group membership when a recorded descendant moved g
   assert.ok(identity);
   await stopExecution({ pid: unrelated.pid, born: 'an earlier execution group' }, [{ ...identity, group: unrelated.pid }]);
   assert.ok(alive(unrelated.pid), 'a descendant\'s historical group is not signal authority');
-  assert.equal(alive(descendant.pid), false);
+  // Termination is asynchronous (TerminateProcess on Windows); allow it to land.
+  for (const until = Date.now() + 2000; alive(descendant.pid) && Date.now() < until;) await new Promise((r) => setTimeout(r, 50));
+  assert.equal(alive(descendant.pid), false, JSON.stringify({ recorded: identity, now: processIdentity(descendant.pid) }));
 });
 
 test('cancel accepts the same worker across locale and timezone changes', async t => {
