@@ -253,7 +253,7 @@ If the installed `agy` CLI does not support Gemini 3.8 Flash, the companion fail
 
 ## Windows support
 
-Windows is supported on a best-effort basis and exercised by the `Tests (Windows)` CI job; it has not yet been validated against a real Windows `agy` installation. Subprocesses are spawned with `windowsHide: true` so no console windows appear during background execution. Job cancellation and process cleanup discover descendant processes via PowerShell (`Get-CimInstance Win32_Process`) and terminate detached process trees using `taskkill /PID <pid> /T /F`. State locking retries transient Windows errors (`EPERM`/`EBUSY`/`EACCES`) when renaming or unlinking lock directories and marker files.
+Windows is supported on a best-effort basis and exercised by the `Tests (Windows)` CI job; it has not yet been validated against a real Windows `agy` installation. Subprocesses are spawned with `windowsHide: true` so no console windows appear during background execution. Job cancellation and process cleanup discover descendant processes via PowerShell (`Get-CimInstance Win32_Process`, with `CreationDate` in round-trip precision) and terminate each identified member individually; the leader falls to `taskkill /PID <pid> /F`, never `/T`. A parent link is only followed when the child was created after its parent: Windows keeps a dead parent's PID in `ParentProcessId`, so once that PID is reused an unrelated orphan (typically another job's detached worker) would otherwise look like a descendant and be killed. State locking retries transient Windows errors (`EPERM`/`EBUSY`/`EACCES`) when renaming or unlinking lock directories and marker files.
 
 ## Upgrading
 

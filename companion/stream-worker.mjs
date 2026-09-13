@@ -13,7 +13,11 @@ export function signalGroup(pid, signal, runner = spawnSync, platform = process.
   if (!Number.isInteger(pid) || pid <= 1) return;
   if (platform === 'win32') {
     try {
-      const res = runner('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+      // Never /T here: taskkill's own tree walk follows stale ParentProcessId
+      // links (a dead parent's PID reused by this root) into unrelated orphans.
+      // Descendants are terminated one by one by stopExecution after each has
+      // passed the identity and birth-order checks in tree().
+      const res = runner('taskkill', ['/PID', String(pid), '/F'], { windowsHide: true, stdio: 'ignore' });
       if (res?.error || (res?.status != null && res.status !== 0)) {
         try { process.kill(pid); } catch { /* already exited */ }
       }
@@ -69,8 +73,11 @@ export function windowsProcessTable(runner = spawnSync) {
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      // -Property limits the WMI fetch to the three columns we parse.
-      'Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | Select-Object ProcessId,ParentProcessId,CreationDate',
+      // -Property limits the WMI fetch to the three columns we parse. The
+      // round-trip ("o") format keeps the 100 ns precision of CreationDate;
+      // the default locale rendering is second-granular, too coarse to order a
+      // process against one that reused its parent's PID in the same second.
+      "Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | Select-Object ProcessId,ParentProcessId,@{Name='CreationDate';Expression={if ($_.CreationDate) { $_.CreationDate.ToString('o') } else { '' }}}",
     // A cold PowerShell start plus the CIM query can take several seconds on
     // a busy host; a timeout here would make cleanup skip the tree entirely.
     ], { encoding: 'utf8', timeout: 15000, windowsHide: true });
@@ -127,12 +134,51 @@ export function processTable() {
     return match ? [{ pid: Number(match[1]), parent: Number(match[2]), group: Number(match[3]), born: match[4].trim() }] : [];
   });
 }
-function tree(pid, rows = processTable()) {
+/** Birth stamp as 100 ns ticks since the epoch (BigInt, so PowerShell's
+ *  seven fractional digits survive), or null when the format is unknown.
+ *  Accepts ISO-8601 (PowerShell "o"), WMIC (yyyyMMddHHmmss.ffffff+ZZZ) and
+ *  any legacy rendering Date.parse understands. */
+export function parseBorn(born) {
+  if (typeof born !== 'string' || !born || born === 'unknown') return null;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,7}))?(Z|[+-]\d{2}:\d{2})?$/.exec(born);
+  if (iso) {
+    const seconds = BigInt(Date.UTC(+iso[1], +iso[2] - 1, +iso[3], +iso[4], +iso[5], +iso[6])) / 1000n;
+    const ticks = BigInt((iso[7] || '').padEnd(7, '0'));
+    const zoneMinutes = iso[8] && iso[8] !== 'Z' ? (iso[8].startsWith('-') ? -1n : 1n) * (BigInt(iso[8].slice(1, 3)) * 60n + BigInt(iso[8].slice(4, 6))) : 0n;
+    return (seconds - zoneMinutes * 60n) * 10_000_000n + ticks;
+  }
+  const wmic = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\.(\d{6})([+-]\d{3})$/.exec(born);
+  if (wmic) {
+    const seconds = BigInt(Date.UTC(+wmic[1], +wmic[2] - 1, +wmic[3], +wmic[4], +wmic[5], +wmic[6])) / 1000n;
+    return (seconds - BigInt(wmic[8]) * 60n) * 10_000_000n + BigInt(wmic[7]) * 10n;
+  }
+  const legacy = Date.parse(born);
+  return Number.isNaN(legacy) ? null : BigInt(legacy) * 10_000n;
+}
+
+/** A process cannot be older than its parent. A row whose recorded parent was
+ *  born after it is an orphan whose dead parent's PID has been reused: Windows
+ *  keeps the stale ParentProcessId, and the reuser is not its ancestor. When
+ *  either stamp is unreadable the edge is kept; POSIX reparents orphans to
+ *  init, so the stale-link case does not arise there. */
+export function bornAfterParent(child, parent) {
+  const c = parseBorn(child?.born), p = parseBorn(parent?.born);
+  if (c === null || p === null) return true;
+  return c >= p;
+}
+
+export function tree(pid, rows = processTable()) {
   if (!rows || !pid) return [];
-  const found = new Set([pid]);
+  const root = rows.find((row) => row.pid === pid);
+  if (!root) return [];
+  const found = new Map([[pid, root]]);
   for (let changed = true; changed;) {
     changed = false;
-    for (const row of rows) if (found.has(row.parent) && !found.has(row.pid)) { found.add(row.pid); changed = true; }
+    for (const row of rows) {
+      if (found.has(row.pid) || !found.has(row.parent)) continue;
+      if (!bornAfterParent(row, found.get(row.parent))) continue;
+      found.set(row.pid, row); changed = true;
+    }
   }
   return rows.filter((row) => row.pid !== pid && found.has(row.pid));
 }
@@ -144,15 +190,17 @@ export function processIdentity(pid) {
 }
 const matches = (rows, identity) => !!identity && !!rows?.some((row) => row.pid === identity.pid && row.born === identity.born);
 
-export async function stopExecution(root, known = []) {
+export async function stopExecution(root, known = [], table = processTable) {
   if (!root) return;
-  const current = processTable();
+  const current = table();
   if (!current) return;
   const children = new Map(known.filter((old) => matches(current, old)).map((row) => [row.pid, row]));
   if (matches(current, root)) {
     children.set(root.pid, root);
     for (const row of tree(root.pid, current)) children.set(row.pid, row);
   }
+  // This process is never a member of the execution group it is stopping.
+  children.delete(process.pid);
   // Nothing of ours is left: skip the grace wait and the second table query.
   if (children.size === 0) return;
   const signal = (rows, kind) => {
@@ -166,7 +214,7 @@ export async function stopExecution(root, known = []) {
   };
   signal(current, 'SIGTERM');
   await new Promise((resolve) => setTimeout(resolve, 500));
-  signal(processTable(), 'SIGKILL');
+  signal(table(), 'SIGKILL');
 }
 
 export async function runStreaming({ binary, args, job, budget, signal, update, conversation }) {

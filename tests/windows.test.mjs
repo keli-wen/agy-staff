@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { sandbox, run, jobIdOf } from './helpers.mjs';
 import {
@@ -10,7 +10,16 @@ import {
   windowsProcessTable,
   terminateProcessGroup,
   signalGroup,
+  parseBorn,
+  bornAfterParent,
+  tree,
+  processTable,
+  processIdentity,
+  stopExecution,
 } from '../companion/stream-worker.mjs';
+
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -152,7 +161,7 @@ test('windowsProcessTable: returns null when both powershell and wmic fail', () 
   assert.equal(result, null);
 });
 
-test('terminateProcessGroup: on win32 invokes taskkill /PID <pid> /T /F with windowsHide', () => {
+test('terminateProcessGroup: on win32 invokes taskkill /PID <pid> /F (never /T) with windowsHide', () => {
   const calls = [];
   const fakeRunner = (cmd, args, opts) => {
     calls.push({ cmd, args, opts });
@@ -162,7 +171,9 @@ test('terminateProcessGroup: on win32 invokes taskkill /PID <pid> /T /F with win
   terminateProcessGroup(4321, 'SIGTERM', fakeRunner, 'win32');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].cmd, 'taskkill');
-  assert.deepEqual(calls[0].args, ['/PID', '4321', '/T', '/F']);
+  // /T would let taskkill walk stale ParentProcessId links into unrelated
+  // orphans (a reused PID); descendants are killed individually instead.
+  assert.deepEqual(calls[0].args, ['/PID', '4321', '/F']);
   assert.equal(calls[0].opts.windowsHide, true);
   assert.equal(calls[0].opts.stdio, 'ignore');
 });
@@ -192,4 +203,96 @@ test('terminateProcessGroup / signalGroup: on POSIX uses negative PID for group 
   } finally {
     process.kill = origKill;
   }
+});
+
+test('parseWindowsProcessTable: keeps the round-trip CreationDate and tolerates a missing one', () => {
+  const sample = `
+ProcessId ParentProcessId CreationDate
+--------- --------------- ------------
+        0               0
+        4               0 2026-09-13T11:00:00.0000000+00:00
+     3616            2468 2026-09-13T11:33:32.5460000+00:00
+`;
+  const rows = parseWindowsProcessTable(sample);
+  assert.deepEqual(rows, [
+    { pid: 0, parent: 0, group: 0, born: 'unknown' },
+    { pid: 4, parent: 0, group: 4, born: '2026-09-13T11:00:00.0000000+00:00' },
+    { pid: 3616, parent: 2468, group: 3616, born: '2026-09-13T11:33:32.5460000+00:00' },
+  ]);
+});
+
+test('windowsProcessTable: asks PowerShell for CreationDate in round-trip (100 ns) precision', () => {
+  const calls = [];
+  windowsProcessTable((cmd, args) => { calls.push({ cmd, args }); return { status: 0, stdout: 'ProcessId ParentProcessId CreationDate\n' }; });
+  assert.equal(calls[0].cmd, 'powershell');
+  const command = calls[0].args.at(-1);
+  assert.match(command, /Get-CimInstance Win32_Process/);
+  assert.match(command, /CreationDate\.ToString\('o'\)/, 'default locale formatting is second-granular');
+});
+
+test('parseBorn: orders ISO-8601, WMIC and legacy stamps on one 100 ns scale', () => {
+  const utc = parseBorn('2026-09-13T11:33:32.5460000+00:00');
+  assert.equal(utc, 17892992125460000n);
+  assert.equal(parseBorn('2026-09-13T19:33:32.5460000+08:00'), utc, 'zone offsets are normalized');
+  assert.equal(parseBorn('2026-09-13T11:33:32.5460000Z'), utc);
+  assert.equal(parseBorn('2026-09-13T11:33:32.5460001+00:00'), utc + 1n, 'the seventh fractional digit survives');
+  assert.equal(parseBorn('20260913113332.546000+000'), utc, 'WMIC format');
+  assert.equal(parseBorn('20260913193332.546000+480'), utc, 'WMIC zone offset in minutes');
+  assert.equal(parseBorn('9/13/2026 11:33:32 AM'), BigInt(Date.parse('9/13/2026 11:33:32 AM')) * 10_000n, 'legacy locale rendering');
+  assert.equal(parseBorn('unknown'), null);
+  assert.equal(parseBorn(''), null);
+  assert.equal(parseBorn(undefined), null);
+  assert.equal(bornAfterParent({ born: 'unknown' }, { born: utc.toString() }), true, 'unreadable stamps keep the edge');
+});
+
+test('tree: a row born before its recorded parent is an orphan behind a reused PID, not a descendant', () => {
+  // The recycler R received the PID of a dispatch process that had already
+  // exited; the orphan worker W still records that PID as its parent.
+  const R = { pid: 100, parent: 1, group: 100, born: '2026-09-13T11:33:34.0000000+00:00' };
+  const W = { pid: 200, parent: 100, group: 200, born: '2026-09-13T11:33:33.9999999+00:00' };
+  const WC = { pid: 500, parent: 200, group: 500, born: '2026-09-13T11:33:36.0000000+00:00' };
+  const C = { pid: 300, parent: 100, group: 300, born: '2026-09-13T11:33:34.0000000+00:00' };
+  const GC = { pid: 400, parent: 300, group: 400, born: '2026-09-13T11:33:35.0000000+00:00' };
+  assert.deepEqual(tree(100, [R, W, WC, C, GC]).map((row) => row.pid), [300, 400]);
+  assert.deepEqual(tree(100, [R, W, WC, C, GC].map((row) => ({ ...row, born: 'unknown' }))).map((row) => row.pid), [200, 500, 300, 400],
+    'without birth stamps every link is trusted, as before');
+  assert.deepEqual(tree(999, [R, C]), [], 'an absent root has no tree');
+});
+
+test('stopExecution: a real orphan whose parent PID a live root reuses survives the root\'s cleanup', { timeout: 60000 }, async (t) => {
+  // Real processes and real signals; the only synthetic element is one
+  // ParentProcessId in the table, because no kernel lets a test choose which
+  // PID it hands out next (and POSIX reparents orphans to init anyway).
+  const orphan = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: 'ignore', windowsHide: true });
+  orphan.unref();
+  t.after(() => { try { orphan.kill('SIGKILL'); } catch {} });
+  let orphanIdentity = null;
+  for (let i = 0; i < 100 && !orphanIdentity; i++) { orphanIdentity = processIdentity(orphan.pid); if (!orphanIdentity) await pause(100); }
+  assert.ok(orphanIdentity, 'orphan must be visible in the process table');
+  // POSIX ps reports birth at second granularity; make the root strictly younger.
+  await pause(1100);
+  const root = spawn(process.execPath, ['-e',
+    "require('child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore', windowsHide: true }); setInterval(() => {}, 1000)"],
+    { stdio: 'ignore', windowsHide: true });
+  t.after(() => { try { root.kill('SIGKILL'); } catch {} });
+  let rootIdentity = null, child = null;
+  for (let i = 0; i < 100 && !(rootIdentity && child); i++) {
+    const rows = processTable();
+    rootIdentity ||= rows?.find((row) => row.pid === root.pid) || null;
+    child = rows?.find((row) => row.parent === root.pid) || null;
+    if (!(rootIdentity && child)) await pause(100);
+  }
+  assert.ok(rootIdentity && child, 'root and its real child must be visible in the process table');
+  assert.ok(bornAfterParent(child, rootIdentity), 'a real child is born after its parent');
+  t.after(() => { try { process.kill(child.pid, 'SIGKILL'); } catch {} });
+  // The stale link: the orphan's parent PID is the root's PID, but the orphan
+  // was born earlier, so the root cannot be its parent.
+  const staleLink = (rows) => rows?.map((row) => row.pid === orphan.pid ? { ...row, parent: root.pid } : row) ?? null;
+  const table = staleLink(processTable());
+  assert.deepEqual(tree(root.pid, table).map((row) => row.pid), [child.pid], 'the orphan is not a descendant; the real child is');
+  await stopExecution(rootIdentity, [], () => staleLink(processTable()));
+  for (let i = 0; i < 50 && (alive(root.pid) || alive(child.pid)); i++) await pause(100);
+  assert.equal(alive(root.pid), false, 'the root is stopped');
+  assert.equal(alive(child.pid), false, 'the real descendant is stopped');
+  assert.equal(alive(orphan.pid), true, 'the unrelated orphan survives');
 });

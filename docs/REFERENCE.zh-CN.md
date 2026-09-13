@@ -343,7 +343,7 @@ AGY 会读取工作区中的 `AGENTS.md`、`GEMINI.md` 和 `.agents/rules/*.md`�
 
 ## Windows 支持
 
-Windows 为尽力支持，由 CI 的 `Tests (Windows)` 任务覆盖，尚未在真实的 Windows `agy` 安装上验证。子进程均以 `windowsHide: true` 启动，避免后台执行期间弹出控制台窗口。任务取消与进程清理通过 PowerShell（`Get-CimInstance Win32_Process`）发现子孙进程，并使用 `taskkill /PID <pid> /T /F` 终止脱离父进程的进程树。状态锁针对 Windows 目录与标记文件的重命名和删除瞬态错误（`EPERM`/`EBUSY`/`EACCES`）进行了自动重试。
+Windows 为尽力支持，由 CI 的 `Tests (Windows)` 任务覆盖，尚未在真实的 Windows `agy` 安装上验证。子进程均以 `windowsHide: true` 启动，避免后台执行期间弹出控制台窗口。任务取消与进程清理通过 PowerShell（`Get-CimInstance Win32_Process`，`CreationDate` 使用往返精度）发现子孙进程，并逐个终止已确认身份的成员；组长进程使用 `taskkill /PID <pid> /F`，不再使用 `/T`。父子链接只有在子进程创建时间晚于父进程时才被采信：Windows 会在 `ParentProcessId` 中保留已退出父进程的 PID，该 PID 被复用后，一个无关的孤儿进程（通常是另一个任务的后台 worker）否则会被误认为子孙而被杀掉。状态锁针对 Windows 目录与标记文件的重命名和删除瞬态错误（`EPERM`/`EBUSY`/`EACCES`）进行了自动重试。
 
 ## 升级
 
