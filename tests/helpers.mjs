@@ -125,7 +125,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * read-modify-write window (lost updates) instead of the interface under test.
  * See tests/README.md ("State-file races").
  */
-async function waitForWorker(sb, jobId, { tries = 200, delayMs = 50 } = {}) {
+// Windows workers pay for PowerShell process-table queries at startup and on
+// cleanup; a cold runner can spend most of the 10 s POSIX budget on those.
+async function waitForWorker(sb, jobId, { tries = process.platform === 'win32' ? 600 : 200, delayMs = 50 } = {}) {
   const resultFile = path.join(sb.repo, '.agy-staff', 'jobs', `${jobId}.result.md`);
   for (let i = 0; i < tries; i++) {
     if (fs.existsSync(resultFile)) {
