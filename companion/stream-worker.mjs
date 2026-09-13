@@ -167,6 +167,17 @@ export function bornAfterParent(child, parent) {
   return c >= p;
 }
 
+/** Identity stamps recorded by an earlier release may use a coarser
+ *  rendering (locale time, one second) than the current table. Compare at
+ *  the coarser precision so an upgrade does not orphan a running job. */
+export function sameBirth(a, b) {
+  if (a === b) return true;
+  const pa = parseBorn(a), pb = parseBorn(b);
+  if (pa === null || pb === null) return false;
+  const coarse = (stamp) => !/\.\d+/.test(stamp);
+  return coarse(a) || coarse(b) ? pa / 10_000_000n === pb / 10_000_000n : pa === pb;
+}
+
 export function tree(pid, rows = processTable()) {
   if (!rows || !pid) return [];
   const root = rows.find((row) => row.pid === pid);
@@ -203,7 +214,23 @@ export async function stopExecution(root, known = [], table = processTable) {
   children.delete(process.pid);
   // Nothing of ours is left: skip the grace wait and the second table query.
   if (children.size === 0) return;
+  // A member spawned after the last snapshot (a tool started during the grace
+  // period) is adopted from a still-live, identity-matched member under the
+  // same birth-order rule as tree(); a dead member's PID proves nothing.
+  const adopt = (rows) => {
+    if (!rows) return;
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const row of rows) {
+        if (children.has(row.pid) || row.pid === process.pid) continue;
+        const parent = children.get(row.parent);
+        if (!parent || !matches(rows, parent) || !bornAfterParent(row, parent)) continue;
+        children.set(row.pid, row); changed = true;
+      }
+    }
+  };
   const signal = (rows, kind) => {
+    adopt(rows);
     // A surviving, identified member proves this is still our execution group.
     const reusedLeader = rows?.some((row) => row.pid === root.pid && row.born !== root.born);
     const ownedMember = rows?.some((row) => row.group === root.pid && children.get(row.pid)?.born === row.born);

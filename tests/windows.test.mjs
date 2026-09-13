@@ -12,6 +12,7 @@ import {
   signalGroup,
   parseBorn,
   bornAfterParent,
+  sameBirth,
   tree,
   processTable,
   processIdentity,
@@ -242,7 +243,23 @@ test('parseBorn: orders ISO-8601, WMIC and legacy stamps on one 100 ns scale', (
   assert.equal(parseBorn('unknown'), null);
   assert.equal(parseBorn(''), null);
   assert.equal(parseBorn(undefined), null);
-  assert.equal(bornAfterParent({ born: 'unknown' }, { born: utc.toString() }), true, 'unreadable stamps keep the edge');
+  assert.equal(bornAfterParent({ born: 'unknown' }, { born: '2026-09-13T11:33:32.5460000+00:00' }), true, 'an unreadable child stamp keeps the edge');
+  assert.equal(bornAfterParent({ born: '2026-09-13T11:33:32.5460000+00:00' }, { born: 'unknown' }), true, 'an unreadable parent stamp keeps the edge');
+});
+
+test('sameBirth: an identity recorded in the 0.7.1 locale rendering still matches the round-trip table', () => {
+  const iso = '2026-09-13T11:33:32.5460000+00:00';
+  // 0.7.1 stored PowerShell's default rendering: local wall-clock time, no
+  // zone, one-second precision. It is read back on the same machine.
+  const at = new Date(Date.UTC(2026, 8, 13, 11, 33, 32));
+  const legacy = `${at.getMonth() + 1}/${at.getDate()}/${at.getFullYear()} ${at.getHours() % 12 || 12}:${String(at.getMinutes()).padStart(2, '0')}:${String(at.getSeconds()).padStart(2, '0')} ${at.getHours() < 12 ? 'AM' : 'PM'}`;
+  assert.equal(sameBirth(iso, iso), true);
+  assert.equal(sameBirth(legacy, iso), true, `${legacy} names the same second as ${iso}`);
+  assert.equal(sameBirth(iso, legacy), true);
+  assert.equal(sameBirth(legacy, '2026-09-13T11:33:33.0000000+00:00'), false, 'a different second is a different process');
+  assert.equal(sameBirth(iso, '2026-09-13T11:33:32.5460001+00:00'), false, 'two precise stamps must match exactly');
+  assert.equal(sameBirth('unknown', iso), false);
+  assert.equal(sameBirth('unknown', 'unknown'), true, 'identical strings always match, as before');
 });
 
 test('tree: a row born before its recorded parent is an orphan behind a reused PID, not a descendant', () => {
@@ -266,8 +283,10 @@ test('stopExecution: a real orphan whose parent PID a live root reuses survives 
   const orphan = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: 'ignore', windowsHide: true });
   orphan.unref();
   t.after(() => { try { orphan.kill('SIGKILL'); } catch {} });
+  // Each processTable() call costs 1-3 s on a Windows runner; 30 tries stay
+  // inside the test timeout.
   let orphanIdentity = null;
-  for (let i = 0; i < 100 && !orphanIdentity; i++) { orphanIdentity = processIdentity(orphan.pid); if (!orphanIdentity) await pause(100); }
+  for (let i = 0; i < 30 && !orphanIdentity; i++) { orphanIdentity = processIdentity(orphan.pid); if (!orphanIdentity) await pause(100); }
   assert.ok(orphanIdentity, 'orphan must be visible in the process table');
   // POSIX ps reports birth at second granularity; make the root strictly younger.
   await pause(1100);
@@ -276,7 +295,8 @@ test('stopExecution: a real orphan whose parent PID a live root reuses survives 
     { stdio: 'ignore', windowsHide: true });
   t.after(() => { try { root.kill('SIGKILL'); } catch {} });
   let rootIdentity = null, child = null;
-  for (let i = 0; i < 100 && !(rootIdentity && child); i++) {
+  t.after(() => { if (child) try { process.kill(child.pid, 'SIGKILL'); } catch {} });
+  for (let i = 0; i < 30 && !(rootIdentity && child); i++) {
     const rows = processTable();
     rootIdentity ||= rows?.find((row) => row.pid === root.pid) || null;
     child = rows?.find((row) => row.parent === root.pid) || null;
@@ -284,7 +304,6 @@ test('stopExecution: a real orphan whose parent PID a live root reuses survives 
   }
   assert.ok(rootIdentity && child, 'root and its real child must be visible in the process table');
   assert.ok(bornAfterParent(child, rootIdentity), 'a real child is born after its parent');
-  t.after(() => { try { process.kill(child.pid, 'SIGKILL'); } catch {} });
   // The stale link: the orphan's parent PID is the root's PID, but the orphan
   // was born earlier, so the root cannot be its parent.
   const staleLink = (rows) => rows?.map((row) => row.pid === orphan.pid ? { ...row, parent: root.pid } : row) ?? null;
@@ -298,4 +317,28 @@ test('stopExecution: a real orphan whose parent PID a live root reuses survives 
   assert.equal(alive(root.pid), false, 'the root is stopped');
   assert.equal(alive(child.pid), false, 'the real descendant is stopped');
   assert.equal(alive(orphan.pid), true, 'the unrelated orphan survives');
+});
+
+test('stopExecution: a descendant spawned during the grace period is adopted from its live parent and stopped', { skip: process.platform === 'win32' && 'SIGTERM is TerminateProcess on Windows; the root cannot react to it', timeout: 60000 }, async (t) => {
+  const sb = sandbox('adopt-late-child');
+  const pidFile = path.join(sb.root, 'late-child.pid');
+  // The root ignores SIGTERM and only then spawns a child: it exists in the
+  // second snapshot but not in the one cleanup started from.
+  const root = spawn(process.execPath, ['-e', `
+    process.on('SIGTERM', () => {
+      const child = require('child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore', windowsHide: true });
+      require('fs').writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+    });
+    setInterval(() => {}, 1000);`], { stdio: 'ignore', windowsHide: true });
+  t.after(() => { try { root.kill('SIGKILL'); } catch {} });
+  t.after(() => { try { process.kill(Number(fs.readFileSync(pidFile, 'utf8')), 'SIGKILL'); } catch {} });
+  let rootIdentity = null;
+  for (let i = 0; i < 30 && !rootIdentity; i++) { rootIdentity = processIdentity(root.pid); if (!rootIdentity) await pause(100); }
+  assert.ok(rootIdentity, 'root must be visible in the process table');
+  await stopExecution(rootIdentity);
+  assert.ok(fs.existsSync(pidFile), 'the root received SIGTERM and spawned its late child');
+  const late = Number(fs.readFileSync(pidFile, 'utf8'));
+  for (let i = 0; i < 50 && (alive(root.pid) || alive(late)); i++) await pause(100);
+  assert.equal(alive(root.pid), false, 'the root is stopped');
+  assert.equal(alive(late), false, 'the late child is adopted and stopped');
 });

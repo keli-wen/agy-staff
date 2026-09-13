@@ -93,7 +93,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { boundSnapshot, excerpt } from './observation.mjs';
-import { atomicJSON, runStreaming, processIdentity } from './stream-worker.mjs';
+import { atomicJSON, runStreaming, processIdentity, sameBirth } from './stream-worker.mjs';
 import { withStateLock, replaceFile, readTextRetry } from './state-lock.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
@@ -1602,7 +1602,7 @@ async function cmdCancel(opts) {
       if (!job.spec_file) die('this legacy job has no cancellation request channel; cannot safely signal an unverified stored PID');
       const identity = job.worker_identity;
       const current = identity ? processIdentity(job.pid) : null;
-      if (identity && (identity.pid !== job.pid || (current && identity.born !== current.born))) {
+      if (identity && (identity.pid !== job.pid || (current && !sameBirth(identity.born, current.born)))) {
         die('worker identity no longer matches this job; refusing to signal a reused or unrelated PID');
       }
       // Keep running visible until the worker stores the cancellation report.
@@ -1618,7 +1618,7 @@ async function cmdCancel(opts) {
   // On Windows process.kill() is TerminateProcess: the worker would die without
   // running its cleanup and orphan the agy tree, so rely on the marker alone there.
   const current = job.worker_identity && process.platform !== 'win32' ? processIdentity(job.pid) : null;
-  if (current && current.pid === job.worker_identity.pid && current.born === job.worker_identity.born) {
+  if (current && current.pid === job.worker_identity.pid && sameBirth(current.born, job.worker_identity.born)) {
     try { process.kill(current.pid, 'SIGTERM'); } catch {}
   }
   const deadline = Date.now() + 10000;
