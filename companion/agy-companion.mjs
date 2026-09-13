@@ -94,7 +94,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { boundSnapshot, excerpt } from './observation.mjs';
 import { atomicJSON, runStreaming, processIdentity } from './stream-worker.mjs';
-import { withStateLock } from './state-lock.mjs';
+import { withStateLock, replaceFile, readTextRetry } from './state-lock.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const TEMPLATES_DIR = path.join(path.dirname(SELF), '..', 'templates');
@@ -329,9 +329,12 @@ function ensureStateDir() {
 function loadState() {
   let raw;
   try {
-    raw = fs.readFileSync(statePath(), 'utf8');
-  } catch {
-    return { conversations: {}, last: null, jobs: [] };
+    raw = readTextRetry(statePath());
+  } catch (error) {
+    // Only a missing file means "no state yet". Anything else must not be
+    // mistaken for an empty state: callers write it back and would wipe jobs.
+    if (error.code === 'ENOENT') return { conversations: {}, last: null, jobs: [] };
+    die(`cannot read state file ${statePath()}: ${error.message}`);
   }
   try {
     return JSON.parse(raw);
@@ -348,7 +351,7 @@ function saveState(state) {
   // file at any moment; a plain truncate-then-write leaves a torn window.
   const tmp = statePath() + `.tmp-${process.pid}`;
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2) + '\n');
-  fs.renameSync(tmp, statePath());
+  replaceFile(tmp, statePath());
 }
 
 function updateState(change) {

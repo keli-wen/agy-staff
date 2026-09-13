@@ -3,6 +3,32 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const pause = () => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+
+const TRANSIENT = ['EPERM', 'EBUSY', 'EACCES'];
+
+/** Atomic replace that survives Windows sharing violations. Replacing a file
+ *  another process currently has open for reading fails there with EPERM or
+ *  EBUSY; readers poll state and progress files every few hundred ms, so
+ *  retry briefly before giving up. POSIX never takes the retry path. */
+export function replaceFile(tmp, file) {
+  for (let attempt = 0; ; attempt++) {
+    try { fs.renameSync(tmp, file); return; } catch (error) {
+      if (!TRANSIENT.includes(error.code) || attempt >= 50) throw error;
+      pause();
+    }
+  }
+}
+
+/** Read a file that a concurrent writer may be replacing right now. ENOENT is
+ *  returned to the caller; transient Windows sharing errors are retried. */
+export function readTextRetry(file) {
+  for (let attempt = 0; ; attempt++) {
+    try { return fs.readFileSync(file, 'utf8'); } catch (error) {
+      if (!TRANSIENT.includes(error.code) || attempt >= 50) throw error;
+      pause();
+    }
+  }
+}
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
 
 // Publish a nonempty directory atomically. Reapers remove only the unique

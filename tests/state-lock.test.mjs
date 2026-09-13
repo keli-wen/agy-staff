@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { withStateLock } from '../companion/state-lock.mjs';
+import { withStateLock, replaceFile } from '../companion/state-lock.mjs';
 import { sandbox } from './helpers.mjs';
 
 test('competing stale-lock reapers cannot remove the next owner or lose updates', async () => {
@@ -153,6 +153,33 @@ test('acquire tolerates transient EPERM from readdir while a holder releases', (
   } finally {
     fs.renameSync = origRename;
     fs.readdirSync = origReaddir;
+  }
+});
+
+test('replaceFile retries transient EPERM on rename and then succeeds', () => {
+  const sb = sandbox('replace-file-eperm');
+  const file = path.join(sb.root, 'state.json');
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(file, 'old');
+  fs.writeFileSync(tmp, 'new');
+  const origRename = fs.renameSync;
+  let failures = 0;
+  fs.renameSync = (src, dst) => {
+    if (dst === file && failures < 3) {
+      failures++;
+      const err = new Error('operation not permitted');
+      err.code = 'EPERM';
+      throw err;
+    }
+    return origRename(src, dst);
+  };
+  try {
+    replaceFile(tmp, file);
+    assert.equal(failures, 3);
+    assert.equal(fs.readFileSync(file, 'utf8'), 'new');
+    assert.equal(fs.existsSync(tmp), false);
+  } finally {
+    fs.renameSync = origRename;
   }
 });
 

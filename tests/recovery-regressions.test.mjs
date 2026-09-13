@@ -267,11 +267,11 @@ test('continuing a conversation whose job is still running is refused without qu
 test('continue --job preserves the selected job configuration after later turns change it', () => {
   const sb = sandbox('selected-job-config');
   const first = jobIdOf(run(sb, ['review', '--restricted', '--model', 'gemini-3.8-flash-low', '--json', '--prompt', 'review']).stdout);
-  assert.equal(run(sb, ['wait', first]).code, 0);
+  const w1 = run(sb, ['wait', first]); assert.equal(w1.code, 0, w1.stderr);
   const second = jobIdOf(run(sb, ['continue', '--job', first, '--unrestricted', '--model', 'gemini-3.8-flash-high', '--prompt', 'another turn']).stdout);
-  assert.equal(run(sb, ['wait', second]).code, 0);
+  const w2 = run(sb, ['wait', second]); assert.equal(w2.code, 0, w2.stderr);
   const third = jobIdOf(run(sb, ['continue', '--job', first, '--prompt', 'use the first configuration']).stdout);
-  assert.equal(run(sb, ['wait', third]).code, 0);
+  const w3 = run(sb, ['wait', third]); assert.equal(w3.code, 0, w3.stderr);
   assert.equal(job(sb, third).parent_job_id, first);
   assert.equal(job(sb, third).model, 'gemini-3.8-flash-low');
   assert.equal(job(sb, third).profile, 'restricted');

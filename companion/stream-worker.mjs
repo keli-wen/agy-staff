@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { createParser, createProjection, excerpt, boundSnapshot } from './observation.mjs';
+import { replaceFile } from './state-lock.mjs';
 
 export function atomicJSON(file, value) {
   const tmp = `${file}.tmp-${process.pid}`;
   fs.writeFileSync(tmp, JSON.stringify(value) + '\n');
-  fs.renameSync(tmp, file);
+  replaceFile(tmp, file);
 }
 
 export function signalGroup(pid, signal, runner = spawnSync, platform = process.platform) {
