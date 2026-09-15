@@ -101,13 +101,13 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 ## 核心设计
 
-`lead` 为当前主 agent 增加任务编排指导。在 lead 工作流中，默认用 `staffer` 承担实质性工作，专门指导有帮助时再选择 specialist，`ask` 仅用于测试。主 agent 负责决策、审查和交付，复用现有 jobs 工作流。Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`。
+`lead` 为当前主 agent 增加任务编排指导。在 lead 工作流中，主 agent 了解至足以明确任务后，默认用 `staffer` 承担实质性工作，等待结果返回后再验收、整合或追加任务；专门指导有帮助时再选择 specialist，`ask` 仅用于测试。主 agent 负责跨任务决策、验收、整合和交付，复用现有 jobs 工作流。Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`。
 
 `ask` 会在同一次调用中返回答案。其他角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
 
 主 agent 默认等待最终结果，不为例行汇报主动查询。你明确询问中间进展时，它才用 `observe` 查看当前快照，其中包含最近的工具活动和回答片段。任务完成后，`wait` 或 `result` 负责返回完整结果。
 
-下图按时间顺序展示一次后台任务：主 agent 发起委派后可以继续其他工作，仅在用户询问时查看进度，最后收取报告。
+下图按时间顺序展示一次后台任务：主 agent 默认等待最终结果（或推进已明确的独立工作），仅在用户询问时查看进度，最后收取报告。
 
 [![后台任务从委派到完成的过程：主 agent 等待或查看进度时，worker 持续保存 AGY 的输出，最终交付完整报告](assets/integration.png)](assets/integration.svg)
 

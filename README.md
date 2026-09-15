@@ -116,13 +116,13 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 ## Core design
 
-`lead` adds task orchestration guidance for your current agent. Within lead, delegate substantive work to `staffer` by default, use specialists when their guidance helps, and reserve `ask` for testing. The host owns decisions, review, and delivery, using the existing jobs workflow. Invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, or `/skill:agy-lead` in Pi.
+`lead` adds task orchestration guidance for your current agent. Within lead, orient enough to frame the assignment, delegate substantive work to `staffer` by default, wait for the result, then assess it and integrate or follow up. Specialists provide dedicated guidance when useful, while `ask` is reserved for testing. The host owns cross-task decisions, acceptance, integration, and delivery, using the existing jobs workflow. Invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, or `/skill:agy-lead` in Pi.
 
 `ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 
 The main agent waits for the final result by default. If you explicitly ask about progress, it can use `observe` to read a snapshot of recent tool activity and response text; it does not query progress for routine updates. Once the task finishes, `wait` or `result` delivers the full report. Expiring a wait leaves the worker running.
 
-The timeline below follows a background task from delegation to completion. The host agent can continue other work, check progress when needed, and collect the final report.
+The timeline below follows a background task from delegation to completion. The host agent waits for the final result by default (or advances already-identified independent work), checks progress when asked, and collects the report.
 
 [![A background task over time: the host delegates, waits or observes, while the worker continuously saves AGY output and eventually delivers the full report](assets/integration.png)](assets/integration.svg)
 
