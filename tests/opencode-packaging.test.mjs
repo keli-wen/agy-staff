@@ -60,6 +60,24 @@ test('packed OpenCode plugin registers only bundled branded skills idempotently 
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
   assert.equal(manifest.main, './opencode.mjs');
   assert.equal(manifest.exports, './opencode.mjs');
+  // Pacote invokes npm to prepare Git dependencies when any of these hooks
+  // exist, even with ignoreScripts. OpenCode's compiled runtime cannot run
+  // that nested npm; checked packing and prepublishOnly keep release checks.
+  for (const hook of ['prepack', 'prepare', 'preinstall', 'install', 'postinstall', 'build']) {
+    assert.equal(manifest.scripts[hook], undefined, `${hook} breaks native Git installation`);
+  }
+  const output = path.join(dir, 'opencode-skills/agy-ask/SKILL.md');
+  const original = fs.readFileSync(output);
+  fs.appendFileSync(output, '\nstale generated content\n');
+  const stalePack = spawnSync('npm', ['run', 'pack:checked'], {
+    cwd: dir, encoding: 'utf8', timeout: 60_000, shell: process.platform === 'win32',
+    env: { ...process.env, npm_config_cache: path.join(sb.root, 'npm-cache'), npm_config_update_notifier: 'false' },
+  });
+  assert.equal(stalePack.status, 1, stalePack.stderr);
+  assert.match(stalePack.stderr, /Stale OpenCode skills/);
+  assert.equal(fs.readdirSync(dir).some(file => file.endsWith('.tgz')), false, 'drift must fail before creating an archive');
+  fs.writeFileSync(output, original);
+
   const plugin = await import(pathToFileURL(path.join(dir, manifest.main)));
   assert.deepEqual(Object.keys(plugin), ['AgyStaffPlugin']);
   const hooks = await plugin.AgyStaffPlugin({});

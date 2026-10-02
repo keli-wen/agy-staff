@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { sandbox } from './helpers.mjs';
 import { exec, pack } from './pi-pack-helpers.mjs';
 
@@ -31,9 +32,20 @@ test('OpenCode V1: native package install registers seven skills and same-named 
   const unrelated = path.join(sb.repo, '.opencode/skills/reviewer');
   fs.mkdirSync(unrelated, { recursive: true });
   fs.writeFileSync(path.join(unrelated, 'SKILL.md'), '---\nname: reviewer\ndescription: An unrelated review workflow.\n---\nNot agy.\n');
-  const { metadata } = pack(sb.root);
+  const { metadata, dir: fixture } = pack(sb.root);
   const spec = `agy-staff@file:${path.join(sb.root, metadata.filename)}`;
   exec(binary, ['plugin', spec, '--global'], { cwd: sb.repo, env, timeout: 120_000 });
+  // Exercise the separate Git preparation path too. A prepack/prepare hook
+  // makes pacote spawn npm inside OpenCode's compiled runtime and breaks
+  // Git installs even when the same package works as a tarball.
+  exec('git', ['init', '-q'], { cwd: fixture, env });
+  exec('git', ['add', '.'], { cwd: fixture, env });
+  exec('git', ['-c', 'user.name=AGY Test', '-c', 'user.email=agy-test@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Packed fixture'], { cwd: fixture, env });
+  const revision = exec('git', ['rev-parse', 'HEAD'], { cwd: fixture, env }).trim();
+  const gitSpec = `agy-staff@git+${pathToFileURL(fixture).href}#${revision}`;
+  exec(binary, ['plugin', gitSpec, '--global', '--force'], { cwd: sb.repo, env, timeout: 120_000 });
+  const configured = JSON.parse(exec(binary, ['debug', 'config'], { cwd: sb.repo, env, timeout: 120_000 }));
+  assert.ok(configured.plugin.some(entry => (Array.isArray(entry) ? entry[0] : entry) === gitSpec), 'Git install must replace the tarball entry');
   const discovered = JSON.parse(exec(binary, ['debug', 'skill'], { cwd: sb.repo, env, timeout: 120_000 }));
   // OpenCode also ships its own built-in skills.
   const skills = discovered.filter(skill => skill.name.startsWith('agy-'));

@@ -1,5 +1,6 @@
-# Check out text files with LF on every platform: the Pi skill generator and
+# Check out text files with LF on every platform: the skill generator and
 # its tests parse SKILL.md frontmatter with \n, which CRLF breaks.
 * text=auto eol=lf
 
 pi-skills/** linguist-generated=true
+opencode-skills/** linguist-generated=true

@@ -158,7 +158,7 @@ codex plugin marketplace upgrade && codex plugin add agy@agy-staff
 
 提交代码前请运行 `npm test`。标准测试使用临时仓库、临时 HOME 和假的 agy，不会调用真实模型或改动你的个人配置。新增回归测试也应保持这一点。需要验证真实 AGY 时，请使用[测试说明](tests/README.md)中单独启用的集成测试。
 
-运行逻辑位于 `companion/`：入口负责模式和任务命令，独立模块负责流式执行、进度快照和状态锁。角色技能位于 `skills/`，共享的提示词模板位于 `templates/`。修改技能时请以 `skills/` 为准，再运行 `npm run generate:skills` 生成 `pi-skills/` 与 `opencode-skills/`，用 `npm run check:skills` 检查一致性。不要直接编辑生成文件；原有 `generate:pi` 和 `check:pi` 命令仍然可用。
+运行逻辑位于 `companion/`：入口负责模式和任务命令，独立模块负责流式执行、进度快照和状态锁。角色技能位于 `skills/`，共享的提示词模板位于 `templates/`。修改技能时请以 `skills/` 为准，再运行 `npm run generate:skills` 生成 `pi-skills/` 与 `opencode-skills/`，用 `npm run check:skills` 检查一致性。不要直接编辑生成文件；原有 `generate:pi` 和 `check:pi` 命令仍然可用。打包时使用 `npm run pack:checked`，先检查一致性再生成归档；发布前也会自动检查。
 
 README 和参考手册都有中英文版本。修改使用方法或行为说明时，请同步更新对应版本，让两种语言的读者得到一致的信息。
 

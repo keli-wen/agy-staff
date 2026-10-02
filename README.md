@@ -158,7 +158,7 @@ A few things worth knowing before you open a PR:
 - **Run the tests**: `npm test`. The standard suite uses temporary repos and HOME directories with fake `agy`, plus focused module tests. Keep regression tests offline and independent of personal settings. Real AGY validation is a separate opt-in suite described in [tests/README.md](tests/README.md).
 - **Docs come in pairs**: `README.md` / `README.zh-CN.md` and `docs/REFERENCE.md` / `docs/REFERENCE.zh-CN.md` are kept in sync. Change one, change its counterpart.
 - **Runtime code lives in `companion/`**: the entrypoint handles modes and job commands; separate modules handle streaming execution, observations and state locking. Skills call the companion, and `templates/` holds the shared prompts.
-- **Canonical skills are the source of truth**: edit personas in `skills/`, never in `pi-skills/` or `opencode-skills/`. Run `npm run generate:skills` to generate both host entrypoints, and `npm run check:skills` to verify consistency. The existing `generate:pi` and `check:pi` commands remain available.
+- **Canonical skills are the source of truth**: edit personas in `skills/`, never in `pi-skills/` or `opencode-skills/`. Run `npm run generate:skills` to generate both host entrypoints, and `npm run check:skills` to verify consistency. The existing `generate:pi` and `check:pi` commands remain available. Use `npm run pack:checked` to check freshness before packing; publishing also runs the check.
 
 Adding a mode or a flag changes the public surface, so please open an issue first and we can agree on the shape.
 

@@ -30,12 +30,13 @@
     "check:pi": "node scripts/generate-pi-skills.mjs --check",
     "test": "node --test tests/*.test.mjs",
     "test:pi": "node --test tests/pi.integration.mjs",
-    "prepack": "npm run check:skills",
     "generate:opencode": "node scripts/generate-pi-skills.mjs --target=opencode",
     "check:opencode": "node scripts/generate-pi-skills.mjs --target=opencode --check",
     "generate:skills": "npm run generate:pi && npm run generate:opencode",
     "check:skills": "npm run check:pi && npm run check:opencode",
-    "test:opencode": "node --test tests/opencode.integration.mjs"
+    "test:opencode": "node --test tests/opencode.integration.mjs",
+    "pack:checked": "npm run check:skills && npm pack --ignore-scripts",
+    "prepublishOnly": "npm run check:skills"
   },
   "pi": {
     "skills": [
