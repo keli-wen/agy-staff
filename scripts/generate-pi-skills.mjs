@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Pi has a flat skill namespace. Keep the canonical skills for Claude/Codex,
-// and generate namespaced entrypoints at the same depth for Pi. No runtime deps.
+// Generate flat, branded skill entrypoints from the canonical methods.
+// Both targets stay at the same depth so shared runtime paths remain valid.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,13 +18,21 @@ function filesUnder(dir) {
   });
 }
 
-export function piFiles(root = ROOT) {
+const targets = {
+  pi: { label: 'Pi', invocation: '/skill:agy-' },
+  opencode: { label: 'OpenCode', invocation: '/agy-' },
+};
+
+export function skillFiles(root = ROOT, target = 'pi') {
+  const host = targets[target];
+  if (!host) throw new Error(`Unknown skill target: ${target}`);
+  const outputDir = `${target}-skills`;
   const source = path.join(root, 'skills');
   const names = fs.readdirSync(source).filter(name => fs.existsSync(path.join(source, name, 'SKILL.md'))).sort();
   const outputs = new Map();
   for (const name of names) {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || `agy-${name}`.length > 64) {
-      throw new Error(`Invalid Pi skill name: agy-${name}`);
+      throw new Error(`Invalid ${host.label} skill name: agy-${name}`);
     }
     for (const file of filesUnder(path.join(source, name))) {
       let content = fs.readFileSync(file);
@@ -33,19 +41,19 @@ export function piFiles(root = ROOT) {
         // Change only skill invocation syntax and skill-directory paths, never
         // companion subcommands such as `review`, `research`, or `wait`.
         for (const peer of names) {
-          content = content.replace(new RegExp(`(?:/agy:|\\$agy:)${peer}(?![a-z0-9-])`, 'g'), `/skill:agy-${peer}`)
+          content = content.replace(new RegExp(`(?:/agy:|\\$agy:)${peer}(?![a-z0-9-])`, 'g'), `${host.invocation}${peer}`)
             .replaceAll(`../${peer}/`, `../agy-${peer}/`)
-            .replaceAll(`<plugin-root>/skills/${peer}/`, `<plugin-root>/pi-skills/agy-${peer}/`);
+            .replaceAll(`<plugin-root>/skills/${peer}/`, `<plugin-root>/${outputDir}/agy-${peer}/`);
         }
         const canonicalRel = path.relative(root, file).split(path.sep).join('/');
-        const notice = `<!-- Generated from ${canonicalRel}; run npm run generate:pi. Do not edit here. -->`;
+        const notice = `<!-- Generated from ${canonicalRel}; run npm run generate:${target}. Do not edit here. -->`;
         const match = /^---\n([\s\S]*?)\n---\n/.exec(content);
         if (path.basename(file) === 'SKILL.md') {
           if (!match || !match[1].split('\n').includes(`name: ${name}`)) {
             throw new Error(`Expected name: ${name} in ${file}`);
           }
           const frontmatter = match[1].split('\n')
-            // These are Claude-specific UI/permission fields, not Pi policy.
+            // These are Claude-specific UI/permission fields, not host policy.
             .filter(line => !/^(allowed-tools|argument-hint|user-invocable):/.test(line))
             .map(line => line === `name: ${name}` ? `name: agy-${name}` : line).join('\n');
           content = `---\n${frontmatter}\n---\n\n${notice}\n`
@@ -57,15 +65,15 @@ export function piFiles(root = ROOT) {
         }
         content = Buffer.from(content);
       }
-      outputs.set(path.join('pi-skills', `agy-${name}`, path.relative(path.join(source, name), file)), content);
+      outputs.set(path.join(outputDir, `agy-${name}`, path.relative(path.join(source, name), file)), content);
     }
   }
   return outputs;
 }
 
-export function generatePiSkills({ root = ROOT, check = false } = {}) {
-  const expected = piFiles(root);
-  const actual = filesUnder(path.join(root, 'pi-skills'));
+export function generateSkills({ root = ROOT, check = false, target = 'pi' } = {}) {
+  const expected = skillFiles(root, target);
+  const actual = filesUnder(path.join(root, `${target}-skills`));
   const unexpected = actual.filter(file => !expected.has(path.relative(root, file)));
   // Fail instead of deleting stale files automatically: a maintainer may have
   // edited them. Renames/removals must explicitly remove the obsolete output.
@@ -81,17 +89,22 @@ export function generatePiSkills({ root = ROOT, check = false } = {}) {
     }
   }
   if (check && changed.length) {
-    throw new Error(`Stale Pi skills; edit canonical sources in skills/ (do not edit pi-skills/) and run npm run generate:pi:\n${changed.join('\n')}`);
+    throw new Error(`Stale ${targets[target].label} skills; edit canonical sources in skills/ (do not edit ${target}-skills/) and run npm run generate:${target}:\n${changed.join('\n')}`);
   }
   return { count: expected.size, changed };
 }
 
+// Preserve the original Pi API for consumers and tests.
+export const piFiles = (root = ROOT) => skillFiles(root, 'pi');
+export const generatePiSkills = (options = {}) => generateSkills({ ...options, target: 'pi' });
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    if (process.argv.slice(2).some(arg => arg !== '--check')) throw new Error('Usage: generate-pi-skills.mjs [--check]');
+    if (process.argv.slice(2).some(arg => !['--check', '--target=pi', '--target=opencode'].includes(arg))) throw new Error('Usage: generate-pi-skills.mjs [--check] [--target=pi|opencode]');
+    const target = process.argv.find(arg => arg.startsWith('--target='))?.slice(9) || 'pi';
     const check = process.argv.includes('--check');
-    const result = generatePiSkills({ check });
-    console.log(`Pi skills ${check ? 'verified' : 'generated'}: ${result.count} files (${result.changed.length} changed).`);
+    const result = generateSkills({ check, target });
+    console.log(`${targets[target].label} skills ${check ? 'verified' : 'generated'}: ${result.count} files (${result.changed.length} changed).`);
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

@@ -6,7 +6,7 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI Codex**, and **Pi**.
+Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI Codex**, **Pi**, and **OpenCode**.
 
 ![agy-staff design](assets/design.png)
 
@@ -63,6 +63,21 @@ Update with `pi update --extension git:github.com/keli-wen/agy-staff`, then run 
 
 </details>
 
+<details>
+<summary>Using OpenCode?</summary>
+
+With OpenCode V1 (verified on 1.18.34), install the package through its native plugin manager:
+
+```bash
+opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global
+```
+
+Restart OpenCode, then run `/agy-ask reply with OK`. The plugin automatically registers all seven `agy-*` skills and their native slash commands, including `/agy-lead` and `/agy-jobs`. No separate skills path or command wrappers are needed. Node.js and an authenticated `agy` are required, as above.
+
+OpenCode caches the complete package spec. Restarting does not refresh an unchanged Git spec. To upgrade, choose a newer Git tag or commit and run `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`, then restart. See [the reference](docs/REFERENCE.md#opencode) for config and local development. OpenCode V2 is not covered by this adapter.
+
+</details>
+
 Restart Claude Code or Codex afterwards. First run: `/agy:ask reply with OK` (Claude Code) or `$agy:ask reply with OK` (Codex). Ask is tool-free and needs no setup.
 
 > [!IMPORTANT]
@@ -95,7 +110,7 @@ Claude Code and Codex cache per version directory, so an upgrade lands only if t
 
 ### CUJs
 
-Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
+Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, in Pi `/skill:agy-…`, and in OpenCode `/agy-…`.
 
 | Use case | Invocation |
 |---|---|
@@ -116,7 +131,7 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`.
 
 ## Core design
 
-`lead` adds task orchestration guidance for your current agent. Within lead, orient enough to frame the assignment, delegate substantive work to `staffer` by default, wait for the result, then assess it and integrate or follow up. Specialists provide dedicated guidance when useful, while `ask` is reserved for testing. The host owns cross-task decisions, acceptance, integration, and delivery, using the existing jobs workflow. Invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, or `/skill:agy-lead` in Pi.
+`lead` adds task orchestration guidance for your current agent. Within lead, orient enough to frame the assignment, delegate substantive work to `staffer` by default, wait for the result, then assess it and integrate or follow up. Specialists provide dedicated guidance when useful, while `ask` is reserved for testing. The host owns cross-task decisions, acceptance, integration, and delivery, using the existing jobs workflow. Invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, `/skill:agy-lead` in Pi, or `/agy-lead` in OpenCode.
 
 `ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 
@@ -143,7 +158,7 @@ A few things worth knowing before you open a PR:
 - **Run the tests**: `npm test`. The standard suite uses temporary repos and HOME directories with fake `agy`, plus focused module tests. Keep regression tests offline and independent of personal settings. Real AGY validation is a separate opt-in suite described in [tests/README.md](tests/README.md).
 - **Docs come in pairs**: `README.md` / `README.zh-CN.md` and `docs/REFERENCE.md` / `docs/REFERENCE.zh-CN.md` are kept in sync. Change one, change its counterpart.
 - **Runtime code lives in `companion/`**: the entrypoint handles modes and job commands; separate modules handle streaming execution, observations and state locking. Skills call the companion, and `templates/` holds the shared prompts.
-- **Canonical skills are the source of truth**: edit personas in `skills/`, never in `pi-skills/`. Run `npm run generate:pi` to generate Pi entrypoints, and `npm run check:pi` to verify consistency.
+- **Canonical skills are the source of truth**: edit personas in `skills/`, never in `pi-skills/` or `opencode-skills/`. Run `npm run generate:skills` to generate both host entrypoints, and `npm run check:skills` to verify consistency. The existing `generate:pi` and `check:pi` commands remain available.
 
 Adding a mode or a flag changes the public surface, so please open an issue first and we can agree on the shape.
 

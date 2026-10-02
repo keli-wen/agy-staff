@@ -14,17 +14,17 @@
 | `reviewer` | `review` | 审查代码、方案或决策 | `gemini-3.8-flash-medium` | 返回后台任务 ID |
 | `implementer` | `implement` | 完成范围明确的编码任务 | `gemini-3.8-flash-high` | 返回后台任务 ID |
 
-`lead` 为当前主 agent 提供任务编排指导，复用现有 companion 模式，没有自己的运行模式；Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`。
+`lead` 为当前主 agent 提供任务编排指导，复用现有 companion 模式，没有自己的运行模式；Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`，OpenCode 使用 `/agy-lead`。
 
 `staffer` 不预设专业分工或固定的报告格式，但仍遵守共享的操作约定。`reviewer` 会根据对象选择审查方式：代码问题按严重程度列出，并附上 `file:line` 位置；方案和决策审查则检查假设、风险和取舍。`implementer` 可以直接修改工作区，也可以完成任务明确要求的提交、推送或 PR 操作。
 
 执行方式由模式决定，不能通过参数切换。继续一个 `ask` 会话时，答案仍在同一次调用中返回；继续其他模式时，会创建新的后台任务。
 
-Claude Code 使用 `/agy:<persona>`，Codex 使用 `$agy:<persona>`，Pi 使用 `/skill:agy-<persona>`。三者共用 `companion/` 中的运行逻辑和 `templates/` 中的提示词模板。companion 只依赖 Node.js 标准库。
+Claude Code 使用 `/agy:<persona>`，Codex 使用 `$agy:<persona>`，Pi 使用 `/skill:agy-<persona>`，OpenCode 使用 `/agy-<persona>`。四者共用 `companion/` 中的运行逻辑和 `templates/` 中的提示词模板。companion 只依赖 Node.js 标准库。
 
 Pi 加载的入口位于 `pi-skills/`，由 `npm run generate:pi` 根据 `skills/` 自动生成。生成过程会添加 `agy-` 前缀、调整技能之间的相对路径，并附上 `templates/harness-compatibility.md`。这份兼容说明要求主 agent 在工具不可用时寻找等价方法，保留原有要求；无法做到时再向用户求助。
 
-任务管理由 `jobs` 技能和 companion CLI 共同完成，在 Pi 中对应 `agy-jobs`。通常直接对主 agent 说“agy 的任务进展如何”或“继续刚才的任务”即可，不需要手动记住管理命令。
+任务管理由 `jobs` 技能和 companion CLI 共同完成，在 Pi 和 OpenCode 中对应 `agy-jobs`。通常直接对主 agent 说“agy 的任务进展如何”或“继续刚才的任务”即可，不需要手动记住管理命令。
 
 <a id="双权限档模型"></a>
 
@@ -345,6 +345,24 @@ AGY 会读取工作区中的 `AGENTS.md`、`GEMINI.md` 和 `.agents/rules/*.md`�
 
 Windows 为尽力支持，由 CI 的 `Tests (Windows)` 任务覆盖，尚未在真实的 Windows `agy` 安装上验证。子进程均以 `windowsHide: true` 启动，避免后台执行期间弹出控制台窗口。任务取消与进程清理通过 PowerShell（`Get-CimInstance Win32_Process`，`CreationDate` 使用往返精度）发现子孙进程，并逐个终止已确认身份的成员；组长进程使用 `taskkill /PID <pid> /F`，不再使用 `/T`。父子链接只有在子进程创建时间晚于父进程时才被采信：Windows 会在 `ParentProcessId` 中保留已退出父进程的 PID，该 PID 被复用后，一个无关的孤儿进程（通常是另一个任务的后台 worker）否则会被误认为子孙而被杀掉。状态锁针对 Windows 目录与标记文件的重命名和删除瞬态错误（`EPERM`/`EBUSY`/`EACCES`）进行了自动重试。
 
+## OpenCode
+
+`opencode.mjs` 是无额外依赖的 OpenCode V1 插件，使用 config hook 注册技能，已在 1.18.34 验证。运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global` 安装完整包，重启后运行 `/agy-ask reply with OK`。companion 需要 Node.js 以及 PATH 中已完成登录的 `agy`。此适配器不覆盖 OpenCode V2。
+
+原生安装器会在 OpenCode 配置的 `plugin` 数组中添加包条目，等价配置为：
+
+```json
+{
+  "plugin": ["agy-staff@git+https://github.com/keli-wen/agy-staff.git"]
+}
+```
+
+插件将包内 `opencode-skills/` 的绝对路径追加到 `skills.paths`，保留已有路径并避免重复注册。OpenCode 会发现七个带品牌前缀的技能，并提供同名原生斜杠命令：`/agy-ask`、`/agy-staffer`、`/agy-researcher`、`/agy-reviewer`、`/agy-implementer`、`/agy-jobs` 和 `/agy-lead`。无需额外命令包装，已有 OpenCode 技能权限仍然适用。
+
+`npm run generate:opencode` 从唯一方法源 `skills/` 生成入口，复制所有资源、改写调用方式与相对路径，并附上与 Pi 相同的主环境兼容说明。companion 与提示词模板继续共用。请安装完整包；单独复制插件文件会缺失相对路径引用的资源。
+
+本地开发时运行 `opencode plugin /absolute/path/to/checkout --global`，修改源文件后运行 `npm run generate:skills` 并重启 OpenCode；本地安装直接读取检出目录。Git 安装按完整包规格缓存，仅重启或对相同规格使用 `--force` 不会刷新缓存。升级时选择新的标签或提交，运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`，然后重启。所选引用必须包含此适配器。`--force` 替换配置中的插件条目，变更引用则提供新的缓存键。
+
 ## 升级
 
 Claude Code 和 Codex 按版本号缓存插件，例如 `cache/agy-staff/agy/0.4.0`。缓存是否需要更新取决于版本号，而不是仓库的最新提交。因此，准备发布时需要同步更新两个插件 manifest 和 `package.json` 中的版本。
@@ -361,6 +379,10 @@ Claude Code 和 Codex 按版本号缓存插件，例如 `cache/agy-staff/agy/0.4
 
 发布新版本后，运行 `codex plugin marketplace upgrade` 更新插件市场，再按安装流程更新插件并重启应用。必要时也可以移除并重新添加插件市场条目。若仍然出现旧行为，应先确认插件版本和当前会话加载的副本。
 
+### OpenCode
+
+使用带新 Git 标签或提交的原生插件安装命令，加上 `--force`，然后重启；详见 [OpenCode](#opencode)。
+
 ### Pi
 
 Pi 的 Git 安装跟随所配置的分支或引用，本地路径安装则直接读取检出目录。没有固定版本的 Git 安装可以运行 `pi update --extension git:github.com/keli-wen/agy-staff`，然后在 Pi 中执行 `/reload`。
@@ -369,7 +391,7 @@ Pi 的 Git 安装跟随所配置的分支或引用，本地路径安装则直接
 
 ## 仓库结构
 
-`skills/` 是角色技能的源文件，`pi-skills/` 是为 Pi 生成的入口。两者共用 `templates/` 中的提示词和 `companion/` 中的运行逻辑。
+`skills/` 是角色技能的源文件，`pi-skills/` 和 `opencode-skills/` 是为对应环境生成的入口。它们共用 `templates/` 中的提示词和 `companion/` 中的运行逻辑。
 
 ```text
 companion/agy-companion.mjs    命令入口、模式选择、任务管理与 setup
@@ -379,11 +401,13 @@ companion/state-lock.mjs       状态更新与锁回收
 skills/                       角色技能与 jobs 管理技能，以及按需加载的参考文件
 pi-skills/                    自动生成的 Pi 入口与参考文件，不应手动编辑
 templates/                    共享提示词模板与宿主兼容说明
-scripts/generate-pi-skills.mjs  生成 Pi 技能并检查一致性
+opencode-skills/              自动生成的 OpenCode 入口与参考文件，不应手动编辑
+opencode.mjs                  OpenCode V1 包入口，注册包内技能
+scripts/generate-pi-skills.mjs  生成 Pi/OpenCode 技能并检查一致性
 .claude-plugin/               Claude Code 插件与插件市场配置
 .codex-plugin/plugin.json     Codex 插件配置
 .agents/plugins/              Codex 插件市场配置
-package.json                  Pi 包配置、npm 打包范围与验证命令
+package.json                  Pi 包配置、OpenCode 入口、npm 打包范围与验证命令
 tests/                        离线回归测试，以及单独启用的集成测试
 assets/                       图片、徽标与徽章
 docs/                         参考手册、安装说明和发布记录

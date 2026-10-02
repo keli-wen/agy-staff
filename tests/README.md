@@ -3,7 +3,7 @@
 Regression tests for the 0.6.1 companion interface: black-box CLI tests for `companion/agy-companion.mjs`, plus focused tests for observation parsing, byte budgets and state locking.
 
 `issue-regressions.test.mjs` covers #8 response-timeout attention and conversation configuration history, #9 workspace attachment across execution/recovery paths, and #10 broad allow plus targeted deny setup rules, preserving existing settings and upgrading deny-only gaps. Timeout tests distinguish complete answers, unrelated errors, absent conversation IDs and the background timeout ceiling; terminal-observation tests cover attention publication races. All use fake AGY and temporary workspaces/settings.
-The standard suite uses Node's built-in test runner and assertions, with no test dependencies or model/network calls. Run unsandboxed when the host restricts process inspection/signals: lifecycle tests use `ps` to verify detached descendant cleanup. Packaging tests also use npm and tar. The optional Pi integration suite uses a separately installed Pi CLI, never a model provider; the opt-in real AGY suite below does make model calls.
+The standard suite uses Node's built-in test runner and assertions, with no test dependencies or model/network calls. Run unsandboxed when the host restricts process inspection/signals: lifecycle tests use `ps` to verify detached descendant cleanup. Packaging tests also use npm and tar. The optional Pi and OpenCode integration suites use separately installed CLIs, never a model provider; the opt-in real AGY suite below does make model calls.
 
 ## Run
 
@@ -17,7 +17,18 @@ Pi packaging checks run in the standard suite (`pi-packaging.test.mjs`). They ch
 
 With Pi installed, `npm run test:pi` exercises its real package loader, skill-command expansion, and Bash tool, using disposable settings and fake agy. The suite discovers Pi from PATH, or accepts `AGY_PI_PACKAGE_ROOT`. It never reads credentials or calls a model; offline success does not prove LLM behavior. For manual testing in Pi, use `pi -e /path/to/checkout` (temporary session) or `pi install /path/to/checkout`. After editing canonical skills in `skills/`, re-run `npm run generate:pi` and run `/reload` in Pi.
 
-GitHub CI has three jobs on pushes and pull requests, all on Node 24. `Generated skills consistency` runs `npm run check:pi` automatically and keeps the required status-check name. `Tests (Ubuntu)` runs `npm test` automatically. `Tests (Windows)` runs the same suite with a 60s per-test timeout (`node --test --test-timeout=60000 tests/*.test.mjs`) and a 30-minute job limit, gated by the `manual-tests` environment: a repository maintainer must approve the pending deployment before it starts. Windows is expected to fail until the companion gains Windows process handling (see issue #19). Pi integration and real AGY smoke tests remain opt-in; CI does not install Pi or run a Node version matrix.
+OpenCode packaging checks (`opencode-packaging.test.mjs`) run offline in the standard suite. They verify generated policy and resources, idempotent config registration, the actual npm artifact, and fake-agy ask plus background dispatch/collection from another project directory. Run `npm run generate:skills` after editing canonical skills; `npm run check:skills` checks both hosts without writing.
+
+For the opt-in real OpenCode V1 suite, install a pinned host into a disposable directory and point the test at its binary:
+
+```bash
+npm install --prefix /tmp/agy-opencode-host --no-audit --no-fund opencode-ai@1.18.34
+AGY_OPENCODE_BIN=/tmp/agy-opencode-host/node_modules/.bin/opencode npm run test:opencode
+```
+
+The test checks the host version, installs the actual npm tarball using `opencode plugin`, checks real skill discovery, and checks the native `/command` server endpoint. It isolates HOME, OpenCode test home and all XDG config/data/cache/state directories, clears inherited OpenCode config/auth overrides, disables model-list fetching and external skill discovery, and uses no model credentials. The host/package installation may need network access; a passing smoke proves package loading and command discovery, not model compliance with skill instructions. OpenCode V2 is not tested. On Windows, set `AGY_OPENCODE_BIN` with the shell's environment syntax and use the platform's installed executable path.
+
+GitHub CI has three jobs on pushes and pull requests, all on Node 24. `Generated skills consistency` runs `npm run check:skills` automatically and keeps the required status-check name. `Tests (Ubuntu)` runs `npm test` automatically. `Tests (Windows)` runs the same suite with a 60s per-test timeout (`node --test --test-timeout=60000 tests/*.test.mjs`) and a 30-minute job limit, gated by the `manual-tests` environment: a repository maintainer must approve the pending deployment before it starts. Windows is expected to fail until the companion gains Windows process handling (see issue #19). Pi/OpenCode integration and real AGY smoke tests remain opt-in; CI does not install Pi or OpenCode or run a Node version matrix.
 
 Note: `node --test tests/` does **not** work on Node >= 22 — positional
 arguments are glob patterns there, and a bare directory matches the directory

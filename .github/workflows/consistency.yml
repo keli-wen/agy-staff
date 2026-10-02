@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm run check:pi
+      - run: npm run check:skills
 
   test-ubuntu:
     name: Tests (Ubuntu)

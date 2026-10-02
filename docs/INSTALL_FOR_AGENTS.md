@@ -17,9 +17,10 @@ You normally know which product you are. If unsure, check:
 - **Claude Code** — you have `/plugin` slash commands, project instructions arrive via `CLAUDE.md`, and your Bash tool typically has `CLAUDECODE=1` in the environment. → Follow section 2a.
 - **Codex** — you invoke skills with `$name` syntax, follow `AGENTS.md`, and plugins are managed through the `codex` CLI. → Follow section 2b.
 - **Pi** — you invoke skills with `/skill:name` and manage packages with `pi install`. → Follow section 2c.
-- **Anything else** — this package documents Claude Code, Codex, and Pi. Report the unsupported harness and stop.
+- **OpenCode V1** — you use `opencode`, its `plugin` config or `opencode plugin` installer, and native `/agy-*` commands. Verified with OpenCode 1.18.34; V2 is not covered. → Follow section 2d.
+- **Anything else** — this package documents Claude Code, Codex, Pi, and OpenCode V1. Report the unsupported harness and stop.
 
-Follow exactly one of the three sections below.
+Follow exactly one of the four sections below.
 
 ## 2a. Claude Code — install / upgrade
 
@@ -78,6 +79,26 @@ pi update --extension git:github.com/keli-wen/agy-staff
 
 Restart Pi or run `/reload` afterwards. Use `pi list` to verify the package is registered, then check Pi's skill picker for `agy-lead`, `agy-ask`, `agy-staffer`, `agy-researcher`, `agy-reviewer`, `agy-implementer`, and `agy-jobs`.
 
+## 2d. OpenCode V1 — install / upgrade / local development
+
+Use the native plugin installer (verified with OpenCode 1.18.34):
+
+```bash
+opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global
+```
+
+This installs the full package and adds it to the `plugin` array in OpenCode's config, preserving other settings. Do not replace the user's config file. The plugin registers its bundled skills automatically; do not manually clone the repository or add `skills.paths` as an installation workaround. For an explicitly provided local checkout, use `opencode plugin /absolute/path/to/checkout --global`. Regenerate modified canonical skills with `npm run generate:skills` in that checkout.
+
+Restart OpenCode, then verify with `opencode debug skill`: expect `agy-ask`, `agy-staffer`, `agy-researcher`, `agy-reviewer`, `agy-implementer`, `agy-jobs`, and `agy-lead` alongside any other installed skills. OpenCode exposes these directly as `/agy-*` commands. Existing skill permissions remain in effect. Install the entire package, since its companion, templates and references are relative resources.
+
+OpenCode 1.18.34 caches the full package spec. Restarting or reinstalling the same Git spec does not guarantee an update, even with `--force`. Select a newer tag or commit containing the adapter, replace the placeholder below, then restart:
+
+```bash
+opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force
+```
+
+Changing the ref creates a fresh cache key; `--force` replaces the configured plugin entry. Do not clear unrelated caches. This adapter covers V1, not V2.
+
 ## 3. Smoke test
 
 Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
@@ -85,15 +106,18 @@ Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
 - Claude Code: `/agy:ask "reply with OK"` — **after the restart**, otherwise you are testing the old copy or nothing at all
 - Codex: `$agy:ask reply with OK`
 - Pi: `/skill:agy-ask reply with OK` — after restart or `/reload`
+- OpenCode: `/agy-ask reply with OK` — after restart
 
 If you cannot restart the session, call the companion of the freshly installed copy directly from the shell. It is the same code path the skill takes, so a pass here means the install is sound:
+
+For Claude Code, resolve its installed copy with:
 
 ```bash
 AGY_ROOT=$(node -p 'require(process.env.HOME+"/.claude/plugins/installed_plugins.json").plugins["agy@agy-staff"][0].installPath')
 node "$AGY_ROOT/companion/agy-companion.mjs" ask --prompt "reply with OK"
 ```
 
-Resolve the root that way rather than globbing `cache/agy-staff/agy/*/`: superseded version directories are left behind after an upgrade, so the glob expands to several paths and the command fails with `unknown subcommand`. `installPath` is always the copy in use. (Codex's equivalent root is printed by `codex plugin list`.) A fallback pass still leaves the restart outstanding — report it as "installed and verified, restart Claude Code to use it".
+Resolve the root that way rather than globbing `cache/agy-staff/agy/*/`: superseded version directories are left behind after an upgrade, so the glob expands to several paths and the command fails with `unknown subcommand`. `installPath` is always the copy in use. (Codex's equivalent root is printed by `codex plugin list`.) For OpenCode, `opencode debug skill` reports each skill location; resolve `../../companion/agy-companion.mjs` from the installed `agy-ask` skill directory and invoke it with `node` from the user’s project directory. For Pi, use the registered package root from `pi list`. A fallback pass still leaves the restart outstanding — report it as "installed and verified, restart the current harness to use it".
 
 Expect a short answer on stdout with no telemetry mixed in, plus an `[agy-staff]` telemetry line on stderr (mode, profile, model, duration, tokens, conversation id — for you, not for the user). If it errors, relay the error verbatim; the usual causes are expired agy auth (user runs `agy` interactively once to re-login) or an invalid model id (`agy models` lists valid ids). Do not improvise flags to work around errors.
 

@@ -6,7 +6,7 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex** 和 **Pi** 的「agy 员工」。
+把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex**、**Pi** 和 **OpenCode** 的「agy 员工」。
 
 ![agy-staff 设计图](assets/design.png)
 
@@ -53,6 +53,21 @@ codex plugin add agy@agy-staff
 
 </details>
 
+<details>
+<summary>在 OpenCode 中安装</summary>
+
+使用 OpenCode V1（已在 1.18.34 验证）的原生插件管理命令安装：
+
+```bash
+opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global
+```
+
+重启 OpenCode 后运行 `/agy-ask reply with OK`。插件会自动注册七个 `agy-*` 技能及其原生斜杠命令，包括 `/agy-lead` 和 `/agy-jobs`，无需单独配置技能路径或命令包装。仍需安装 Node.js，并完成 `agy` 登录。
+
+OpenCode 按完整包规格缓存；仅重启不会刷新相同的 Git 规格。升级时选择新的 Git 标签或提交，运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`，然后重启。配置与本地开发方式见[参考手册](docs/REFERENCE.zh-CN.md#opencode)。此适配器不覆盖 OpenCode V2。
+
+</details>
+
 安装完成后，重启 Claude Code 或 Codex，再做一次简单的验证：在 Claude Code 中输入 `/agy:ask reply with OK`，在 Codex 中输入 `$agy:ask reply with OK`。`ask` 不调用工具，也不需要额外的权限配置。
 
 > [!IMPORTANT]
@@ -80,7 +95,7 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 ![Codex 中的 $agy 技能选择器](assets/codex-desktop-screenshot.png)
 
-下面的示例使用 Claude Code 的 `/agy:…` 写法。在 Codex 中把它换成 `$agy:…` 即可；Pi 使用 `/skill:agy-…`。
+下面的示例使用 Claude Code 的 `/agy:…` 写法。在 Codex 中把它换成 `$agy:…` 即可；Pi 使用 `/skill:agy-…`，OpenCode 使用 `/agy-…`。
 
 | 想做的事 | 示例 |
 | --- | --- |
@@ -101,7 +116,7 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 ## 核心设计
 
-`lead` 为当前主 agent 增加任务编排指导。在 lead 工作流中，主 agent 了解至足以明确任务后，默认用 `staffer` 承担实质性工作，等待结果返回后再验收、整合或追加任务；专门指导有帮助时再选择 specialist，`ask` 仅用于测试。主 agent 负责跨任务决策、验收、整合和交付，复用现有 jobs 工作流。Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`。
+`lead` 为当前主 agent 增加任务编排指导。在 lead 工作流中，主 agent 了解至足以明确任务后，默认用 `staffer` 承担实质性工作，等待结果返回后再验收、整合或追加任务；专门指导有帮助时再选择 specialist，`ask` 仅用于测试。主 agent 负责跨任务决策、验收、整合和交付，复用现有 jobs 工作流。Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`，OpenCode 使用 `/agy-lead`。
 
 `ask` 会在同一次调用中返回答案。其他角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
 
@@ -131,7 +146,7 @@ Codex 的更新命令是：
 codex plugin marketplace upgrade && codex plugin add agy@agy-staff
 ```
 
-这两个环境都按版本号管理插件缓存。如果更新后仍然看到旧行为，请先确认是否已重启应用，再参考[升级说明](docs/REFERENCE.zh-CN.md#升级)检查版本和实际安装的提交。Pi 的更新方式见上方安装说明。
+这两个环境都按版本号管理插件缓存。如果更新后仍然看到旧行为，请先确认是否已重启应用，再参考[升级说明](docs/REFERENCE.zh-CN.md#升级)检查版本和实际安装的提交。Pi 和 OpenCode 的更新方式见上方安装说明。
 
 ## 社区
 
@@ -143,7 +158,7 @@ codex plugin marketplace upgrade && codex plugin add agy@agy-staff
 
 提交代码前请运行 `npm test`。标准测试使用临时仓库、临时 HOME 和假的 agy，不会调用真实模型或改动你的个人配置。新增回归测试也应保持这一点。需要验证真实 AGY 时，请使用[测试说明](tests/README.md)中单独启用的集成测试。
 
-运行逻辑位于 `companion/`：入口负责模式和任务命令，独立模块负责流式执行、进度快照和状态锁。角色技能位于 `skills/`，共享的提示词模板位于 `templates/`。修改技能时请以 `skills/` 为准，再运行 `npm run generate:pi` 生成 `pi-skills/`，用 `npm run check:pi` 检查两者是否一致。
+运行逻辑位于 `companion/`：入口负责模式和任务命令，独立模块负责流式执行、进度快照和状态锁。角色技能位于 `skills/`，共享的提示词模板位于 `templates/`。修改技能时请以 `skills/` 为准，再运行 `npm run generate:skills` 生成 `pi-skills/` 与 `opencode-skills/`，用 `npm run check:skills` 检查一致性。不要直接编辑生成文件；原有 `generate:pi` 和 `check:pi` 命令仍然可用。
 
 README 和参考手册都有中英文版本。修改使用方法或行为说明时，请同步更新对应版本，让两种语言的读者得到一致的信息。
 
