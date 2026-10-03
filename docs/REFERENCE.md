@@ -298,7 +298,7 @@ templates/                    shared prompt templates (staffer/ask/research/revi
 pi-skills/                    generated agy-* entrypoints/resources for Pi; do not hand-edit
 opencode-skills/              generated agy-* entrypoints/resources for OpenCode; do not hand-edit
 opencode.mjs                  OpenCode V1 package plugin; registers bundled skills
-scripts/generate-pi-skills.mjs generates Pi/OpenCode skills and checks for drift
+scripts/generate-skills.mjs   generates Pi/OpenCode skills and checks for drift
 package.json                  Pi manifest, OpenCode entrypoint, npm file allowlist, and verification commands
 skills/                       canonical personas + jobs (Claude/Codex entrypoints;
                               reviewer/ and jobs/ carry references/ for on-demand detail)

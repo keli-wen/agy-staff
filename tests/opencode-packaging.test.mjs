@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { generateSkills, skillFiles, ROOT, COMPATIBILITY_CONTEXT } from '../scripts/generate-pi-skills.mjs';
+import { generateSkills, skillFiles, ROOT, COMPATIBILITY_CONTEXT } from '../scripts/generate-skills.mjs';
 import { sandbox, FAKE_AGY, jobIdOf } from './helpers.mjs';
 import { pack } from './pi-pack-helpers.mjs';
 

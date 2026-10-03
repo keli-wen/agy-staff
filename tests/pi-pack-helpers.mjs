@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT } from '../scripts/generate-pi-skills.mjs';
+import { ROOT } from '../scripts/generate-skills.mjs';
 
 export function exec(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: 'utf8', timeout: 60_000, ...options });

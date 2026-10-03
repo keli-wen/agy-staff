@@ -403,7 +403,7 @@ pi-skills/                    自动生成的 Pi 入口与参考文件，不应�
 templates/                    共享提示词模板与宿主兼容说明
 opencode-skills/              自动生成的 OpenCode 入口与参考文件，不应手动编辑
 opencode.mjs                  OpenCode V1 包入口，注册包内技能
-scripts/generate-pi-skills.mjs  生成 Pi/OpenCode 技能并检查一致性
+scripts/generate-skills.mjs   生成 Pi/OpenCode 技能并检查一致性
 .claude-plugin/               Claude Code 插件与插件市场配置
 .codex-plugin/plugin.json     Codex 插件配置
 .agents/plugins/              Codex 插件市场配置

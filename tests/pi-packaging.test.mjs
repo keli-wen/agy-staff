@@ -4,11 +4,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { generatePiSkills, piFiles, ROOT, COMPATIBILITY_CONTEXT } from '../scripts/generate-pi-skills.mjs';
+import { generateSkills, skillFiles, ROOT, COMPATIBILITY_CONTEXT } from '../scripts/generate-skills.mjs';
 import { sandbox, FAKE_AGY, jobIdOf } from './helpers.mjs';
 import { pack } from './pi-pack-helpers.mjs';
 
 const json = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+const generatePiSkills = options => generateSkills({ ...options, target: 'pi' });
+const piFiles = () => skillFiles(ROOT, 'pi');
 const names = ['ask', 'implementer', 'jobs', 'lead', 'researcher', 'reviewer', 'staffer'];
 
 test('Pi adapters are current; canonical names and all relative resources remain valid', () => {

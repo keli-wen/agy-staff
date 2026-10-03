@@ -19,20 +19,27 @@ function filesUnder(dir) {
 }
 
 const targets = {
-  pi: { label: 'Pi', invocation: '/skill:agy-' },
-  opencode: { label: 'OpenCode', invocation: '/agy-' },
+  pi: {
+    label: 'Pi', outputDir: 'pi-skills', namePrefix: 'agy-', invocationPrefix: '/skill:',
+    dropMetadata: ['allowed-tools', 'argument-hint', 'user-invocable'], appendCompatibility: true,
+  },
+  opencode: {
+    label: 'OpenCode', outputDir: 'opencode-skills', namePrefix: 'agy-', invocationPrefix: '/',
+    dropMetadata: ['allowed-tools', 'argument-hint', 'user-invocable'], appendCompatibility: true,
+  },
 };
 
-export function skillFiles(root = ROOT, target = 'pi') {
+export function skillFiles(root = ROOT, target) {
+  if (!Object.hasOwn(targets, target)) throw new Error(`Unknown skill target: ${target}`);
   const host = targets[target];
-  if (!host) throw new Error(`Unknown skill target: ${target}`);
-  const outputDir = `${target}-skills`;
+  const { outputDir, namePrefix, invocationPrefix } = host;
   const source = path.join(root, 'skills');
   const names = fs.readdirSync(source).filter(name => fs.existsSync(path.join(source, name, 'SKILL.md'))).sort();
   const outputs = new Map();
   for (const name of names) {
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || `agy-${name}`.length > 64) {
-      throw new Error(`Invalid ${host.label} skill name: agy-${name}`);
+    const generatedName = `${namePrefix}${name}`;
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || generatedName.length > 64) {
+      throw new Error(`Invalid ${host.label} skill name: ${generatedName}`);
     }
     for (const file of filesUnder(path.join(source, name))) {
       let content = fs.readFileSync(file);
@@ -41,9 +48,9 @@ export function skillFiles(root = ROOT, target = 'pi') {
         // Change only skill invocation syntax and skill-directory paths, never
         // companion subcommands such as `review`, `research`, or `wait`.
         for (const peer of names) {
-          content = content.replace(new RegExp(`(?:/agy:|\\$agy:)${peer}(?![a-z0-9-])`, 'g'), `${host.invocation}${peer}`)
-            .replaceAll(`../${peer}/`, `../agy-${peer}/`)
-            .replaceAll(`<plugin-root>/skills/${peer}/`, `<plugin-root>/${outputDir}/agy-${peer}/`);
+          content = content.replace(new RegExp(`(?:/agy:|\\$agy:)${peer}(?![a-z0-9-])`, 'g'), `${invocationPrefix}${namePrefix}${peer}`)
+            .replaceAll(`../${peer}/`, `../${namePrefix}${peer}/`)
+            .replaceAll(`<plugin-root>/skills/${peer}/`, `<plugin-root>/${outputDir}/${namePrefix}${peer}/`);
         }
         const canonicalRel = path.relative(root, file).split(path.sep).join('/');
         const notice = `<!-- Generated from ${canonicalRel}; run npm run generate:${target}. Do not edit here. -->`;
@@ -54,10 +61,11 @@ export function skillFiles(root = ROOT, target = 'pi') {
           }
           const frontmatter = match[1].split('\n')
             // These are Claude-specific UI/permission fields, not host policy.
-            .filter(line => !/^(allowed-tools|argument-hint|user-invocable):/.test(line))
-            .map(line => line === `name: ${name}` ? `name: agy-${name}` : line).join('\n');
+            .filter(line => !host.dropMetadata.includes(line.split(':', 1)[0]))
+            .map(line => line === `name: ${name}` ? `name: ${generatedName}` : line).join('\n');
           content = `---\n${frontmatter}\n---\n\n${notice}\n`
-            + content.slice(match[0].length) + '\n' + COMPATIBILITY_CONTEXT;
+            + content.slice(match[0].length)
+            + (host.appendCompatibility ? '\n' + COMPATIBILITY_CONTEXT : '');
         } else if (match) {
           content = `---\n${match[1]}\n---\n\n${notice}\n` + content.slice(match[0].length);
         } else {
@@ -65,46 +73,50 @@ export function skillFiles(root = ROOT, target = 'pi') {
         }
         content = Buffer.from(content);
       }
-      outputs.set(path.join(outputDir, `agy-${name}`, path.relative(path.join(source, name), file)), content);
+      outputs.set(path.join(outputDir, generatedName, path.relative(path.join(source, name), file)), content);
     }
   }
   return outputs;
 }
 
-export function generateSkills({ root = ROOT, check = false, target = 'pi' } = {}) {
+export function generateSkills({ root = ROOT, check = false, target } = {}) {
   const expected = skillFiles(root, target);
-  const actual = filesUnder(path.join(root, `${target}-skills`));
+  const host = targets[target];
+  const actual = filesUnder(path.join(root, host.outputDir));
   const unexpected = actual.filter(file => !expected.has(path.relative(root, file)));
   // Fail instead of deleting stale files automatically: a maintainer may have
   // edited them. Renames/removals must explicitly remove the obsolete output.
   if (unexpected.length) throw new Error(`Unexpected generated files; inspect and remove explicitly:\n${unexpected.join('\n')}`);
   const changed = [];
   for (const [relative, content] of expected) {
-    const target = path.join(root, relative);
-    if (fs.existsSync(target) && fs.readFileSync(target).equals(content)) continue;
+    const output = path.join(root, relative);
+    if (fs.existsSync(output) && fs.readFileSync(output).equals(content)) continue;
     changed.push(relative);
     if (!check) {
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.writeFileSync(target, content);
+      fs.mkdirSync(path.dirname(output), { recursive: true });
+      fs.writeFileSync(output, content);
     }
   }
   if (check && changed.length) {
-    throw new Error(`Stale ${targets[target].label} skills; edit canonical sources in skills/ (do not edit ${target}-skills/) and run npm run generate:${target}:\n${changed.join('\n')}`);
+    throw new Error(`Stale ${host.label} skills; edit canonical sources in skills/ (do not edit ${host.outputDir}/) and run npm run generate:${target}:\n${changed.join('\n')}`);
   }
   return { count: expected.size, changed };
 }
 
-// Preserve the original Pi API for consumers and tests.
-export const piFiles = (root = ROOT) => skillFiles(root, 'pi');
-export const generatePiSkills = (options = {}) => generateSkills({ ...options, target: 'pi' });
-
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    if (process.argv.slice(2).some(arg => !['--check', '--target=pi', '--target=opencode'].includes(arg))) throw new Error('Usage: generate-pi-skills.mjs [--check] [--target=pi|opencode]');
-    const target = process.argv.find(arg => arg.startsWith('--target='))?.slice(9) || 'pi';
-    const check = process.argv.includes('--check');
-    const result = generateSkills({ check, target });
-    console.log(`${targets[target].label} skills ${check ? 'verified' : 'generated'}: ${result.count} files (${result.changed.length} changed).`);
+    const args = process.argv.slice(2);
+    const supported = ['all', ...Object.keys(targets)];
+    const selectors = args.filter(arg => arg.startsWith('--target='));
+    if (selectors.length > 1 || args.some(arg => arg !== '--check' && !supported.some(target => arg === `--target=${target}`))) {
+      throw new Error(`Usage: generate-skills.mjs [--check] [--target=${supported.join('|')}]`);
+    }
+    const selected = selectors[0]?.slice(9) || 'all';
+    const check = args.includes('--check');
+    for (const target of selected === 'all' ? Object.keys(targets) : [selected]) {
+      const result = generateSkills({ check, target });
+      console.log(`${targets[target].label} skills ${check ? 'verified' : 'generated'}: ${result.count} files (${result.changed.length} changed).`);
+    }
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

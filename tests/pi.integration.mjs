@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT } from '../scripts/generate-pi-skills.mjs';
+import { ROOT } from '../scripts/generate-skills.mjs';
 import { sandbox, FAKE_AGY, jobIdOf } from './helpers.mjs';
 import { exec, pack } from './pi-pack-helpers.mjs';
 
