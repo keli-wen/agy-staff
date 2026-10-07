@@ -10,7 +10,7 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ![agy-staff design](assets/design.png)
 
-**[Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Upgrade](#upgrade)**
+**[Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Build your own](#build-one-for-another-cli) · [Upgrade](#upgrade)**
 
 ## What & Why
 
@@ -143,7 +143,11 @@ The timeline below follows a background task from delegation to completion. The 
 
 Jobs have a separate execution deadline: default 60 minutes, configurable at launch with `--timeout` up to 120 minutes. Use `cancel` to stop execution, or explicitly request `continue` or `restart` after inspecting the existing work. The host harness controls when your agent receives a background result.
 
-The design behind all of this is written down as portable best practice in [docs/DESIGN.md](docs/DESIGN.md): bash plus skills, with no hard dependency on a host, a worker CLI or a runtime library. To build the same kind of integration for another agent CLI, give your coding agent this prompt:
+**Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading). **Release notes →** [docs/releases/](docs/releases/).
+
+## Build one for another CLI
+
+agy-staff's design is portable: bash plus skills, with no hard dependency on a host, a worker CLI or a runtime library. [docs/DESIGN.md](docs/DESIGN.md) writes it down as best practice. To build the same kind of tool for another agent CLI, give your coding agent this prompt:
 
 ```
 Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/DESIGN.md
@@ -153,7 +157,7 @@ work to <CLI> the same way. First read `<CLI> --help`, map what the CLI supports
 Ask me before any call that spends model quota. Respond in the user's language.
 ```
 
-**Full reference →** [docs/REFERENCE.md](docs/REFERENCE.md) (flags, permission model, jobs/state, troubleshooting, upgrading). **Release notes →** [docs/releases/](docs/releases/).
+Before writing any code, the agent lists the principles your CLI cannot support, so you know up front where the tool will degrade.
 
 ## Community
 

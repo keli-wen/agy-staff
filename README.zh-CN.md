@@ -10,7 +10,7 @@
 
 ![agy-staff 设计图](assets/design.png)
 
-**[安装](#安装) · [使用示例](#使用) · [核心设计](#核心设计) · [升级](#升级)**
+**[安装](#安装) · [使用示例](#使用) · [核心设计](#核心设计) · [为其他 CLI 做一个](#为其他-cli-做一个) · [升级](#升级)**
 
 ## 它适合做什么
 
@@ -128,7 +128,11 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 等待到期不会停止后台任务。任务本身有独立的执行时限，默认 60 分钟，可以在启动时用 `--timeout` 调整，最长 120 分钟。需要停止时使用 `cancel`；需要继续或重新开始时，由主 agent 根据你的要求调用 `continue` 或 `restart`。模型何时收到后台结果，仍由你使用的 agent 环境决定。
 
-这些设计背后的思路写在 [docs/DESIGN.md](docs/DESIGN.md) 中（英文），作为可移植（portable）的最佳实践：只用 bash 和 skills，不强依赖特定的宿主、worker CLI 或运行时库。如果想为其他 agent CLI 做同类集成，可以把下面这段话交给你的 coding agent：
+关于参数、权限、进度快照和恢复方式，可以查阅[完整参考手册](docs/REFERENCE.zh-CN.md)。各版本的改动记录在[发布说明](docs/releases/)中。
+
+## 为其他 CLI 做一个
+
+agy-staff 的设计是可移植（portable）的：只用 bash 和 skills，不强依赖特定的宿主、worker CLI 或运行时库。[docs/DESIGN.md](docs/DESIGN.md)（英文）把这套设计整理成了最佳实践。如果想为其他 agent CLI 做同类工具，可以把下面这段话交给你的 coding agent：
 
 ```
 Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/DESIGN.md
@@ -138,7 +142,7 @@ work to <CLI> the same way. First read `<CLI> --help`, map what the CLI supports
 Ask me before any call that spends model quota. Respond in the user's language.
 ```
 
-关于参数、权限、进度快照和恢复方式，可以查阅[完整参考手册](docs/REFERENCE.zh-CN.md)。各版本的改动记录在[发布说明](docs/releases/)中。
+agent 动手写代码之前，会先列出你的 CLI 支持不了哪些原则，让你提前知道工具会在哪些地方降级。
 
 ## 升级
 

@@ -78,6 +78,25 @@ On a direct persona invocation the host is a thin shell: it returns short result
 | 5 | Attention: a resumable timeout | Ask the user whether to continue |
 | 1 | The command itself was invalid | Fix the named problem |
 
+```mermaid
+stateDiagram-v2
+    [*] --> running: dispatch returns a job id
+    running --> done: response delivered (exit 0)
+    running --> error: failure or crash (exit 3)
+    running --> canceled: cancel confirmed (exit 4)
+    running --> attention: resumable timeout (exit 5)
+    note right of running
+        A wait that expires exits 2.
+        The job keeps running.
+    end note
+    done --> [*]
+    error --> [*]
+    canceled --> [*]
+    attention --> [*]
+```
+
+Every state other than running is final for that job. Continue and restart never revive a finished job: each starts a new linked job and keeps the old record.
+
 - **Two clocks.** A wait has a soft expiry and the job has a hard execution budget. A wait expiring never stops the job, and waiting or observing never extends the budget.
 - **Wait, don't poll.** Where the host can run background commands, keep one background wait per job, never several jobs serially in one shell. Otherwise use the longest blocking wait the host allows. Avoid sleep loops and routine progress checks. The integration cannot wake an idle model; the host decides when the model receives a result.
 - **Observe only when necessary.** The host sometimes needs to see inside a running job: when the user asks about progress, or when a failure needs diagnosis. Observation answers with a bounded snapshot of recent tool activity, the latest response excerpt and timestamps, with truncated and incomplete parts labeled, and never the report. Reading a snapshot consumes nothing and resets nothing. A snapshot shows activity; it is not a judgment of progress.
