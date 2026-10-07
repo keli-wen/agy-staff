@@ -128,6 +128,16 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 等待到期不会停止后台任务。任务本身有独立的执行时限，默认 60 分钟，可以在启动时用 `--timeout` 调整，最长 120 分钟。需要停止时使用 `cancel`；需要继续或重新开始时，由主 agent 根据你的要求调用 `continue` 或 `restart`。模型何时收到后台结果，仍由你使用的 agent 环境决定。
 
+这些设计背后的思路写在 [docs/DESIGN.md](docs/DESIGN.md) 中（英文），作为可移植（portable）的最佳实践：只用 bash 和 skills，不强依赖特定的宿主、worker CLI 或运行时库。如果想为其他 agent CLI 做同类集成，可以把下面这段话交给你的 coding agent：
+
+```
+Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/DESIGN.md
+(curl it — do not work from a summary). Then design an integration that lets this host agent delegate
+work to <CLI> the same way. First read `<CLI> --help`, map what the CLI supports to the section
+"What depends on the worker CLI", and list the principles it cannot support before writing any code.
+Ask me before any call that spends model quota. Respond in the user's language.
+```
+
 关于参数、权限、进度快照和恢复方式，可以查阅[完整参考手册](docs/REFERENCE.zh-CN.md)。各版本的改动记录在[发布说明](docs/releases/)中。
 
 ## 升级
