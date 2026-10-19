@@ -10,7 +10,7 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ![agy-staff design](assets/design.png)
 
-**[Bench](#bench--harness--orchestration) · [Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Build your own](#build-one-for-another-cli) · [Upgrade](#upgrade)**
+**[Bench](#-bench--harness--orchestration) · [Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Build your own](#build-one-for-another-cli) · [Upgrade](#upgrade)**
 
 ## What & Why
 
