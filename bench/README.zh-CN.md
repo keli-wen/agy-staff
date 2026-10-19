@@ -70,7 +70,7 @@ v1 只在 SWE-bench Verified 上跑了"+ subagents"。
 results/
 └── v1/
     ├── summary.svg   这张表
-    ├── summary.png   同一张表，渲染后放进 README（rsvg-convert -w 2760 -b white）
+    ├── summary.png   同一张表，渲染后放进 README（headless Chrome 3 倍渲染；rsvg-convert 会丢掉内嵌的数字字体）
     └── data.json     表背后的 96 次 trial，以及每个格子的汇总
 ```
 

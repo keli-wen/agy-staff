@@ -70,7 +70,7 @@ Tasks were drawn with a fixed seed; their IDs are in `data.json`.
 results/
 └── v1/
     ├── summary.svg   the table
-    ├── summary.png   the same table rendered for the READMEs (rsvg-convert -w 2760 -b white)
+    ├── summary.png   the same table rendered for the READMEs (headless Chrome at 3x; rsvg-convert drops the embedded number font)
     └── data.json     the 96 trials behind the table, plus per-cell aggregates
 ```
 
