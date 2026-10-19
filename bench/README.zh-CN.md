@@ -1,4 +1,4 @@
-# <img src="../assets/logo/bench.svg" height="48" alt=""> agy-staff Bench
+# <img src="../assets/logo/bench.svg" width="48" height="48" alt=""> agy-staff Bench
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 

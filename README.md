@@ -20,7 +20,7 @@ If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode o
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
-## <img src="assets/logo/bench.svg" height="32" alt=""> Bench — Harness & Orchestration
+## <img src="assets/logo/bench.svg" width="32" height="32" alt=""> Bench — Harness & Orchestration
 
 agy-staff Bench v1 runs Claude Code and Codex on three benchmarks, each task three ways: alone, with their own subagents, and with agy through `lead`.
 
