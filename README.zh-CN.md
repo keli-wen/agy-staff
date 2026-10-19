@@ -20,7 +20,7 @@ agy-staff 提供五种角色（persona）。`staffer` 适合通用任务；`rese
 
 ![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
 
-## 评测 — Harness 与编排
+## <img src="assets/logo/bench.svg" height="32" alt=""> 评测 — Harness 与编排
 
 agy-staff Bench v1 让 Claude Code 和 Codex 在三个 benchmark 上做题，每道题用三种编排方案各跑一次：自己做、用自家 subagent、通过 `lead` 用 agy。
 
