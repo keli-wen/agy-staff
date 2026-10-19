@@ -4,6 +4,12 @@
 
 agy-staff Bench measures what delegating to agy costs a host agent and what it buys. Every task runs three ways: the host alone, the host with its own subagents, and the host with agy through `lead`. The table reports tasks solved, host spend, total spend and wall time.
 
+> [!NOTE]
+> **Why a bench.** It runs the same tasks on different hosts, with and without agy, to answer three questions:
+> - **When to delegate.** Which tasks and which hosts gain from handing work to agy, and which are better left solo. The answers become best practices for using agy-staff.
+> - **What to fix in agy-staff.** Each run shows where delegation wastes time or tokens. Those findings go back into the plugin as fixes, and later bench versions check whether the fixes worked.
+> - **How harnesses differ.** Same prompt, same worker, different host. Gaps in the results trace back to design choices in each harness. For example, Claude Code waits in the background and is woken when the agy job ends; Codex polls, and every wake-up carries its full context.
+
 [![agy-staff Bench v1: Claude Code and Codex on SWE-bench Verified, SWE-Atlas QnA and DeepSearchQA, solo, with their own subagents and with agy](results/v1/summary.png)](results/v1/summary.svg)
 
 ## What v1 shows

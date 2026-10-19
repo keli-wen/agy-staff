@@ -10,7 +10,7 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ![agy-staff design](assets/design.png)
 
-**[Bench](#bench) · [Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Build your own](#build-one-for-another-cli) · [Upgrade](#upgrade)**
+**[Bench](#bench--harness--orchestration) · [Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Build your own](#build-one-for-another-cli) · [Upgrade](#upgrade)**
 
 ## What & Why
 
@@ -20,7 +20,13 @@ If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode o
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
-## Bench
+## Bench — Harness & Orchestration
+
+> [!NOTE]
+> **Why a bench.** It runs the same tasks on different hosts, with and without agy, to answer three questions:
+> - **When to delegate.** Which tasks and which hosts gain from handing work to agy, and which are better left solo. The answers become best practices for using agy-staff.
+> - **What to fix in agy-staff.** Each run shows where delegation wastes time or tokens. Those findings go back into the plugin as fixes, and later bench versions check whether the fixes worked.
+> - **How harnesses differ.** Same prompt, same worker, different host. Gaps in the results trace back to design choices in each harness. For example, Claude Code waits in the background and is woken when the agy job ends; Codex polls, and every wake-up carries its full context.
 
 agy-staff Bench v1 runs Claude Code and Codex on three benchmarks, each task three ways: alone, with their own subagents, and with agy through `lead`.
 
