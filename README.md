@@ -10,7 +10,7 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ![agy-staff design](assets/design.png)
 
-**[Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Build your own](#build-one-for-another-cli) · [Upgrade](#upgrade)**
+**[Bench](#bench) · [Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Build your own](#build-one-for-another-cli) · [Upgrade](#upgrade)**
 
 ## What & Why
 
@@ -19,6 +19,16 @@ agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.8
 If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
+
+## Bench
+
+agy-staff Bench v1 runs Claude Code and Codex on three benchmarks, each task three ways: alone, with their own subagents, and with agy through `lead`.
+
+[![agy-staff Bench v1: Claude Code and Codex on SWE-bench Verified, SWE-Atlas QnA and DeepSearchQA, solo, with their own subagents and with agy](bench/results/v1/summary.png)](bench/README.md)
+
+With Claude Code as host, agy cut host spend, the part billed to your plan, on all three benchmarks (16–50%) and matched solo on SWE-bench. It cost wall time, and two DeepSearchQA runs hit the 30-minute limit. With Codex as host, agy cut host spend only on DeepSearchQA. Each task ran once per setup, so read this as a first baseline.
+
+**Method, caveats and versions →** [bench/README.md](bench/README.md)
 
 ## How
 

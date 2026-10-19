@@ -10,7 +10,7 @@
 
 ![agy-staff 设计图](assets/design.png)
 
-**[安装](#安装) · [使用示例](#使用) · [核心设计](#核心设计) · [为其他 CLI 做一个](#为其他-cli-做一个) · [升级](#升级)**
+**[评测](#评测) · [安装](#安装) · [使用示例](#使用) · [核心设计](#核心设计) · [为其他 CLI 做一个](#为其他-cli-做一个) · [升级](#升级)**
 
 ## 它适合做什么
 
@@ -19,6 +19,16 @@ agy-staff 提供五种角色（persona）。`staffer` 适合通用任务；`rese
 为什么需要它：GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。这些任务可以交给 agy：它几秒钟就能给出第二意见，调研和审查以 Flash 的速度完成，范围明确的实现任务放到后台执行，你继续做手头的事。另外，即使不追求速度，让另一个模型家族审同一份代码，也能发现主力 agent 自己发现不了的问题。
 
 ![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
+
+## 评测
+
+agy-staff Bench v1 让 Claude Code 和 Codex 在三个 benchmark 上做题，每道题用三种编排方案各跑一次：自己做、用自家 subagent、通过 `lead` 用 agy。
+
+[![agy-staff Bench v1：Claude Code 和 Codex 在 SWE-bench Verified、SWE-Atlas QnA、DeepSearchQA 上，分别单独做、用自家 subagent、用 agy 的结果](bench/results/v1/summary.png)](bench/README.zh-CN.md)
+
+Claude Code 当 host 时，用 agy 让三个 benchmark 的 host 成本（也就是从你的订阅里扣的那部分）都下降了 16–50%，SWE-bench 的解出数和单独做一样。代价是耗时更长，另外有两次 DeepSearchQA 跑到了 30 分钟上限。Codex 当 host 时，只有 DeepSearchQA 的 host 成本下降了。每种编排方案每道题只跑了 1 次，请把它当作第一版基线来看。
+
+**方法、局限和版本 →** [bench/README.zh-CN.md](bench/README.zh-CN.md)
 
 ## 安装
 
