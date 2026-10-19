@@ -22,17 +22,21 @@ If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode o
 
 ## Bench — Harness & Orchestration
 
-> [!NOTE]
-> **Why a bench.** It runs the same tasks on different hosts, with and without agy, to answer three questions:
-> - **When to delegate.** Which tasks and which hosts gain from handing work to agy, and which are better left solo. The answers become best practices for using agy-staff.
-> - **What to fix in agy-staff.** Each run shows where delegation wastes time or tokens. Those findings go back into the plugin as fixes, and later bench versions check whether the fixes worked.
-> - **How harnesses differ.** Same prompt, same worker, different host. Gaps in the results trace back to design choices in each harness. For example, Claude Code waits in the background and is woken when the agy job ends; Codex polls, and every wake-up carries its full context.
-
 agy-staff Bench v1 runs Claude Code and Codex on three benchmarks, each task three ways: alone, with their own subagents, and with agy through `lead`.
 
 [![agy-staff Bench v1: Claude Code and Codex on SWE-bench Verified, SWE-Atlas QnA and DeepSearchQA, solo, with their own subagents and with agy](bench/results/v1/summary.png)](bench/README.md)
 
-With Claude Code as host, agy cut host spend, the part billed to your plan, on all three benchmarks (16–50%) and matched solo on SWE-bench. It cost wall time, and two DeepSearchQA runs hit the 30-minute limit. With Codex as host, agy cut host spend only on DeepSearchQA. Each task ran once per setup, so read this as a first baseline.
+> [!NOTE]
+> **Why a bench.** It runs the same tasks on different hosts, with and without agy, to answer three questions:
+> - **When to delegate.** Which tasks and which hosts gain from handing work to agy, and which are better left solo. The answers become best practices for using agy-staff.
+> - **What to fix in agy-staff.** Each run shows where delegation wastes time or tokens. Those findings go back into the plugin as fixes, and later bench versions check whether the fixes worked.
+> - **How harnesses differ.** Same prompt, same worker, different host. Gaps in the results trace back to design choices in each harness.
+
+**What v1 says** (one run per task and setup, so a first baseline, not a verdict):
+
+- **agy suits research best.** DeepSearchQA is the only benchmark where agy cut host spend on both hosts: Claude Code −50%, Codex −16%. Host spend is what your Claude or ChatGPT plan pays.
+- **Claude Code's harness suits agy better.** With agy, Claude Code's host spend fell on all three benchmarks (−16% to −50%). Codex's rose on two (SWE-bench +86%, QnA +22%). Claude Code waits in the background until the agy job ends; Codex polls, and every wake-up carries its full context.
+- **The price is time.** Median time per task rose from 2–8 minutes alone to 13–26 minutes with agy. Tasks solved matched solo or dropped by one.
 
 **Method, caveats and versions →** [bench/README.md](bench/README.md)
 

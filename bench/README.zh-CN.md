@@ -4,13 +4,13 @@
 
 agy-staff Bench 衡量主 agent 把工作委派给 agy 要付出什么、能换来什么。每道题用三种编排方案各跑一次：主 agent 自己做；主 agent 用自家的 subagent；主 agent 通过 `lead` 用 agy。表里给出解出的题数、host 成本、总成本和耗时。
 
+[![agy-staff Bench v1：Claude Code 和 Codex 在 SWE-bench Verified、SWE-Atlas QnA、DeepSearchQA 上，分别单独做、用自家 subagent、用 agy 的结果](results/v1/summary.png)](results/v1/summary.svg)
+
 > [!NOTE]
 > **为什么做这个评测。** 同一批题目，换不同的 host，分别用和不用 agy 来做，回答三个问题：
 > - **什么时候该委派。** 哪些任务、哪个 host 交给 agy 更划算，哪些留给 host 自己做更好。结论会沉淀成 agy-staff 的最佳实践。
 > - **agy-staff 该改什么。** 每次评测都会暴露委派在哪里浪费了时间或 token。这些发现会回到插件里变成修复，之后的评测版本再验证修复是否有效。
-> - **不同 harness 的设计差异。** 同一份 prompt、同一个 worker，只换 host。结果上的差距能追溯到各家 harness 的设计取舍。比如 Claude Code 在后台等 agy，任务结束才被唤醒；Codex 会反复轮询，每次醒来都带着完整的上下文。
-
-[![agy-staff Bench v1：Claude Code 和 Codex 在 SWE-bench Verified、SWE-Atlas QnA、DeepSearchQA 上，分别单独做、用自家 subagent、用 agy 的结果](results/v1/summary.png)](results/v1/summary.svg)
+> - **不同 harness 的设计差异。** 同一份 prompt、同一个 worker，只换 host。结果上的差距能追溯到各家 harness 的设计取舍。
 
 ## v1 的结论
 
