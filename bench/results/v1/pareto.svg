@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="956" viewBox="0 0 920 956" role="img" aria-label="agy-staff Bench v1: tasks solved against cost per trial, host cost and total cost, for Claude Code and Codex, solo, with their own subagents, and with agy, on SWE-bench Verified, SWE-Atlas QnA, DeepSearchQA" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif">
+<defs><pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse"><rect x="8" y="8" width="1.4" height="1.4" fill="#E3E5E8"/></pattern></defs>
+<rect x="0.75" y="0.75" width="918.5" height="954.5" rx="8" fill="#F8F9FA" stroke="#202124" stroke-width="1.5"/>
+<rect x="2" y="2" width="916" height="952" rx="7" fill="url(#dots)"/>
+<g stroke="#4285F4" stroke-width="1.5" opacity="0.85"><line x1="20" y1="26" x2="32" y2="26"/><line x1="26" y1="20" x2="26" y2="32"/></g>
+<g stroke="#4285F4" stroke-width="1.5" opacity="0.85"><line x1="888" y1="930" x2="900" y2="930"/><line x1="894" y1="924" x2="894" y2="936"/></g>
+<svg x="36" y="38" width="64" height="64" viewBox="0 0 16 16"><g shape-rendering="crispEdges">
+<g fill="#BDC1C6" transform="translate(1,1)"><rect x="7" y="1" width="5" height="1"/><rect x="7" y="2" width="6" height="1"/><rect x="7" y="3" width="6" height="1"/><rect x="7" y="4" width="5" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/><rect x="2" y="7" width="11" height="1"/><rect x="2" y="8" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="12" y="8" width="1" height="1"/><rect x="2" y="9" width="1" height="1"/><rect x="7" y="9" width="1" height="1"/><rect x="12" y="9" width="1" height="1"/><rect x="1" y="10" width="3" height="1"/><rect x="6" y="10" width="3" height="1"/><rect x="11" y="10" width="3" height="1"/><rect x="1" y="11" width="1" height="1"/><rect x="3" y="11" width="1" height="1"/><rect x="6" y="11" width="1" height="1"/><rect x="8" y="11" width="1" height="1"/><rect x="11" y="11" width="1" height="1"/><rect x="13" y="11" width="1" height="1"/><rect x="1" y="12" width="1" height="1"/><rect x="3" y="12" width="1" height="1"/><rect x="6" y="12" width="1" height="1"/><rect x="8" y="12" width="1" height="1"/><rect x="11" y="12" width="1" height="1"/><rect x="13" y="12" width="1" height="1"/><rect x="1" y="13" width="1" height="1"/><rect x="3" y="13" width="1" height="1"/><rect x="6" y="13" width="1" height="1"/><rect x="8" y="13" width="1" height="1"/><rect x="11" y="13" width="1" height="1"/><rect x="13" y="13" width="1" height="1"/></g>
+<g fill="#202124"><rect x="7" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="7" y="3" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/><rect x="2" y="7" width="11" height="1"/><rect x="2" y="8" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="12" y="8" width="1" height="1"/></g>
+<g fill="#4285F4"><rect x="8" y="1" width="4" height="1"/><rect x="8" y="2" width="5" height="1"/><rect x="8" y="3" width="5" height="1"/><rect x="8" y="4" width="4" height="1"/></g>
+<g fill="#3289FC"><rect x="1" y="11" width="1" height="1"/><rect x="3" y="11" width="1" height="1"/><rect x="6" y="11" width="1" height="1"/><rect x="8" y="11" width="1" height="1"/><rect x="11" y="11" width="1" height="1"/><rect x="13" y="11" width="1" height="1"/><rect x="1" y="12" width="1" height="1"/><rect x="3" y="12" width="1" height="1"/><rect x="6" y="12" width="1" height="1"/><rect x="8" y="12" width="1" height="1"/><rect x="11" y="12" width="1" height="1"/><rect x="13" y="12" width="1" height="1"/><rect x="1" y="13" width="1" height="1"/><rect x="3" y="13" width="1" height="1"/><rect x="6" y="13" width="1" height="1"/><rect x="8" y="13" width="1" height="1"/><rect x="11" y="13" width="1" height="1"/><rect x="13" y="13" width="1" height="1"/></g>
+<g fill="#DB863D"><rect x="2" y="9" width="1" height="1"/><rect x="7" y="9" width="1" height="1"/><rect x="12" y="9" width="1" height="1"/><rect x="1" y="10" width="3" height="1"/><rect x="6" y="10" width="3" height="1"/><rect x="11" y="10" width="3" height="1"/></g>
+</g></svg>
+<text x="116" y="44" font-size="12.5" font-weight="700" fill="#1A73E8" letter-spacing="1.6">AGY-STAFF BENCH V1</text>
+<text x="116.0" y="78.0" font-size="28" font-weight="700" fill="#202124" text-anchor="start">Solved vs cost</text>
+<text x="116.0" y="104.0" font-size="14" font-weight="400" fill="#5F6368" text-anchor="start">Each setup's share of tasks solved against what one trial costs: up and to the left is better.</text>
+<rect x="737.1" y="34" width="142.9" height="26" rx="13" fill="#FFFFFF" stroke="#DADCE0"/>
+<text x="749.1" y="51.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">built on</text>
+<svg x="799.0" y="38.0" width="18" height="18" viewBox="0 0 64 64" shape-rendering="auto"><circle cx="32" cy="32" r="32" fill="#000"/><g fill="#fff" transform="translate(3.6679 37.9611) scale(0.00832562 -0.00832562)"><path transform="translate(0 0)" d="M854 0V1432H1040V0ZM160 0V1432H346V0ZM265 646V820H937V646Z"/><path transform="translate(1100 0)" d="M58 0 503 1432H700L1143 0H947L642 1063L602 1218H596L555 1063L252 0ZM254 369 306 536H892L945 369Z"/><path transform="translate(2200 0)" d="M160 0V1432H602Q741 1432 843.0 1380.0Q945 1328 1001.5 1233.0Q1058 1138 1058 1010V990Q1058 862 1001.5 767.0Q945 672 842.5 620.0Q740 568 602 568H264V734H598Q726 734 798.0 800.0Q870 866 870 982V1012Q870 1128 798.0 1194.0Q726 1260 598 1260H344V0ZM935 0 540 643H744L1146 0Z"/><path transform="translate(3300 0)" d="M172 0V1432H618Q805 1432 911.0 1338.0Q1017 1244 1017 1089V1061Q1017 949 963.5 869.0Q910 789 811 752V745Q934 719 1004.0 628.5Q1074 538 1074 407V379Q1074 265 1021.5 179.5Q969 94 874.5 47.0Q780 0 653 0ZM354 164H635Q755 164 820.5 226.0Q886 288 886 403V427Q886 542 819.0 604.0Q752 666 624 666H295V820H601Q711 820 770.0 875.5Q829 931 829 1034V1054Q829 1158 771.0 1213.0Q713 1268 601 1268H354Z"/><path transform="translate(4400 0)" d="M76 697V735Q76 961 139.5 1124.0Q203 1287 320.5 1375.5Q438 1464 600.0 1464.0Q762 1464 879.5 1375.5Q997 1287 1060.5 1124.0Q1124 961 1124 735V697Q1124 471 1060.5 308.0Q997 145 879.5 56.5Q762 -32 600.0 -32.0Q438 -32 320.5 56.5Q203 145 139.5 308.0Q76 471 76 697ZM934 692V740Q934 1002 846.5 1145.0Q759 1288 600.0 1288.0Q441 1288 353.5 1145.0Q266 1002 266 740V692Q266 428 353.0 286.0Q440 144 600.5 144.0Q761 144 847.5 286.0Q934 428 934 692Z"/><path transform="translate(5500 0)" d="M160 0V1432H602Q741 1432 843.0 1380.0Q945 1328 1001.5 1233.0Q1058 1138 1058 1010V990Q1058 862 1001.5 767.0Q945 672 842.5 620.0Q740 568 602 568H264V734H598Q726 734 798.0 800.0Q870 866 870 982V1012Q870 1128 798.0 1194.0Q726 1260 598 1260H344V0ZM935 0 540 643H744L1146 0Z"/></g></svg>
+<text x="823.0" y="51.5" font-size="13" font-weight="700" fill="#202124" text-anchor="start">Harbor</text>
+<text x="880.0" y="82" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#5F6368" text-anchor="end">agy-staff 0.7.3 (f00d149)</text>
+<rect x="40" y="126" width="840" height="626" rx="10" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/>
+<text x="256.0" y="156" font-size="12.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#202124">host $ per trial</text>
+<text x="256.0" y="173.0" font-size="11" font-weight="400" fill="#9AA0A6" text-anchor="start">your plan's quota</text>
+<text x="574.0" y="156" font-size="12.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#202124">total $ per trial</text>
+<text x="574.0" y="173.0" font-size="11" font-weight="400" fill="#9AA0A6" text-anchor="start">host + worker</text>
+<line x1="52.0" y1="184.0" x2="868.0" y2="184.0" stroke="#202124" stroke-width="1"/>
+<text x="56.0" y="220.0" font-size="15" font-weight="700" fill="#202124" text-anchor="start">SWE-bench Verified</text>
+<text x="56" y="239" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#5F6368">8 tasks</text>
+<line x1="256.0" y1="340.0" x2="544.0" y2="340.0" stroke="#BDC1C6" stroke-width="1"/>
+<text x="248.0" y="344.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">0%</text>
+<line x1="256.0" y1="278.0" x2="544.0" y2="278.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="248.0" y="282.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">50%</text>
+<line x1="256.0" y1="216.0" x2="544.0" y2="216.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="248.0" y="220.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">100%</text>
+<line x1="281.2" y1="216.0" x2="281.2" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="281.2" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.25</text>
+<line x1="357.8" y1="216.0" x2="357.8" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="357.8" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.5</text>
+<line x1="434.4" y1="216.0" x2="434.4" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="434.4" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
+<line x1="511.0" y1="216.0" x2="511.0" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="511.0" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
+<path d="M280.7,262.5 L302.4,231.5" fill="none" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
+<circle cx="399.1" cy="231.5" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="399.1" cy="231.5" r="5.5" fill="#D97757"/>
+<circle cx="349.1" cy="262.5" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="349.1" cy="262.5" r="5.5" fill="#202123"/>
+<circle cx="302.4" cy="231.5" r="6" fill="#F1CBBF" stroke="#D97757" stroke-width="2"/>
+<circle cx="299.3" cy="262.5" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
+<circle cx="418.8" cy="231.5" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="280.7" cy="262.5" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
+<line x1="574.0" y1="340.0" x2="862.0" y2="340.0" stroke="#BDC1C6" stroke-width="1"/>
+<line x1="574.0" y1="278.0" x2="862.0" y2="278.0" stroke="#E8EAED" stroke-width="1"/>
+<line x1="574.0" y1="216.0" x2="862.0" y2="216.0" stroke="#E8EAED" stroke-width="1"/>
+<line x1="599.2" y1="216.0" x2="599.2" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="599.2" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.25</text>
+<line x1="675.8" y1="216.0" x2="675.8" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="675.8" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.5</text>
+<line x1="752.4" y1="216.0" x2="752.4" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="752.4" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
+<line x1="829.0" y1="216.0" x2="829.0" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="829.0" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
+<path d="M598.7,262.5 L722.4,231.5" fill="none" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
+<circle cx="828.4" cy="231.5" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="828.4" cy="231.5" r="5.5" fill="#D97757"/>
+<circle cx="841.9" cy="262.5" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="841.9" cy="262.5" r="5.5" fill="#202123"/>
+<circle cx="722.4" cy="231.5" r="6" fill="#F1CBBF" stroke="#D97757" stroke-width="2"/>
+<circle cx="629.4" cy="262.5" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
+<circle cx="736.8" cy="231.5" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="598.7" cy="262.5" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
+<line x1="52.0" y1="376.0" x2="868.0" y2="376.0" stroke="#DADCE0" stroke-width="1"/>
+<text x="56.0" y="404.0" font-size="15" font-weight="700" fill="#202124" text-anchor="start">SWE-Atlas QnA</text>
+<text x="56" y="423" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#5F6368">6 tasks</text>
+<line x1="256.0" y1="524.0" x2="544.0" y2="524.0" stroke="#BDC1C6" stroke-width="1"/>
+<text x="248.0" y="528.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">0%</text>
+<line x1="256.0" y1="462.0" x2="544.0" y2="462.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="248.0" y="466.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">50%</text>
+<line x1="256.0" y1="400.0" x2="544.0" y2="400.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="248.0" y="404.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">100%</text>
+<line x1="281.2" y1="400.0" x2="281.2" y2="524.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="281.2" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.25</text>
+<line x1="357.8" y1="400.0" x2="357.8" y2="524.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="357.8" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.5</text>
+<line x1="434.4" y1="400.0" x2="434.4" y2="524.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="434.4" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
+<line x1="511.0" y1="400.0" x2="511.0" y2="524.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="511.0" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
+<circle cx="452.9" cy="441.3" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="452.9" cy="441.3" r="5.5" fill="#D97757"/>
+<circle cx="382.6" cy="420.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="382.6" cy="420.7" r="5.5" fill="#202123"/>
+<circle cx="503.0" cy="420.7" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="360.9" cy="400.0" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
+<line x1="574.0" y1="524.0" x2="862.0" y2="524.0" stroke="#BDC1C6" stroke-width="1"/>
+<line x1="574.0" y1="462.0" x2="862.0" y2="462.0" stroke="#E8EAED" stroke-width="1"/>
+<line x1="574.0" y1="400.0" x2="862.0" y2="400.0" stroke="#E8EAED" stroke-width="1"/>
+<line x1="599.2" y1="400.0" x2="599.2" y2="524.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="599.2" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.25</text>
+<line x1="675.8" y1="400.0" x2="675.8" y2="524.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="675.8" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.5</text>
+<line x1="752.4" y1="400.0" x2="752.4" y2="524.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="752.4" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
+<line x1="829.0" y1="400.0" x2="829.0" y2="524.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="829.0" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
+<circle cx="822.3" cy="441.3" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="822.3" cy="441.3" r="5.5" fill="#D97757"/>
+<circle cx="801.7" cy="420.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="801.7" cy="420.7" r="5.5" fill="#202123"/>
+<circle cx="821.0" cy="420.7" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="678.9" cy="400.0" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
+<line x1="52.0" y1="560.0" x2="868.0" y2="560.0" stroke="#DADCE0" stroke-width="1"/>
+<text x="56.0" y="588.0" font-size="15" font-weight="700" fill="#202124" text-anchor="start">DeepSearchQA</text>
+<text x="56" y="607" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#5F6368">6 tasks</text>
+<line x1="256.0" y1="708.0" x2="544.0" y2="708.0" stroke="#BDC1C6" stroke-width="1"/>
+<text x="248.0" y="712.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">0%</text>
+<line x1="256.0" y1="646.0" x2="544.0" y2="646.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="248.0" y="650.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">50%</text>
+<line x1="256.0" y1="584.0" x2="544.0" y2="584.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="248.0" y="588.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="end">100%</text>
+<line x1="281.2" y1="584.0" x2="281.2" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="281.2" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.25</text>
+<line x1="357.8" y1="584.0" x2="357.8" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="357.8" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.5</text>
+<line x1="434.4" y1="584.0" x2="434.4" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="434.4" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
+<line x1="511.0" y1="584.0" x2="511.0" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="511.0" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
+<path d="M315.5,646.0 L324.4,604.7" fill="none" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
+<circle cx="315.5" cy="646.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="315.5" cy="646.0" r="5.5" fill="#D97757"/>
+<circle cx="324.4" cy="604.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="324.4" cy="604.7" r="5.5" fill="#202123"/>
+<circle cx="391.8" cy="625.3" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="343.5" cy="604.7" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
+<line x1="574.0" y1="708.0" x2="862.0" y2="708.0" stroke="#BDC1C6" stroke-width="1"/>
+<line x1="574.0" y1="646.0" x2="862.0" y2="646.0" stroke="#E8EAED" stroke-width="1"/>
+<line x1="574.0" y1="584.0" x2="862.0" y2="584.0" stroke="#E8EAED" stroke-width="1"/>
+<line x1="599.2" y1="584.0" x2="599.2" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="599.2" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.25</text>
+<line x1="675.8" y1="584.0" x2="675.8" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="675.8" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$0.5</text>
+<line x1="752.4" y1="584.0" x2="752.4" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="752.4" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
+<line x1="829.0" y1="584.0" x2="829.0" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
+<text x="829.0" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
+<circle cx="770.7" cy="646.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="770.7" cy="646.0" r="5.5" fill="#D97757"/>
+<circle cx="808.3" cy="604.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="808.3" cy="604.7" r="5.5" fill="#202123"/>
+<circle cx="709.8" cy="625.3" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="661.5" cy="604.7" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
+<g stroke="#5F6368" stroke-width="1"><line x1="40" y1="784" x2="240.8" y2="784"/><line x1="679.2" y1="784" x2="880" y2="784"/><line x1="40" y1="779" x2="40" y2="789"/><line x1="880" y1="779" x2="880" y2="789"/></g>
+<text x="460.0" y="788" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#5F6368" text-anchor="middle">20 tasks · 3 benchmarks · 2 hosts × 3 setups · 1 run each</text>
+<circle cx="225.3" cy="812" r="5" fill="#D97757"/>
+<text x="234.3" y="816.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">Claude Code</text>
+<circle cx="328.2" cy="812" r="5" fill="#202123"/>
+<text x="337.2" y="816.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">Codex</text>
+<circle cx="397.4" cy="812" r="5" fill="#80868B"/>
+<text x="406.4" y="816.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">solo</text>
+<circle cx="455.8" cy="812" r="5" fill="#DADCE0" stroke="#80868B" stroke-width="2"/>
+<text x="464.8" y="816.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">+ subagents</text>
+<circle cx="561.4" cy="812" r="7" fill="#FFFFFF" stroke="#4285F4" stroke-width="2.5"/><circle cx="561.4" cy="812" r="3.5" fill="#80868B"/>
+<text x="576.4" y="816.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">+ agy</text>
+<line x1="627.8" y1="812" x2="645.8" y2="812" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="651.8" y="816.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">frontier</text>
+<rect x="40.0" y="842" width="6" height="6" fill="#4285F4"/>
+<text x="54.0" y="850.0" font-size="12" fill="#5F6368"><tspan font-weight="700" fill="#202124">Solved</tspan> the share of the benchmark's tasks: SWE-bench by its tests,</text>
+<text x="54.0" y="867.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">QnA and DeepSearchQA when both judges pass.</text>
+<rect x="474.0" y="842" width="6" height="6" fill="#4285F4"/>
+<text x="488.0" y="850.0" font-size="12" fill="#5F6368"><tspan font-weight="700" fill="#202124">Host $, total $</tspan> per trial at API list price, on a log scale. Total adds</text>
+<text x="488.0" y="867.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">the worker: subagents on the host's plan, agy on its own quota.</text>
+<rect x="40.0" y="888" width="6" height="6" fill="#4285F4"/>
+<text x="54.0" y="896.0" font-size="12" fill="#5F6368"><tspan font-weight="700" fill="#202124">Frontier</tspan> the setups no other setup beats on both cost and tasks</text>
+<text x="54.0" y="913.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">solved, over both hosts. Up and to the left is better.</text>
+<rect x="474.0" y="888" width="6" height="6" fill="#4285F4"/>
+<text x="488.0" y="896.0" font-size="12" fill="#5F6368"><tspan font-weight="700" fill="#202124">Versions</tspan> agy-staff 0.7.3 (f00d149), agy CLI 1.3.0 in every task</text>
+<text x="488.0" y="913.0" font-size="12" font-weight="400" fill="#5F6368" text-anchor="start">image, Harbor 0.24.0.</text>
+</svg>

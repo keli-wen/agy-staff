@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""The results table of a bench version, as an SVG for the READMEs (render-png.sh makes the PNG).
+"""The figures of a bench version, as SVGs for the READMEs (render-png.sh makes the PNGs).
 
-  usage: viz-svg.py <data.json> [--out DIR] [--bench vN] [--version V]
-         e.g. viz-svg.py bench/results/v2/data.json       (writes bench/results/v2/summary.svg)
-  --out      where summary.svg goes (default: the directory of data.json)
-  --bench    the bench version in the title (default: that directory's name, e.g. v2)
+  usage: viz-svg.py <data.json> [--out DIR] [--bench vN] [--version V] [--charts]
+         e.g. viz-svg.py bench/results/v2/data.json --charts   (writes bench/results/v2/*.svg)
+  --out      where the SVGs go (default: the directory of data.json)
+  --bench    the bench version in the titles (default: that directory's name, e.g. v2)
   --version  the agy-staff version to show (default: the latest in data.json)
+  --charts   also draw the charts; without it, only the table
 
 summary.svg is the headline table: every benchmark, both hosts, three setups (resolved, host cost,
 host + worker cost with the change vs solo, median time), from data.json's aggregates (viz-data.py).
+The charts share its card and its grid: cost.svg and tokens.svg stack the host's and the worker's share
+per trial in the table's columns; pareto.svg plots tasks solved against host and total cost per trial.
 Brand marks come from bench/viz/logos.json (taken from the repo's assets/); the card follows assets/design.svg.
 Text is measured with a width table, not a browser, so labels are placed with some slack.
 The numbers are set in Source Serif 4, downloaded on first use (pinned to a google/fonts commit) and embedded
@@ -49,7 +52,10 @@ FONT_FILES = {
 NUM_FONTS = {
     "source-serif": {400: ("SourceSerif4.ttf", {"wght": 400, "opsz": 14}), 700: ("SourceSerif4.ttf", {"wght": 700, "opsz": 14})},
 }
+NUM_FONTS["source-serif-charts"] = NUM_FONTS["source-serif"]
 NUM_GLYPHS = "0123456789$./%=+ minbaseline"
+# The charts also print token counts (9.9M, 450K); the table keeps its own subset, so its SVG stays as published.
+GLYPHS = {"source-serif": NUM_GLYPHS, "source-serif-charts": NUM_GLYPHS + "MK"}
 
 
 def font_file(name):
@@ -67,7 +73,7 @@ def font_file(name):
 
 
 def font_face(key):
-    """@font-face rules for one NUM_FONTS entry, subset to NUM_GLYPHS (tabular and lining figures kept)."""
+    """@font-face rules for one NUM_FONTS entry, subset to its GLYPHS (tabular and lining figures kept)."""
     import base64
     import io
     from fontTools import subset
@@ -84,7 +90,7 @@ def font_face(key):
         opts = subset.Options()
         opts.flavor, opts.layout_features = "woff2", ["tnum", "lnum", "kern"]
         sub = subset.Subsetter(opts)
-        sub.populate(text=NUM_GLYPHS)
+        sub.populate(text=GLYPHS[key])
         sub.subset(font)
         buf = io.BytesIO()
         subset.save_font(font, buf, opts)
@@ -159,66 +165,49 @@ def wrap(s, size, maxw):
 MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
 
 
-def summary_table(aggs, runs, version, bench, num_font="source-serif"):
-    """The headline table: every benchmark, both hosts, three setups, in one image.
 
-    Styled after assets/design.svg (dotted ground, blue corner marks, mono labels, dimension line), with the bench
-    icon leading the title block. Each
-    column says what it is with marks, not words: the host alone; the host with two small copies of itself
-    (its own subagents); the host + agy. Touches: a pixel strip per resolved cell (one square per task:
-    solved, unsolved, or stopped by the time limit), the + agy columns framed as agy's staff badge, and
-    both cost rows compared with the same host's solo (the baseline) as green / red arrows.
-    """
-    TW, PX = 920, 40
-    cols = [(h, s) for h in HOSTS for s in SETUPS]
-    get = {(a["dataset"], a["host"], a["setup"]): a for a in aggs}
-    dss = [d for d in DATASETS if any(a["dataset"] == d for a in aggs)]
-    BLUE, AGYBG, GREEN, RED, PAPER, FAINT = "#1A73E8", "#F5F8FF", "#188038", "#D93025", "#F8F9FA", "#9AA0A6"
-    card_x, card_w = PX, TW - 2 * PX
-    LW = 190
-    cw = (card_w - 24 - LW) / len(cols)
-    col_x = lambda j: card_x + 12 + LW + cw * j
-    cx = lambda j: col_x(j) + cw / 2
-    mono_w = lambda s, size: len(s) * size * 0.6
+# --- the card every figure shares ----------------------------------------------------------------------------
+# Styled after assets/design.svg: dotted paper, blue corner marks, the bench icon leading the title block, a white
+# card, mono labels, a dimension line, a centered key and two columns of notes. The table and the charts all use it.
+TW, PX = 920, 40
+BLUE, AGYBG, GREEN, RED, PAPER, FAINT = "#1A73E8", "#F5F8FF", "#188038", "#D93025", "#F8F9FA", "#9AA0A6"
+AGY = "#4285F4"
+COLS = [(h, s) for h in HOSTS for s in SETUPS]
+CARD_X, CARD_W, LW = PX, TW - 2 * PX, 190
+CW = (CARD_W - 24 - LW) / len(COLS)
+
+
+def col_x(j):
+    return CARD_X + 12 + LW + CW * j
+
+
+def cx(j):
+    return col_x(j) + CW / 2
+
+
+def mono_w(s, size):
+    return len(s) * size * 0.6
+
+
+def mix(hex_color, toward, t):
+    a = [int(hex_color[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(toward[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(a, b))
+
+
+def tint(host):
+    """The host's lighter step: its own subagents' share in the charts."""
+    return mix(HOSTS[host]["color"], "#FFFFFF", 0.62)
+
+
+def num_attr(num_font):
     numfam = f"'num-{num_font}', {FONT}" if num_font else FONT
-    num = f'font-family="{numfam}" style="font-variant-numeric:tabular-nums lining-nums"'
+    return f'font-family="{numfam}" style="font-variant-numeric:tabular-nums lining-nums"'
 
-    def delta(v, base, accent):
-        d = (v / base - 1) * 100
-        if abs(d) < 0.5:
-            return f'<tspan fill="{C["muted"]}">= baseline</tspan>'
-        fill = (GREEN if d < 0 else RED) if accent else "#80868B"
-        return f'<tspan fill="{fill}">{"▼" if d < 0 else "▲"} {abs(d):.0f}%</tspan>'
 
-    sec_h, ROWS = 40, (46, 44, 44, 32)
-    card_top = 126
-    body_top = card_top + 160
-    body_end = body_top + len(dss) * (sec_h + sum(ROWS))
-    card_end = body_end + 16
-    timeouts = [(a["host"], a["setup"], a["dataset"], a["timeouts"]) for a in aggs if a["timeouts"]]
-    n_tasks = sum(next(a["trials"] for a in aggs if a["dataset"] == d) for d in dss)
-    notes = [
-        ("Resolved", "SWE-bench by its tests. QnA and DeepSearchQA only when both judges pass (Gemini 3.8 Flash, DeepSeek V4 Pro)."),
-        ("Host $", "what the host model itself uses, at API list price: the part that comes out of your Claude or ChatGPT plan."),
-        ("Total $", "host + worker. Subagents bill the host's plan; agy is priced at Gemini list price but runs on agy's own quota."),
-        ("+ agy", "the prompt asks the host to use agy lead (/agy:lead), and lead picks which agy job to run."),
-    ]
-    if timeouts:
-        limit = ", ".join(f"{h} {n}" for h, s, d, n in timeouts)
-        sets = sorted({DATASETS[d] for h, s, d, n in timeouts})
-        notes.append(("Time limit", f"{' and '.join(sets)} stops a trial at 30 min. {sum(n for *_, n in timeouts)} + agy trials hit it "
-                                    f"({limit}) and count as unsolved."))
-    notes.append(("Versions", f"agy-staff {version}, agy CLI {AGY_CLI} in every task image, Harbor {HARBOR}."))
-    col_w = (card_w - 28) / 2
-    note_rows = [wrap(f"{k} {v}", 12, col_w - 16) for k, v in notes]
-    dim_y = card_end + 32
-    key_y = dim_y + 32
-    notes_y = key_y + 34
-    row_lines = [max(len(note_rows[i]), len(note_rows[i + 1]) if i + 1 < len(note_rows) else 0) for i in range(0, len(note_rows), 2)]
-    H = notes_y + sum(n * 17 + 12 for n in row_lines) + 14
-
-    f = Fig(H, f"agy-staff Bench {bench}, a harness and orchestration bench: Claude Code and Codex, solo, with their own subagents, and with agy, on "
-               f"{', '.join(DATASETS[d] for d in dss)}; resolved tasks, host cost, total cost and median time")
+def draw_head(f, H, eyebrow, title, subtitle, version):
+    """Paper, corner marks, and the title block: bench icon, eyebrow, title, one line on what is shown, the Harbor
+    badge and the plugin version."""
     f.add(f'<rect x="0.75" y="0.75" width="{TW - 1.5}" height="{H - 1.5}" rx="8" fill="{PAPER}" stroke="{C["ink"]}" stroke-width="1.5"/>')
     f.add(f'<rect x="2" y="2" width="{TW - 4}" height="{H - 4}" rx="7" fill="url(#dots)"/>')
     for x, y in ((26, 26), (TW - 26, H - 26)):
@@ -228,9 +217,9 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif"):
     # and the two badges: built on Harbor, plugin version
     f.add(f'<svg x="{PX - 4}" y="38" width="64" height="64" viewBox="0 0 16 16">{bench_mark()}</svg>')
     TX = PX + 76
-    f.add(f'<text x="{TX}" y="44" font-size="12.5" font-weight="700" fill="{BLUE}" letter-spacing="1.6">HARNESS &amp; ORCHESTRATION BENCH</text>')
-    f.text(TX, 78, f"agy-staff Bench {bench}", 28, C["ink"], 700)
-    f.text(TX, 104, f"Claude Code and Codex on {len(dss)} benchmarks: solo, with their own subagents, and with agy.", 14)
+    f.add(f'<text x="{TX}" y="44" font-size="12.5" font-weight="700" fill="{BLUE}" letter-spacing="1.6">{escape(eyebrow)}</text>')
+    f.text(TX, 78, title, 28, C["ink"], 700)
+    f.text(TX, 104, subtitle, 14)
     hb_w = tw("built on", 12) + 8 + 18 + 6 + tw("Harbor", 13, True) + 24
     hx = TW - PX - hb_w
     f.add(f'<rect x="{hx:.1f}" y="34" width="{hb_w:.1f}" height="26" rx="13" fill="#FFFFFF" stroke="{C["border"]}"/>')
@@ -239,16 +228,23 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif"):
     f.text(hx + 12 + tw("built on", 12) + 32, 51.5, "Harbor", 13, C["ink"], 700)
     f.add(f'<text x="{TW - PX:.1f}" y="82" font-size="11.5" font-family="{MONO}" fill="{C["muted"]}" '
           f'text-anchor="end">agy-staff {escape(version)}</text>')
-    # table card
-    f.add(f'<rect x="{card_x}" y="{card_top}" width="{card_w}" height="{card_end - card_top}" rx="10" fill="#FFFFFF" '
+
+
+def draw_card(f, top, end):
+    f.add(f'<rect x="{CARD_X}" y="{top}" width="{CARD_W}" height="{end - top}" rx="10" fill="#FFFFFF" '
           f'stroke="{C["border"]}" stroke-width="1.5"/>')
-    f.line(card_x + 12, body_top - 8, card_x + card_w - 12, body_top - 8, C["ink"])
+
+
+def draw_columns(f, card_top, body_top, body_end, runs):
+    """The column head the table and the bar charts share: the + agy columns framed as agy's staff badge, a host
+    group per host, and a head per setup."""
+    f.line(CARD_X + 12, body_top - 8, CARD_X + CARD_W - 12, body_top - 8, C["ink"])
     # + agy columns: agy's staff badge, a blue frame with a clip on top
-    for j, (h, s) in enumerate(cols):
+    for j, (h, s) in enumerate(COLS):
         if s != "agy-staff":
             continue
         bx, by = col_x(j) + 5, card_top + 76
-        f.add(f'<rect x="{bx:.1f}" y="{by}" width="{cw - 10:.1f}" height="{body_end - by + 6:.1f}" rx="9" fill="{AGYBG}" '
+        f.add(f'<rect x="{bx:.1f}" y="{by}" width="{CW - 10:.1f}" height="{body_end - by + 6:.1f}" rx="9" fill="{AGYBG}" '
               f'stroke="#4285F4" stroke-width="1.5"/>')
         f.add(f'<rect x="{cx(j) - 10:.1f}" y="{by - 6}" width="20" height="10" rx="2" fill="{C["ink"]}"/>'
               f'<rect x="{cx(j) - 5:.1f}" y="{by - 3}" width="10" height="3" fill="#E8EAED"/>')
@@ -265,7 +261,7 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif"):
         f.add(f'<rect x="{g0 + 10:.1f}" y="{card_top + 63}" width="{g1 - g0 - 20:.1f}" height="3" rx="1.5" fill="{HOSTS[h]["color"]}"/>')
     # column heads: plain words; the agy mark appears only on the + agy columns, the point of the table
     iy = card_top + 98
-    for j, (h, s) in enumerate(cols):
+    for j, (h, s) in enumerate(COLS):
         if s == "agy-staff":
             f.text(cx(j) - 13, iy, "+", 15, BLUE, 700, "middle")
             f.logo("agy", cx(j) - 4, iy - 16, 20)
@@ -281,26 +277,156 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif"):
             f.text(cx(j), iy, "solo" if s == "solo" else "+ subagents", 13, C["ink"], 600, "middle")
             if s == "native":
                 f.text(cx(j), iy + 18, HOSTS[h]["subagent"], 10.5, C["muted"], 400, "middle")
+
+
+def draw_section_title(f, y, ds, n):
+    f.text(CARD_X + 16, y + 28, DATASETS[ds], 15, C["ink"], 700)
+    f.add(f'<text x="{CARD_X + 26 + tw(DATASETS[ds], 15, True) * 1.04:.1f}" y="{y + 28}" font-size="11.5" '
+          f'font-family="{MONO}" fill="{C["muted"]}">{n} tasks</text>')
+
+
+def draw_chart_title(f, y, ds, n):
+    """A benchmark's name over its task count, in the label column: the chart sits beside it, not below."""
+    f.text(CARD_X + 16, y + 28, DATASETS[ds], 15, C["ink"], 700)
+    f.add(f'<text x="{CARD_X + 16}" y="{y + 47}" font-size="11.5" font-family="{MONO}" fill="{C["muted"]}">{n} tasks</text>')
+
+
+def notes_layout(notes):
+    col_w = (CARD_W - 28) / 2
+    note_rows = [wrap(f"{k} {v}", 12, col_w - 16) for k, v in notes]
+    row_lines = [max(len(note_rows[i]), len(note_rows[i + 1]) if i + 1 < len(note_rows) else 0) for i in range(0, len(note_rows), 2)]
+    return note_rows, row_lines, sum(n * 17 + 12 for n in row_lines)
+
+
+def draw_footer(f, dim_y, key_y, notes_y, dim, key, notes, note_rows, row_lines):
+    """The dimension line, the key centered under it, and the notes: short items, two columns, bold term first.
+    key: [(glyph width, draw(x), label)]."""
+    dw = mono_w(dim, 12) + 28
+    mid = TW / 2
+    f.add(f'<g stroke="{C["muted"]}" stroke-width="1"><line x1="{PX}" y1="{dim_y}" x2="{mid - dw / 2:.1f}" y2="{dim_y}"/>'
+          f'<line x1="{mid + dw / 2:.1f}" y1="{dim_y}" x2="{TW - PX}" y2="{dim_y}"/>'
+          f'<line x1="{PX}" y1="{dim_y - 5}" x2="{PX}" y2="{dim_y + 5}"/><line x1="{TW - PX}" y1="{dim_y - 5}" x2="{TW - PX}" y2="{dim_y + 5}"/></g>')
+    f.add(f'<text x="{mid}" y="{dim_y + 4}" font-size="12" font-family="{MONO}" fill="{C["muted"]}" text-anchor="middle">{escape(dim)}</text>')
+    widths = [gw + tw(label, 12) for gw, _, label in key]
+    x = mid - (sum(widths) + 22 * (len(key) - 1)) / 2
+    for (gw, draw, label), wd in zip(key, widths):
+        draw(x)
+        f.text(x + gw, key_y, label, 12)
+        x += wd + 22
+    col_w = (CARD_W - 28) / 2
+    yy = notes_y
+    for r0 in range(0, len(note_rows), 2):
+        for c in range(2):
+            i = r0 + c
+            if i >= len(note_rows):
+                continue
+            nx = PX + c * (col_w + 28)
+            term = notes[i][0]
+            f.add(f'<rect x="{nx:.1f}" y="{yy - 8}" width="6" height="6" fill="#4285F4"/>')
+            for li, ln in enumerate(note_rows[i]):
+                if li == 0 and ln.startswith(term):
+                    f.add(f'<text x="{nx + 14:.1f}" y="{yy:.1f}" font-size="12" fill="{C["muted"]}"><tspan font-weight="700" '
+                          f'fill="{C["ink"]}">{escape(term)}</tspan>{escape(ln[len(term):])}</text>')
+                else:
+                    f.text(nx + 14, yy + li * 17, ln, 12)
+        yy += row_lines[r0 // 2] * 17 + 12
+
+
+def render(f, H, num_font):
+    if num_font:
+        f.defs.add(font_face(num_font))
+    f.defs.add('<pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse">'
+               '<rect x="8" y="8" width="1.4" height="1.4" fill="#E3E5E8"/></pattern>')
+    body = "\n".join(f.parts)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{TW}" height="{H}" viewBox="0 0 {TW} {H}" role="img" '
+            f'aria-label="{escape(f.label)}" font-family="{FONT}">\n<defs>{"".join(sorted(f.defs))}</defs>\n{body}\n</svg>\n')
+
+
+def dimension(aggs, dss):
+    n_tasks = sum(next(a["trials"] for a in aggs if a["dataset"] == d) for d in dss)
+    return f"{n_tasks} tasks · {len(dss)} benchmarks · {len(HOSTS)} hosts × {len(SETUPS)} setups · 1 run each"
+
+
+def versions_note(version):
+    return ("Versions", f"agy-staff {version}, agy CLI {AGY_CLI} in every task image, Harbor {HARBOR}.")
+
+
+def swatches(colors, size=8, gap=2):
+    """A key glyph: one small square per color, side by side."""
+    def draw(f, x, y):
+        for i, col in enumerate(colors):
+            f.add(f'<rect x="{x + i * (size + gap):.1f}" y="{y - size - 1:.1f}" width="{size}" height="{size}" rx="1.5" fill="{col}"/>')
+    return len(colors) * (size + gap) + 4, draw
+
+
+# --- the table -----------------------------------------------------------------------------------------------
+def summary_table(aggs, runs, version, bench, num_font="source-serif"):
+    """The headline table: every benchmark, both hosts, three setups, in one image.
+
+    Each column says what it is with marks, not words: the host alone; the host with two small copies of itself
+    (its own subagents); the host + agy. Touches: a pixel strip per resolved cell (one square per task:
+    solved, unsolved, or stopped by the time limit), the + agy columns framed as agy's staff badge, and
+    both cost rows compared with the same host's solo (the baseline) as green / red arrows.
+    """
+    get = {(a["dataset"], a["host"], a["setup"]): a for a in aggs}
+    dss = [d for d in DATASETS if any(a["dataset"] == d for a in aggs)]
+    num = num_attr(num_font)
+
+    def delta(v, base, accent):
+        d = (v / base - 1) * 100
+        if abs(d) < 0.5:
+            return f'<tspan fill="{C["muted"]}">= baseline</tspan>'
+        fill = (GREEN if d < 0 else RED) if accent else "#80868B"
+        return f'<tspan fill="{fill}">{"▼" if d < 0 else "▲"} {abs(d):.0f}%</tspan>'
+
+    sec_h, ROWS = 40, (46, 44, 44, 32)
+    card_top = 126
+    body_top = card_top + 160
+    body_end = body_top + len(dss) * (sec_h + sum(ROWS))
+    card_end = body_end + 16
+    timeouts = [(a["host"], a["setup"], a["dataset"], a["timeouts"]) for a in aggs if a["timeouts"]]
+    notes = [
+        ("Resolved", "SWE-bench by its tests. QnA and DeepSearchQA only when both judges pass (Gemini 3.8 Flash, DeepSeek V4 Pro)."),
+        ("Host $", "what the host model itself uses, at API list price: the part that comes out of your Claude or ChatGPT plan."),
+        ("Total $", "host + worker. Subagents bill the host's plan; agy is priced at Gemini list price but runs on agy's own quota."),
+        ("+ agy", "the prompt asks the host to use agy lead (/agy:lead), and lead picks which agy job to run."),
+    ]
+    if timeouts:
+        limit = ", ".join(f"{h} {n}" for h, s, d, n in timeouts)
+        sets = sorted({DATASETS[d] for h, s, d, n in timeouts})
+        notes.append(("Time limit", f"{' and '.join(sets)} stops a trial at 30 min. {sum(n for *_, n in timeouts)} + agy trials hit it "
+                                    f"({limit}) and count as unsolved."))
+    notes.append(versions_note(version))
+    note_rows, row_lines, notes_h = notes_layout(notes)
+    dim_y = card_end + 32
+    key_y = dim_y + 32
+    notes_y = key_y + 34
+    H = notes_y + notes_h + 14
+
+    f = Fig(H, f"agy-staff Bench {bench}, a harness and orchestration bench: Claude Code and Codex, solo, with their own subagents, and with agy, on "
+               f"{', '.join(DATASETS[d] for d in dss)}; resolved tasks, host cost, total cost and median time")
+    draw_head(f, H, "HARNESS & ORCHESTRATION BENCH", f"agy-staff Bench {bench}",
+              f"Claude Code and Codex on {len(dss)} benchmarks: solo, with their own subagents, and with agy.", version)
+    draw_card(f, card_top, card_end)
+    draw_columns(f, card_top, body_top, body_end, runs)
     # body
     labels = [("resolved", None), ("host $", "your plan's quota"), ("total $", "host + worker"), ("median time", None)]
     y = body_top
     for k, ds in enumerate(dss):
         if k:
-            f.line(card_x + 12, y, card_x + 12 + LW - 8, y, C["border"])
-            for j in range(len(cols)):
-                if cols[j][1] != "agy-staff":
-                    f.line(col_x(j), y, col_x(j) + cw, y, C["border"])
+            f.line(CARD_X + 12, y, CARD_X + 12 + LW - 8, y, C["border"])
+            for j in range(len(COLS)):
+                if COLS[j][1] != "agy-staff":
+                    f.line(col_x(j), y, col_x(j) + CW, y, C["border"])
         n = next(a["trials"] for a in aggs if a["dataset"] == ds)
-        f.text(card_x + 16, y + 28, DATASETS[ds], 15, C["ink"], 700)
-        f.add(f'<text x="{card_x + 26 + tw(DATASETS[ds], 15, True) * 1.04:.1f}" y="{y + 28}" font-size="11.5" '
-              f'font-family="{MONO}" fill="{C["muted"]}">{n} tasks</text>')
+        draw_section_title(f, y, ds, n)
         y += sec_h
         for ri, (label, sub) in enumerate(labels):
             base = y + (19 if ri < 3 else 21)
-            f.add(f'<text x="{card_x + 28}" y="{base}" font-size="12.5" font-family="{MONO}" fill="{C["ink"]}">{label}</text>')
+            f.add(f'<text x="{CARD_X + 28}" y="{base}" font-size="12.5" font-family="{MONO}" fill="{C["ink"]}">{label}</text>')
             if sub:
-                f.text(card_x + 28, base + 16, sub, 11, FAINT)
-            for j, (h, s) in enumerate(cols):
+                f.text(CARD_X + 28, base + 16, sub, 11, FAINT)
+            for j, (h, s) in enumerate(COLS):
                 a = get.get((ds, h, s))
                 if not a:
                     f.text(cx(j), base, "—", 14, "#BDC1C6", 400, "middle")
@@ -334,69 +460,283 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif"):
                     f.add(f'<text x="{cx(j):.1f}" y="{base + 16}" font-size="11" font-weight="700" text-anchor="middle" {num}>'
                           f'{delta(a[key], solo[key], s == "agy-staff")}</text>')
             y += ROWS[ri]
-    # dimension line, as in design.svg
-    dim = f"{n_tasks} tasks · {len(dss)} benchmarks · {len(HOSTS)} hosts × {len(SETUPS)} setups · 1 run each"
-    dw = mono_w(dim, 12) + 28
-    mid = TW / 2
-    f.add(f'<g stroke="{C["muted"]}" stroke-width="1"><line x1="{PX}" y1="{dim_y}" x2="{mid - dw / 2:.1f}" y2="{dim_y}"/>'
-          f'<line x1="{mid + dw / 2:.1f}" y1="{dim_y}" x2="{TW - PX}" y2="{dim_y}"/>'
-          f'<line x1="{PX}" y1="{dim_y - 5}" x2="{PX}" y2="{dim_y + 5}"/><line x1="{TW - PX}" y1="{dim_y - 5}" x2="{TW - PX}" y2="{dim_y + 5}"/></g>')
-    f.add(f'<text x="{mid}" y="{dim_y + 4}" font-size="12" font-family="{MONO}" fill="{C["muted"]}" text-anchor="middle">{escape(dim)}</text>')
-    # key, centered under the dimension line
-    items = [("solved", "solved"), ("unsolved", "not solved"), ("timeout", "stopped at the time limit"),
-             ("down", "cheaper than solo"), ("up", "costlier than solo")]
-    widths = [(20 if k == "solved" else 12 if k in ("unsolved", "timeout") else 14) + tw(lbl, 12) for k, lbl in items]
-    x = mid - (sum(widths) + 22 * (len(items) - 1)) / 2
-    for (kind, label), wd in zip(items, widths):
-        if kind == "solved":
-            f.add(f'<rect x="{x:.1f}" y="{key_y - 9}" width="6" height="6" fill="{HOSTS["Claude Code"]["color"]}"/>'
-                  f'<rect x="{x + 8:.1f}" y="{key_y - 9}" width="6" height="6" fill="{HOSTS["Codex"]["color"]}"/>')
-            lx = x + 20
-        elif kind == "unsolved":
-            f.add(f'<rect x="{x:.1f}" y="{key_y - 9}" width="6" height="6" fill="#DADCE0"/>')
-            lx = x + 12
-        elif kind == "timeout":
-            f.add(f'<rect x="{x + 0.6:.1f}" y="{key_y - 8.4}" width="4.8" height="4.8" fill="#FFFFFF" stroke="{RED}" stroke-width="1.2"/>')
-            lx = x + 12
-        else:
-            f.add(f'<text x="{x:.1f}" y="{key_y}" font-size="11" font-weight="700" fill="{GREEN if kind == "down" else RED}">'
-                  f'{"▼" if kind == "down" else "▲"}</text>')
-            lx = x + 14
-        f.text(lx, key_y, label, 12)
-        x += wd + 22
-    # notes: short items, two columns, bold term first
-    yy = notes_y
-    for r0 in range(0, len(note_rows), 2):
-        for c in range(2):
-            i = r0 + c
-            if i >= len(note_rows):
+
+    def square(color):
+        return lambda x: f.add(f'<rect x="{x:.1f}" y="{key_y - 9}" width="6" height="6" fill="{color}"/>')
+
+    def arrow(kind):
+        return lambda x: f.add(f'<text x="{x:.1f}" y="{key_y}" font-size="11" font-weight="700" fill="{GREEN if kind == "down" else RED}">'
+                               f'{"▼" if kind == "down" else "▲"}</text>')
+
+    key = [
+        (20, lambda x: f.add(f'<rect x="{x:.1f}" y="{key_y - 9}" width="6" height="6" fill="{HOSTS["Claude Code"]["color"]}"/>'
+                             f'<rect x="{x + 8:.1f}" y="{key_y - 9}" width="6" height="6" fill="{HOSTS["Codex"]["color"]}"/>'), "solved"),
+        (12, square("#DADCE0"), "not solved"),
+        (12, lambda x: f.add(f'<rect x="{x + 0.6:.1f}" y="{key_y - 8.4}" width="4.8" height="4.8" fill="#FFFFFF" stroke="{RED}" stroke-width="1.2"/>'),
+         "stopped at the time limit"),
+        (14, arrow("down"), "cheaper than solo"),
+        (14, arrow("up"), "costlier than solo"),
+    ]
+    draw_footer(f, dim_y, key_y, notes_y, dimension(aggs, dss), key, notes, note_rows, row_lines)
+    return render(f, H, num_font)
+
+
+# --- the charts ----------------------------------------------------------------------------------------------
+TOKEN_KEYS = ("input", "cache_creation", "cache_read", "output")
+CHART_FONT = "source-serif-charts"
+
+
+def per_trial(a, kind):
+    """(host, worker) per trial: USD for cost, tokens for tokens."""
+    if kind == "cost":
+        return a["host_cost_per_trial"], a["total_cost_per_trial"] - a["host_cost_per_trial"]
+    n = a["trials"]
+    return (sum(a["host_tokens"][k] for k in TOKEN_KEYS) / n, sum(a["worker_tokens"][k] for k in TOKEN_KEYS) / n)
+
+
+def money(v):
+    return f"${v:.2f}"
+
+
+def mtok(v):
+    return f"{v / 1e6:.1f}M" if v >= 1e5 else f"{v / 1e3:.0f}K"
+
+
+def ticks_for(vmax, steps=(1, 2, 2.5, 5)):
+    """Clean tick values from 0 to at most vmax, three or four of them."""
+    import math
+    raw = vmax / 4
+    k = 10 ** math.floor(math.log10(raw))
+    step = next(m * k for m in steps + (10,) if m * k >= raw)
+    out, v = [], 0.0
+    while v <= vmax + 1e-9:
+        out.append(round(v, 10))
+        v += step
+    return out
+
+
+def bar_path(x, y_top, w, h, round_top):
+    """A bar segment: square at the bottom, a 4 px rounded data-end on top when it is the bar's last segment."""
+    if h <= 0:
+        return ""
+    r = min(4, h, w / 2) if round_top else 0
+    if not r:
+        return f'<rect x="{x:.1f}" y="{y_top:.1f}" width="{w:.1f}" height="{h:.1f}"'
+    yb = y_top + h
+    return (f'<path d="M{x:.1f},{yb:.1f} V{y_top + r:.1f} Q{x:.1f},{y_top:.1f} {x + r:.1f},{y_top:.1f} '
+            f'H{x + w - r:.1f} Q{x + w:.1f},{y_top:.1f} {x + w:.1f},{y_top + r:.1f} V{yb:.1f} Z"')
+
+
+def bars_chart(aggs, runs, version, bench, kind, num_font=CHART_FONT):
+    """Cost or tokens per trial: the table's grid, with a stacked bar in each cell. The host's share sits on the
+    baseline in its brand color; the worker's share is stacked on top, 2 px apart: the host's lighter step for its
+    own subagents, agy blue for agy. One scale for every benchmark, so the rows compare."""
+    get = {(a["dataset"], a["host"], a["setup"]): a for a in aggs}
+    dss = [d for d in DATASETS if any(a["dataset"] == d for a in aggs)]
+    num = num_attr(num_font)
+    fmt = money if kind == "cost" else mtok
+    vmax = max(sum(per_trial(a, kind)) for a in aggs)
+    ticks = ticks_for(vmax)
+    top_v = vmax * 1.16  # room for the value over the tallest bar
+    PT, PH, PB = 16, 124, 22
+    card_top = 126
+    body_top = card_top + 160
+    body_end = body_top + len(dss) * (PT + PH + PB)
+    card_end = body_end + 16
+    if kind == "cost":
+        title, sub = "Cost per trial", "What one trial costs at API list price: the host's share, with the worker's on top."
+        notes = [
+            ("Host $", "what the host model itself uses, at API list price: the part that comes out of your Claude or ChatGPT plan."),
+            ("Worker $", "stacked on top. Subagents bill the host's plan; agy is priced at Gemini list price but runs on agy's own quota."),
+            ("Per trial", "the mean over the benchmark's tasks, as in the table. The number over each bar is host + worker."),
+            versions_note(version),
+        ]
+    else:
+        title, sub = "Tokens per trial", "How many tokens one trial uses, cache reads included: the host's, with the worker's on top."
+        notes = [
+            ("Tokens", "input, cache writes, cache reads and output (reasoning included) of every model call. Cache reads dominate long agent runs."),
+            ("Host", "the host model's tokens: they count against your Claude or ChatGPT plan."),
+            ("Worker", "stacked on top. Subagents count against the host's plan; agy's tokens count against agy's own quota."),
+            versions_note(version),
+        ]
+    note_rows, row_lines, notes_h = notes_layout(notes)
+    dim_y = card_end + 32
+    key_y = dim_y + 32
+    notes_y = key_y + 34
+    H = notes_y + notes_h + 14
+
+    f = Fig(H, f"agy-staff Bench {bench}: {title.lower()} for Claude Code and Codex, solo, with their own subagents, and with agy, "
+               f"on {', '.join(DATASETS[d] for d in dss)}; the host's share and the worker's")
+    draw_head(f, H, f"AGY-STAFF BENCH {bench.upper()}", title, sub, version)
+    draw_card(f, card_top, card_end)
+    draw_columns(f, card_top, body_top, body_end, runs)
+    BW = 24
+    y = body_top
+    for k, ds in enumerate(dss):
+        if k:
+            f.line(CARD_X + 12, y, CARD_X + 12 + LW - 8, y, C["border"])
+            for j in range(len(COLS)):
+                if COLS[j][1] != "agy-staff":
+                    f.line(col_x(j), y, col_x(j) + CW, y, C["border"])
+        n = next(a["trials"] for a in aggs if a["dataset"] == ds)
+        draw_chart_title(f, y, ds, n)
+        base = y + PT + PH
+        scale = lambda v: v / top_v * (PH - 8)  # noqa: E731
+        for t in ticks:
+            ty = base - scale(t)
+            if t:
+                f.line(col_x(0) + 4, ty, col_x(len(COLS)) - 4, ty, C["grid"])
+            f.add(f'<text x="{col_x(0) - 8:.1f}" y="{ty + 4:.1f}" font-size="10.5" font-family="{MONO}" fill="{FAINT}" '
+                  f'text-anchor="end">{"$0" if kind == "cost" and not t else ("0" if not t else (f"${t:g}" if kind == "cost" else f"{t / 1e6:g}M"))}</text>')
+        f.line(col_x(0) + 4, base, col_x(len(COLS)) - 4, base, "#BDC1C6")
+        for j, (h, s) in enumerate(COLS):
+            a = get.get((ds, h, s))
+            if not a:
+                f.text(cx(j), base - 8, "—", 14, "#BDC1C6", 400, "middle")
                 continue
-            nx = PX + c * (col_w + 28)
-            term = notes[i][0]
-            f.add(f'<rect x="{nx:.1f}" y="{yy - 8}" width="6" height="6" fill="#4285F4"/>')
-            for li, ln in enumerate(note_rows[i]):
-                if li == 0 and ln.startswith(term):
-                    f.add(f'<text x="{nx + 14:.1f}" y="{yy:.1f}" font-size="12" fill="{C["muted"]}"><tspan font-weight="700" '
-                          f'fill="{C["ink"]}">{escape(term)}</tspan>{escape(ln[len(term):])}</text>')
+            hv, wv = per_trial(a, kind)
+            x = cx(j) - BW / 2
+            hh, wh = scale(hv), scale(wv)
+            worker_col = AGY if s == "agy-staff" else tint(h)
+            top = base - hh
+            f.add(bar_path(x, top, BW, hh, round_top=wh < 0.5) + f' fill="{HOSTS[h]["color"]}"/>')
+            if wh >= 0.5:
+                wtop = top - 2 - wh
+                f.add(bar_path(x, wtop, BW, wh, round_top=True) + f' fill="{worker_col}"/>')
+                top = wtop
+            f.add(f'<text x="{cx(j):.1f}" y="{top - 7:.1f}" font-size="12.5" font-weight="700" fill="{C["ink"]}" '
+                  f'text-anchor="middle" {num}>{fmt(hv + wv)}</text>')
+        y += PT + PH + PB
+
+    def glyph(colors):
+        gw, draw = swatches(colors)
+        return gw, lambda x: draw(f, x, key_y)
+
+    key = [
+        (*glyph([HOSTS["Claude Code"]["color"], HOSTS["Codex"]["color"]]), "the host's own share"),
+        (*glyph([tint("Claude Code"), tint("Codex")]), "its subagents' share"),
+        (*glyph([AGY]), "agy's share"),
+    ]
+    draw_footer(f, dim_y, key_y, notes_y, dimension(aggs, dss), key, notes, note_rows, row_lines)
+    return render(f, H, num_font)
+
+
+def pareto_chart(aggs, runs, version, bench, num_font=CHART_FONT):
+    """Tasks solved against cost per trial, one row per benchmark: host $ on the left, total $ (host + worker) on
+    the right, on one log scale. Color is the host; the mark is the setup, as in the table: filled for solo, the
+    host's lighter step for its own subagents, an agy-blue ring for + agy. A dashed line joins the setups no other
+    setup beats on both cost and tasks solved."""
+    import math
+    dss = [d for d in DATASETS if any(a["dataset"] == d for a in aggs)]
+    lo = min(min(a["host_cost_per_trial"] for a in aggs), 0.25) / 1.25
+    hi = max(a["total_cost_per_trial"] for a in aggs) * 1.2
+    xticks = [t for t in (0.1, 0.25, 0.5, 1, 2, 5) if lo <= t <= hi]
+    card_top = 126
+    head_h, RH = 66, 184
+    body_top = card_top + head_h
+    body_end = body_top + len(dss) * RH
+    card_end = body_end + 8
+    notes = [
+        ("Solved", "the share of the benchmark's tasks: SWE-bench by its tests, QnA and DeepSearchQA when both judges pass."),
+        ("Host $, total $", "per trial at API list price, on a log scale. Total adds the worker: subagents on the host's plan, agy on its own quota."),
+        ("Frontier", "the setups no other setup beats on both cost and tasks solved, over both hosts. Up and to the left is better."),
+        versions_note(version),
+    ]
+    note_rows, row_lines, notes_h = notes_layout(notes)
+    dim_y = card_end + 32
+    key_y = dim_y + 32
+    notes_y = key_y + 34
+    H = notes_y + notes_h + 14
+
+    f = Fig(H, f"agy-staff Bench {bench}: tasks solved against cost per trial, host cost and total cost, for Claude Code and "
+               f"Codex, solo, with their own subagents, and with agy, on {', '.join(DATASETS[d] for d in dss)}")
+    draw_head(f, H, f"AGY-STAFF BENCH {bench.upper()}", "Solved vs cost",
+              "Each setup's share of tasks solved against what one trial costs: up and to the left is better.", version)
+    draw_card(f, card_top, card_end)
+    px0, gap = col_x(0) + 14, 30
+    pw = (CARD_X + CARD_W - 18 - px0 - gap) / 2
+    panels = [("host $ per trial", "your plan's quota", "host_cost_per_trial"),
+              ("total $ per trial", "host + worker", "total_cost_per_trial")]
+    for pi, (label, sub, _) in enumerate(panels):
+        x0 = px0 + pi * (pw + gap)
+        f.add(f'<text x="{x0:.1f}" y="{card_top + 30}" font-size="12.5" font-family="{MONO}" fill="{C["ink"]}">{label}</text>')
+        f.text(x0, card_top + 47, sub, 11, FAINT)
+    f.line(CARD_X + 12, body_top - 8, CARD_X + CARD_W - 12, body_top - 8, C["ink"])
+
+    def sx(v, x0):
+        return x0 + (math.log(v) - math.log(lo)) / (math.log(hi) - math.log(lo)) * pw
+
+    y = body_top
+    for k, ds in enumerate(dss):
+        if k:
+            f.line(CARD_X + 12, y, CARD_X + CARD_W - 12, y, C["border"])
+        group = [a for a in aggs if a["dataset"] == ds]
+        draw_chart_title(f, y, ds, group[0]["trials"])
+        top, bot = y + 24, y + RH - 36
+
+        def sy(p):
+            return bot - p * (bot - top)
+
+        for pi, (_, _, field) in enumerate(panels):
+            x0 = px0 + pi * (pw + gap)
+            for p in (0, 0.5, 1):
+                f.line(x0, sy(p), x0 + pw, sy(p), "#BDC1C6" if p == 0 else C["grid"])
+                if pi == 0:
+                    f.add(f'<text x="{x0 - 8:.1f}" y="{sy(p) + 4:.1f}" font-size="10.5" font-family="{MONO}" fill="{FAINT}" '
+                          f'text-anchor="end">{int(p * 100)}%</text>')
+            for t in xticks:
+                tx = sx(t, x0)
+                f.line(tx, top, tx, bot, C["grid"])
+                f.add(f'<text x="{tx:.1f}" y="{bot + 16:.1f}" font-size="10.5" font-family="{MONO}" fill="{FAINT}" '
+                      f'text-anchor="middle">${t:g}</text>')
+            pts = [(a[field], a["resolved"] / a["trials"], a) for a in group]
+            front = sorted((p for p in pts if not any(q is not p and q[0] <= p[0] and q[1] >= p[1] and (q[0] < p[0] or q[1] > p[1])
+                                                      for q in pts)), key=lambda p: p[0])
+            if len(front) > 1:
+                d = " ".join(f'{"M" if i == 0 else "L"}{sx(c, x0):.1f},{sy(r):.1f}' for i, (c, r, _) in enumerate(front))
+                f.add(f'<path d="{d}" fill="none" stroke="{FAINT}" stroke-width="1.5" stroke-dasharray="4 3"/>')
+            # + agy first (its ring is the largest), then the smaller marks on top
+            for c, r, a in sorted(pts, key=lambda p: SETUPS.index(p[2]["setup"]), reverse=True):
+                mx, my, col = sx(c, x0), sy(r), HOSTS[a["host"]]["color"]
+                if a["setup"] == "agy-staff":
+                    f.add(f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="10" fill="#FFFFFF" stroke="{AGY}" stroke-width="3"/>'
+                          f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="5.5" fill="{col}"/>')
+                elif a["setup"] == "native":
+                    f.add(f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="6" fill="{tint(a["host"])}" stroke="{col}" stroke-width="2"/>')
                 else:
-                    f.text(nx + 14, yy + li * 17, ln, 12)
-        yy += row_lines[r0 // 2] * 17 + 12
-    if num_font:
-        f.defs.add(font_face(num_font))
-    f.defs.add('<pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse">'
-               '<rect x="8" y="8" width="1.4" height="1.4" fill="#E3E5E8"/></pattern>')
-    body = "\n".join(f.parts)
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{TW}" height="{H}" viewBox="0 0 {TW} {H}" role="img" '
-            f'aria-label="{escape(f.label)}" font-family="{FONT}">\n<defs>{"".join(sorted(f.defs))}</defs>\n{body}\n</svg>\n')
+                    f.add(f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="6.5" fill="{col}" stroke="#FFFFFF" stroke-width="2"/>')
+        y += RH
+
+    def dot(fill, stroke=None, sw=0, r=5):
+        return 14, lambda x: f.add(f'<circle cx="{x + 5:.1f}" cy="{key_y - 4}" r="{r}" fill="{fill}"'
+                                   + (f' stroke="{stroke}" stroke-width="{sw}"' if stroke else "") + "/>")
+
+    key = [
+        (*dot(HOSTS["Claude Code"]["color"]), "Claude Code"),
+        (*dot(HOSTS["Codex"]["color"]), "Codex"),
+        (*dot("#80868B"), "solo"),
+        (*dot("#DADCE0", "#80868B", 2), "+ subagents"),
+        (22, lambda x: f.add(f'<circle cx="{x + 7:.1f}" cy="{key_y - 4}" r="7" fill="#FFFFFF" stroke="{AGY}" stroke-width="2.5"/>'
+                             f'<circle cx="{x + 7:.1f}" cy="{key_y - 4}" r="3.5" fill="#80868B"/>'), "+ agy"),
+        (24, lambda x: f.add(f'<line x1="{x:.1f}" y1="{key_y - 4}" x2="{x + 18:.1f}" y2="{key_y - 4}" stroke="{FAINT}" '
+                             f'stroke-width="1.5" stroke-dasharray="4 3"/>'), "frontier"),
+    ]
+    draw_footer(f, dim_y, key_y, notes_y, dimension(aggs, dss), key, notes, note_rows, row_lines)
+    return render(f, H, None)
+
+
+CHARTS = {"cost": lambda *a: bars_chart(*a, kind="cost"), "tokens": lambda *a: bars_chart(*a, kind="tokens"),
+          "pareto": pareto_chart}
 
 
 def main(argv):
     ap = argparse.ArgumentParser(
-        description="Draw the results table of a bench version, summary.svg, from its data.json (viz-data.py).\n"
-                    "Then render-png.sh makes the PNG the READMEs show.",
+        description="Draw a bench version's figures from its data.json (viz-data.py): the results table, summary.svg,\n"
+                    "and with --charts also cost.svg, tokens.svg and pareto.svg. Then render-png.sh makes the PNGs\n"
+                    "the READMEs show.",
         epilog="""examples:
-  viz-svg.py bench/results/v2/data.json                  writes bench/results/v2/summary.svg
-  viz-svg.py bench/results/v1/data.json --out /tmp/v1    redraws v1 elsewhere
+  viz-svg.py bench/results/v2/data.json --charts         writes summary, cost, tokens and pareto into bench/results/v2/
+  viz-svg.py bench/results/v1/data.json --out /tmp/v1    redraws the v1 table elsewhere
 
 for agents:
   - A published version is never edited: do not write into bench/results/v1/ or another published
@@ -404,8 +744,9 @@ for agents:
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("data", type=Path, help="the version's data.json (viz-data.py)")
     ap.add_argument("--out", type=Path, help="output directory (default: the directory of data.json)")
-    ap.add_argument("--bench", help="bench version for the title, e.g. v2 (default: the name of that directory)")
+    ap.add_argument("--bench", help="bench version for the titles, e.g. v2 (default: the name of that directory)")
     ap.add_argument("--version", help="agy-staff version to show (default: the latest in data.json)")
+    ap.add_argument("--charts", action="store_true", help="also draw cost.svg, tokens.svg and pareto.svg")
     args = ap.parse_args(argv)
     bench = args.bench or args.data.resolve().parent.name
     if not re.fullmatch(r"v\d+", bench):
@@ -416,8 +757,10 @@ for agents:
     runs = sorted((r for r in doc["runs"] if r["host"] in HOSTS), key=lambda r: list(HOSTS).index(r["host"]))
     out.mkdir(parents=True, exist_ok=True)
     aggs = [a for a in doc["aggregates"] if a["agy_staff"] == version and a["host"] in HOSTS]
-    (out / "summary.svg").write_text(summary_table(aggs, runs, version, bench))
-    print(f"wrote {out / 'summary.svg'} (agy-staff Bench {bench}, agy-staff {version})", file=sys.stderr)
+    figures = {"summary": summary_table} | (CHARTS if args.charts else {})
+    for name, draw in figures.items():
+        (out / f"{name}.svg").write_text(draw(aggs, runs, version, bench))
+    print(f"wrote {', '.join(f'{n}.svg' for n in figures)} to {out} (agy-staff Bench {bench}, agy-staff {version})", file=sys.stderr)
 
 
 if __name__ == "__main__":

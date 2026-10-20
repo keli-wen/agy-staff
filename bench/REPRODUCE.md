@@ -25,11 +25,11 @@ This needs no account, and it uses only the files in `results/`:
 
 ```sh
 pip install -r bench/requirements.txt
-python3 bench/scripts/viz-svg.py bench/results/v1/data.json --out /tmp/v1   # writes /tmp/v1/summary.svg
+python3 bench/scripts/viz-svg.py bench/results/v1/data.json --out /tmp/v1 --charts   # summary, cost, tokens, pareto
 bench/scripts/render-png.sh /tmp/v1/summary.svg                              # needs Chrome or Chromium
 ```
 
-The SVG is byte for byte `results/v1/summary.svg`: the embedded number font is subset without timestamps, so the same `data.json` always gives the same SVG.
+Each SVG is byte for byte its file in `results/v1/`: the embedded number font is subset without timestamps, so the same `data.json` always gives the same SVGs.
 
 ## Grade and analyze
 
@@ -53,7 +53,7 @@ The task lists come from `select-tasks.py` (SWE-bench Verified, `tasks/tasks.jso
 
 1. List the runs the version publishes in `RUNS` in `scripts/viz-data.py`.
 2. `python3 bench/scripts/viz-data.py --out bench/results/vN/data.json`
-3. `python3 bench/scripts/viz-svg.py bench/results/vN/data.json`, then `bench/scripts/render-png.sh bench/results/vN/summary.svg`
+3. `python3 bench/scripts/viz-svg.py bench/results/vN/data.json --charts`, then `bench/scripts/render-png.sh` on each SVG
 4. Add a row to the version table in `README.md` and `README.zh-CN.md`, and point the root READMEs at the new table.
 
 A published version is never edited. A new run, prompt, setup or task set is a new version.

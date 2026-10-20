@@ -19,6 +19,22 @@ agy-staff Bench measures what delegating to agy costs a host agent and what it b
 - **Where agy lost tasks:** on the Claude Code side, three tasks were solved alone but not with agy. Two were DeepSearchQA runs that hit the 30-minute limit before writing an answer. One was a QnA judge split: Gemini passed it 3/3, DeepSeek 1/3. With agy, Claude Code solved one DeepSearchQA task that it missed alone.
 - **One run per task and setup, 20 tasks.** A one-task difference is within noise. Read v1 as a first baseline, not a verdict.
 
+## Charts
+
+The same results as the table, drawn three more ways.
+
+**Cost per trial.** The host's share, with the worker's stacked on top.
+
+[![agy-staff Bench v1: cost per trial, the host's share and the worker's, for each benchmark and setup](results/v1/cost.png)](results/v1/cost.svg)
+
+**Tokens per trial**, cache reads included. With agy, most of a trial's tokens are agy's, on agy's own quota.
+
+[![agy-staff Bench v1: tokens per trial, the host's share and the worker's, for each benchmark and setup](results/v1/tokens.png)](results/v1/tokens.svg)
+
+**Solved vs cost.** Tasks solved against host cost and total cost per trial. Up and to the left is better.
+
+[![agy-staff Bench v1: tasks solved against host cost and total cost per trial, one row per benchmark](results/v1/pareto.png)](results/v1/pareto.svg)
+
 ## What it measures
 
 The three setups share one prompt. Only the last line, which says how to orchestrate, differs, so orchestration is the only variable.
@@ -77,18 +93,23 @@ results/
 └── v1/
     ├── summary.svg   the table
     ├── summary.png   the same table rendered for the READMEs (headless Chrome at 3x; rsvg-convert drops the embedded number font)
-    └── data.json     the 96 trials behind the table, plus per-cell aggregates
+    ├── cost.svg      cost per trial, host and worker  (and cost.png)
+    ├── tokens.svg    tokens per trial, host and worker  (and tokens.png)
+    ├── pareto.svg    tasks solved against host and total cost per trial  (and pareto.png)
+    └── data.json     the 96 trials behind the table and the charts, plus per-cell aggregates
 ```
 
 Each trial in `data.json` records the host, model, setup, benchmark and task; whether it was solved, its reward, `timed_out` and `answer_key_exposure`; host and worker cost and tokens; and wall-clock seconds.
 
 ## Versions
 
-Each published table gets its own directory under `results/`. A published version is never edited, except for the errata listed below. A new run, prompt, setup or task set becomes a new version.
+Each published table gets its own directory under `results/`. A published version is never edited, except for the errata and additions listed below. A new run, prompt, setup or task set becomes a new version.
 
 | version | published | agy-staff | hosts | tasks | changes |
 |---|---|---|---|---|---|
 | [v1](results/v1/) | 2026-10-19 | 0.7.3 (`f00d149`) | Claude Code 2.1.296 (Opus 5.5 xhigh); Codex 0.160.1 (GPT-6.1 Sol xhigh) | 20 | first baseline |
+
+**Addition, v1 (2026-10-20).** Three charts drawn from the same `data.json`: cost per trial, tokens per trial, and solved vs cost. No file published before changed.
 
 **Erratum, v1 (2026-10-20).** The method and the table's notes named Harbor commit `3e30cca`, but the trials ran Harbor 0.24.0, as every job's `lock.json` records; both now say 0.24.0. The timeout note under Known limits said one timed-out run still had agy working at 30 minutes; two did. No number changed.
 

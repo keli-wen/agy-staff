@@ -19,6 +19,22 @@ agy-staff Bench 衡量主 agent 把工作委派给 agy 要付出什么、能换�
 - **agy 输在哪：** Claude Code 这一侧，有 3 道题单独做解出了、用 agy 没解出。其中 2 道是 DeepSearchQA 跑到 30 分钟上限，还没写出答案；1 道是 QnA 的评委分歧：Gemini 3 次都判通过，DeepSeek 只判通过 1 次。另外有 1 道 DeepSearchQA，Claude Code 单独做没解出，用 agy 解出了。
 - **每种编排方案每道题只跑 1 次，一共 20 道题。** 差 1 道题在噪声范围内。v1 只是第一版基线，不是定论。
 
+## 图表
+
+和上面那张表是同一份结果，换三种方式画。
+
+**每次 trial 的成本。** 下面是 host 的部分，上面叠着 worker 的部分。
+
+[![agy-staff Bench v1：每次 trial 的成本，按 benchmark 和编排方案分开，host 和 worker 各占多少](results/v1/cost.png)](results/v1/cost.svg)
+
+**每次 trial 的 token 用量**，包括读缓存的部分。用 agy 时，一次 trial 的 token 大多是 agy 用的，算在 agy 自己的额度上。
+
+[![agy-staff Bench v1：每次 trial 的 token 用量，按 benchmark 和编排方案分开，host 和 worker 各占多少](results/v1/tokens.png)](results/v1/tokens.svg)
+
+**解题数与成本。** 解出的题目比例对比每次 trial 的 host 成本和总成本。越靠左上越好。
+
+[![agy-staff Bench v1：解出的题目比例对比每次 trial 的 host 成本和总成本，每个 benchmark 一行](results/v1/pareto.png)](results/v1/pareto.svg)
+
 ## 测的是什么
 
 三种编排方案用同一份 prompt，只有最后说明编排方式的那一行不同，所以编排方式是唯一的变量。
@@ -77,18 +93,23 @@ results/
 └── v1/
     ├── summary.svg   这张表
     ├── summary.png   同一张表，渲染后放进 README（headless Chrome 3 倍渲染；rsvg-convert 会丢掉内嵌的数字字体）
-    └── data.json     表背后的 96 次 trial，以及每个格子的汇总
+    ├── cost.svg      每次 trial 的成本，分 host 和 worker（另有 cost.png）
+    ├── tokens.svg    每次 trial 的 token 用量，分 host 和 worker（另有 tokens.png）
+    ├── pareto.svg    解题比例对比每次 trial 的 host 成本和总成本（另有 pareto.png）
+    └── data.json     表和图背后的 96 次 trial，以及每个格子的汇总
 ```
 
 `data.json` 里每次 trial 记录了 host、模型、编排方案、benchmark 和题目；是否解出、reward、`timed_out` 和 `answer_key_exposure`；host 和 worker 各自的成本和 token；以及耗时（秒）。
 
 ## 版本
 
-每发布一张表，就在 `results/` 下新建一个目录。已发布的版本不再修改，下面列出的勘误除外。换一次运行、换 prompt、换编排方案或换题目，都算一个新版本。
+每发布一张表，就在 `results/` 下新建一个目录。已发布的版本不再修改，下面列出的勘误和补充除外。换一次运行、换 prompt、换编排方案或换题目，都算一个新版本。
 
 | 版本 | 发布日期 | agy-staff | host | 题数 | 改动 |
 |---|---|---|---|---|---|
 | [v1](results/v1/) | 2026-10-19 | 0.7.3（`f00d149`） | Claude Code 2.1.296（Opus 5.5 xhigh）；Codex 0.160.1（GPT-6.1 Sol xhigh） | 20 | 第一版基线 |
+
+**v1 补充（2026-10-20）：** 新增三张图，都由同一份 `data.json` 画出：每次 trial 的成本、token 用量，以及解题数与成本。之前发布的文件都没有改动。
 
 **v1 勘误（2026-10-20）：** 方法和表格注释里原来写的是 Harbor commit `3e30cca`，但 trial 实际跑的是 Harbor 0.24.0，每个 job 的 `lock.json` 都这样记录；两处都已改为 0.24.0。“已知局限”里原来说超时的 run 中有一次到 30 分钟 agy 还在跑，实际是两次。数字都没有变。
 
