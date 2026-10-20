@@ -29,7 +29,7 @@ python3 bench/scripts/viz-svg.py bench/results/v1/data.json --out /tmp/v1   # wr
 bench/scripts/render-png.sh /tmp/v1/summary.svg                              # needs Chrome or Chromium
 ```
 
-The SVG matches `results/v1/summary.svg` except for the bytes of the embedded number font. v1 was rendered before the font subset was made deterministic; from now on, the same `data.json` gives the same SVG.
+The SVG is byte for byte `results/v1/summary.svg`: the embedded number font is subset without timestamps, so the same `data.json` always gives the same SVG.
 
 ## Grade and analyze
 

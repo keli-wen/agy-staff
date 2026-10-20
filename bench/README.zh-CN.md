@@ -48,7 +48,7 @@ v1 只在 SWE-bench Verified 上跑了"+ subagents"。
 
 ## 方法
 
-- **运行框架：** [Harbor](https://github.com/harbor-framework/harbor)，commit `3e30cca`。每次 trial 都在一个全新的容器里跑。容器用 benchmark 自己的镜像构建，再装上 host CLI、agy 和 agy-staff。
+- **运行框架：** [Harbor](https://github.com/harbor-framework/harbor) 0.24.0，每个 job 的 `lock.json` 都记录了这个版本。每次 trial 都在一个全新的容器里跑。容器用 benchmark 自己的镜像构建，再装上 host CLI、agy 和 agy-staff。
 - **agy-staff 版本：** 0.7.3（`f00d149`）。对 Claude Code 和 Codex 来说，0.7.4 没有改动任何 skill、companion 代码或 prompt 模板，所以这批结果也代表 0.7.4。
 - **评分：** SWE-bench 按测试评分。QnA 和 DeepSearchQA 在离线评分，沿用各数据集自己的评分 prompt、rubric 和汇总规则。和官方做法唯一的不同是评委模型：用 Gemini 3.8 Flash 和 DeepSeek V4 Pro，各评 3 次。只有两个评委各自多数判通过，才算解出。
 - **成本：** 按 API 标价计，单位是美元。
@@ -68,7 +68,7 @@ v1 只在 SWE-bench Verified 上跑了"+ subagents"。
 - "+ subagents"只在 SWE-bench Verified 上跑了。
 - 替换评委模型，偏离了 QnA 和 DeepSearchQA 的官方评分做法。
 - 耗时是在多个 trial 并发时测的。
-- prompt 和 `lead` 都没有告诉 host DeepSearchQA 有 30 分钟的时限。三次超时里，agy 的调研都用了 21 分钟以上（其中一次到 30 分钟还没跑完），没有一个 host 先写下临时答案。下一版会在所有编排方案的 prompt 里写明时限。
+- prompt 和 `lead` 都没有告诉 host DeepSearchQA 有 30 分钟的时限。三次超时里，agy 的第一个调研 job 都用了约 21 分钟或更久，其中两次到 30 分钟时仍有 agy job 在跑，没有一个 host 先写下临时答案。下一版会在所有编排方案的 prompt 里写明时限。
 
 ## 文件
 
@@ -84,11 +84,13 @@ results/
 
 ## 版本
 
-每发布一张表，就在 `results/` 下新建一个目录。已发布的版本不再修改。换一次运行、换 prompt、换编排方案或换题目，都算一个新版本。
+每发布一张表，就在 `results/` 下新建一个目录。已发布的版本不再修改，下面列出的勘误除外。换一次运行、换 prompt、换编排方案或换题目，都算一个新版本。
 
 | 版本 | 发布日期 | agy-staff | host | 题数 | 改动 |
 |---|---|---|---|---|---|
 | [v1](results/v1/) | 2026-10-19 | 0.7.3（`f00d149`） | Claude Code 2.1.296（Opus 5.5 xhigh）；Codex 0.160.1（GPT-6.1 Sol xhigh） | 20 | 第一版基线 |
+
+**v1 勘误（2026-10-20）：** 方法和表格注释里原来写的是 Harbor commit `3e30cca`，但 trial 实际跑的是 Harbor 0.24.0，每个 job 的 `lock.json` 都这样记录；两处都已改为 0.24.0。“已知局限”里原来说超时的 run 中有一次到 30 分钟 agy 还在跑，实际是两次。数字都没有变。
 
 ## 评测框架
 

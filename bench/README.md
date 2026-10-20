@@ -48,7 +48,7 @@ Tasks were drawn with a fixed seed; their IDs are in `data.json`.
 
 ## Method
 
-- **Runner.** [Harbor](https://github.com/harbor-framework/harbor) at commit `3e30cca`. Every trial runs in a fresh container built from the benchmark's own image, with the host CLI, agy and agy-staff installed on top.
+- **Runner.** [Harbor](https://github.com/harbor-framework/harbor) 0.24.0, the release every job's `lock.json` records. Every trial runs in a fresh container built from the benchmark's own image, with the host CLI, agy and agy-staff installed on top.
 - **agy-staff version.** 0.7.3 (`f00d149`). For Claude Code and Codex, 0.7.4 changes no skill, companion code or prompt template, so these results also stand for 0.7.4.
 - **Grading.** SWE-bench is graded by its tests. QnA and DeepSearchQA are graded offline with each dataset's own grading prompts, rubrics and aggregation. The one deviation from the official setup is the judge model: Gemini 3.8 Flash and DeepSeek V4 Pro, three runs each. A task counts as solved only when a majority of each judge's runs pass it.
 - **Cost.** US dollars at API list price.
@@ -68,7 +68,7 @@ Tasks were drawn with a fixed seed; their IDs are in `data.json`.
 - "+ subagents" ran only on SWE-bench Verified.
 - Replacing the judge model departs from the official QnA and DeepSearchQA grading.
 - Times were measured with trials running concurrently.
-- Neither the prompt nor `lead` tells the host about DeepSearchQA's 30-minute limit. In the three timed-out runs, agy's research took 21 minutes or more (one was still running at 30), and no host wrote a provisional answer first. The next version will add the time limit to every setup's prompt.
+- Neither the prompt nor `lead` tells the host about DeepSearchQA's 30-minute limit. In the three timed-out runs, agy's first research job took about 21 minutes or more, two of the runs still had an agy job running at 30, and no host wrote a provisional answer first. The next version will add the time limit to every setup's prompt.
 
 ## Files
 
@@ -84,11 +84,13 @@ Each trial in `data.json` records the host, model, setup, benchmark and task; wh
 
 ## Versions
 
-Each published table gets its own directory under `results/`. A published version is never edited. A new run, prompt, setup or task set becomes a new version.
+Each published table gets its own directory under `results/`. A published version is never edited, except for the errata listed below. A new run, prompt, setup or task set becomes a new version.
 
 | version | published | agy-staff | hosts | tasks | changes |
 |---|---|---|---|---|---|
 | [v1](results/v1/) | 2026-10-19 | 0.7.3 (`f00d149`) | Claude Code 2.1.296 (Opus 5.5 xhigh); Codex 0.160.1 (GPT-6.1 Sol xhigh) | 20 | first baseline |
+
+**Erratum, v1 (2026-10-20).** The method and the table's notes named Harbor commit `3e30cca`, but the trials ran Harbor 0.24.0, as every job's `lock.json` records; both now say 0.24.0. The timeout note under Known limits said one timed-out run still had agy working at 30 minutes; two did. No number changed.
 
 ## Harness
 

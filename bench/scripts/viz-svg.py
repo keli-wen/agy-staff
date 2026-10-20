@@ -34,8 +34,9 @@ HOSTS = {"Claude Code": {"color": "#D97757", "logo": "claude", "subagent": "Sonn
          "Codex": {"color": "#202123", "logo": "codex", "subagent": "GPT-6 Luna"}}
 SETUPS = ["solo", "native", "agy-staff"]
 DATASETS = {"swebench-verified": "SWE-bench Verified", "swe-atlas-qna": "SWE-Atlas QnA", "deepsearchqa": "DeepSearchQA"}
-# Versions not in data.json, shown in the table's notes: the agy CLI baked into every task image (bake-task.sh) and Harbor.
-AGY_CLI, HARBOR_COMMIT = "1.3.0", "3e30cca"
+# Versions not in data.json, shown in the table's notes: the agy CLI baked into every task image (bake-task.sh) and the
+# Harbor release every job's lock.json records.
+AGY_CLI, HARBOR = "1.3.0", "0.24.0"
 # The table's numbers are set in Source Serif 4 (SIL OFL 1.1, from github.com/google/fonts). A GitHub README shows SVG as
 # <img>, which loads no external fonts, so the face is subset to the glyphs used and embedded as WOFF2. The font file is
 # not in the repository: font_file() downloads it into bench/viz/fonts/ (git-ignored) and checks its sha256.
@@ -207,7 +208,7 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif"):
         sets = sorted({DATASETS[d] for h, s, d, n in timeouts})
         notes.append(("Time limit", f"{' and '.join(sets)} stops a trial at 30 min. {sum(n for *_, n in timeouts)} + agy trials hit it "
                                     f"({limit}) and count as unsolved."))
-    notes.append(("Versions", f"agy-staff {version}, agy CLI {AGY_CLI} in every task image, Harbor at commit {HARBOR_COMMIT}."))
+    notes.append(("Versions", f"agy-staff {version}, agy CLI {AGY_CLI} in every task image, Harbor {HARBOR}."))
     col_w = (card_w - 28) / 2
     note_rows = [wrap(f"{k} {v}", 12, col_w - 16) for k, v in notes]
     dim_y = card_end + 32
