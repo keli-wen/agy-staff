@@ -92,4 +92,4 @@ Each published table gets its own directory under `results/`. A published versio
 
 ## Harness
 
-The evaluation harness is not published yet: the Harbor agents for Claude Code and Codex with agy-staff, the prompt templates, task selection, offline grading and analysis. It will land in a follow-up PR with instructions for reproducing a run.
+This directory holds the half of the evaluation harness that comes after the trials: the prompt templates and task lists v1 ran, offline grading, analysis and the table renderer. [REPRODUCE.md](REPRODUCE.md) shows how to redraw a published table from its `data.json`, and how to grade, analyze and publish a version. The half that runs trials (the Harbor agents for Claude Code and Codex with agy-staff, the run scripts and the batch runner) will follow in its own PR.

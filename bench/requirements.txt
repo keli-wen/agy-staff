@@ -1,0 +1,4 @@
+# Python packages the bench scripts need (Python 3.11+). Harbor, the trial runner, is a separate tool:
+#   uv tool install harbor==0.24.0
+openai>=2.45            # grade.py: the judge models, through their OpenAI-compatible endpoints
+fonttools[woff]>=4.25   # viz-svg.py: the embedded number font (WOFF2 needs brotli)

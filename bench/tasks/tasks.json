@@ -1,0 +1,291 @@
+{
+  "seed": 20260923,
+  "shuffle": "per tier: Python random.Random(seed).shuffle over the tier's instance_ids sorted ascending",
+  "dataset": {
+    "name": "swebench-verified@1.0",
+    "source": "laude-institute/harbor-datasets",
+    "ref": "8672367"
+  },
+  "tiers": [
+    {
+      "name": "core",
+      "difficulty": "15 min - 1 hour",
+      "count": 6,
+      "repo_caps": {
+        "django/django": 2,
+        "*": 1
+      }
+    },
+    {
+      "name": "stretch",
+      "difficulty": "1-4 hours",
+      "count": 2,
+      "repo_caps": {
+        "*": 1
+      }
+    }
+  ],
+  "checks": "oracle reward 1.0 and nop reward 0.0 on the baked task (bench/scripts/bake-task.sh)",
+  "generated_at": "2026-10-06T20:53:04+00:00",
+  "selected": [
+    {
+      "instance_id": "django__django-12406",
+      "repo": "django/django",
+      "difficulty": "15 min - 1 hour",
+      "base_commit": "335c9c94acf263901fb023404408880245b0c4b4",
+      "timeout_sec": {
+        "agent": 3000,
+        "verifier": 3000
+      },
+      "tier": "core",
+      "rank": 1,
+      "checks": {
+        "oracle": {
+          "job": "codex-oracle-django__django-12406-select2",
+          "reward": 1.0,
+          "error": null,
+          "duration_s": 57
+        },
+        "nop": {
+          "job": "codex-nop-django__django-12406-select2",
+          "reward": 0.0,
+          "error": null,
+          "duration_s": 55
+        }
+      }
+    },
+    {
+      "instance_id": "django__django-13401",
+      "repo": "django/django",
+      "difficulty": "15 min - 1 hour",
+      "base_commit": "453967477e3ddae704cd739eac2449c0e13d464c",
+      "timeout_sec": {
+        "agent": 3000,
+        "verifier": 3000
+      },
+      "tier": "core",
+      "rank": 2,
+      "checks": {
+        "oracle": {
+          "job": "codex-oracle-django__django-13401-select2",
+          "reward": 1.0,
+          "error": null,
+          "duration_s": 61
+        },
+        "nop": {
+          "job": "codex-nop-django__django-13401-select2",
+          "reward": 0.0,
+          "error": null,
+          "duration_s": 55
+        }
+      }
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5840",
+      "repo": "pytest-dev/pytest",
+      "difficulty": "15 min - 1 hour",
+      "base_commit": "73c5b7f4b11a81e971f7d1bb18072e06a87060f4",
+      "timeout_sec": {
+        "agent": 3000,
+        "verifier": 3000
+      },
+      "tier": "core",
+      "rank": 4,
+      "checks": {
+        "oracle": {
+          "job": "codex-oracle-pytest-dev__pytest-5840-select2",
+          "reward": 1.0,
+          "error": null,
+          "duration_s": 54
+        },
+        "nop": {
+          "job": "codex-nop-pytest-dev__pytest-5840-select2",
+          "reward": 0.0,
+          "error": null,
+          "duration_s": 51
+        }
+      }
+    },
+    {
+      "instance_id": "astropy__astropy-13236",
+      "repo": "astropy/astropy",
+      "difficulty": "15 min - 1 hour",
+      "base_commit": "6ed769d58d89380ebaa1ef52b300691eefda8928",
+      "timeout_sec": {
+        "agent": 3000,
+        "verifier": 3000
+      },
+      "tier": "core",
+      "rank": 10,
+      "checks": {
+        "oracle": {
+          "job": "codex-oracle-astropy__astropy-13236-select2",
+          "reward": 1.0,
+          "error": null,
+          "duration_s": 155
+        },
+        "nop": {
+          "job": "codex-nop-astropy__astropy-13236-select2",
+          "reward": 0.0,
+          "error": null,
+          "duration_s": 150
+        }
+      }
+    },
+    {
+      "instance_id": "pydata__xarray-2905",
+      "repo": "pydata/xarray",
+      "difficulty": "15 min - 1 hour",
+      "base_commit": "7c4e2ac83f7b4306296ff9b7b51aaf016e5ad614",
+      "timeout_sec": {
+        "agent": 3000,
+        "verifier": 3000
+      },
+      "tier": "core",
+      "rank": 12,
+      "checks": {
+        "oracle": {
+          "job": "codex-oracle-pydata__xarray-2905-select2",
+          "reward": 1.0,
+          "error": null,
+          "duration_s": 72
+        },
+        "nop": {
+          "job": "codex-nop-pydata__xarray-2905-select2",
+          "reward": 0.0,
+          "error": null,
+          "duration_s": 60
+        }
+      }
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-23412",
+      "repo": "matplotlib/matplotlib",
+      "difficulty": "15 min - 1 hour",
+      "base_commit": "f06c2c3abdaf4b90285ce5ca7fedbb8ace715911",
+      "timeout_sec": {
+        "agent": 3000,
+        "verifier": 3000
+      },
+      "tier": "core",
+      "rank": 13,
+      "checks": {
+        "oracle": {
+          "job": "codex-oracle-matplotlib__matplotlib-23412-select2",
+          "reward": 1.0,
+          "error": null,
+          "duration_s": 60
+        },
+        "nop": {
+          "job": "codex-nop-matplotlib__matplotlib-23412-select2",
+          "reward": 0.0,
+          "error": null,
+          "duration_s": 54
+        }
+      }
+    },
+    {
+      "instance_id": "django__django-11138",
+      "repo": "django/django",
+      "difficulty": "1-4 hours",
+      "base_commit": "c84b91b7603e488f7171fdff8f08368ef3d6b856",
+      "timeout_sec": {
+        "agent": 3000,
+        "verifier": 3000
+      },
+      "tier": "stretch",
+      "rank": 1,
+      "checks": {
+        "oracle": {
+          "job": "codex-oracle-django__django-11138-select2",
+          "reward": 1.0,
+          "error": null,
+          "duration_s": 55
+        },
+        "nop": {
+          "job": "codex-nop-django__django-11138-select2",
+          "reward": 0.0,
+          "error": null,
+          "duration_s": 56
+        }
+      }
+    },
+    {
+      "instance_id": "sympy__sympy-14248",
+      "repo": "sympy/sympy",
+      "difficulty": "1-4 hours",
+      "base_commit": "9986b38181cdd556a3f3411e553864f11912244e",
+      "timeout_sec": {
+        "agent": 3000,
+        "verifier": 3000
+      },
+      "tier": "stretch",
+      "rank": 2,
+      "checks": {
+        "oracle": {
+          "job": "codex-oracle-sympy__sympy-14248-select2",
+          "reward": 1.0,
+          "error": null,
+          "duration_s": 60
+        },
+        "nop": {
+          "job": "codex-nop-sympy__sympy-14248-select2",
+          "reward": 0.0,
+          "error": null,
+          "duration_s": 55
+        }
+      }
+    }
+  ],
+  "skipped": [
+    {
+      "instance_id": "django__django-12713",
+      "tier": "core",
+      "rank": 3,
+      "repo": "django/django",
+      "reason": "repo cap reached"
+    },
+    {
+      "instance_id": "django__django-14053",
+      "tier": "core",
+      "rank": 5,
+      "repo": "django/django",
+      "reason": "repo cap reached"
+    },
+    {
+      "instance_id": "django__django-11477",
+      "tier": "core",
+      "rank": 6,
+      "repo": "django/django",
+      "reason": "repo cap reached"
+    },
+    {
+      "instance_id": "django__django-13786",
+      "tier": "core",
+      "rank": 7,
+      "repo": "django/django",
+      "reason": "repo cap reached"
+    },
+    {
+      "instance_id": "django__django-15161",
+      "tier": "core",
+      "rank": 8,
+      "repo": "django/django",
+      "reason": "repo cap reached"
+    },
+    {
+      "instance_id": "django__django-11848",
+      "tier": "core",
+      "rank": 9,
+      "repo": "django/django",
+      "reason": "repo cap reached"
+    },
+    {
+      "instance_id": "django__django-15375",
+      "tier": "core",
+      "rank": 11,
+      "repo": "django/django",
+      "reason": "repo cap reached"
+    }
+  ]
+}

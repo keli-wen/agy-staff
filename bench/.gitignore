@@ -1,0 +1,7 @@
+# Generated or downloaded; never committed.
+# Every analyzed trial, including runs no version publishes and subscription quota fields:
+results/trials.jsonl
+results/viz-data.json
+# Source Serif 4, downloaded by viz-svg.py on first use:
+viz/fonts/
+__pycache__/

@@ -1,0 +1,169 @@
+{
+  "seed": 20260923,
+  "shuffle": "per layer: Python random.Random(seed).shuffle over the dataset's task names sorted ascending",
+  "pilot_size": 2,
+  "extension_size": 6,
+  "extension_rule": "Pre-registered (2026-10-12): after the pilot, a layer is extended in 'order' only on cost and infrastructure grounds, never on results.",
+  "generated_at": "2026-10-12T14:58:50+00:00",
+  "layers": [
+    {
+      "layer": "investigate",
+      "dataset": "swe-atlas-qna",
+      "candidates": 124,
+      "distinct": [
+        "repo"
+      ],
+      "quota": {
+        "all": 6
+      },
+      "tasks": [
+        {
+          "task": "task-6905333b74f22949d97baa04",
+          "repo": "kovidgoyal/kitty",
+          "category": "Architecture & system design",
+          "language": "c",
+          "rubric_items": 8,
+          "rank": 1,
+          "stratum": "all",
+          "order": 1,
+          "pilot": true,
+          "sha256": "b5b5f7f6a23bb34eff49971e8fce727d31b2b22061fb839fdc4c4d5040647a0f"
+        },
+        {
+          "task": "task-6905333b74f22949d97ba9bc",
+          "repo": "grafana/grafana",
+          "category": "Root-cause analysis",
+          "language": "ts",
+          "rubric_items": 8,
+          "rank": 3,
+          "stratum": "all",
+          "order": 2,
+          "pilot": true,
+          "sha256": "a99b843d57f76f99ce84dbbee124b2cd817093a430662146b43fba737de52420"
+        },
+        {
+          "task": "task-6905333b74f22949d97ba9dd",
+          "repo": "paperless-ngx/paperless-ngx",
+          "category": "Architecture & system design",
+          "language": "python",
+          "rubric_items": 10,
+          "rank": 2,
+          "stratum": "all",
+          "order": 3,
+          "pilot": false,
+          "sha256": "6c710204ad58bd73df321b8c5aac94960e0b1a65e28406f9a142cb281af5bd6e"
+        },
+        {
+          "task": "task-6905333b74f22949d97ba9a8",
+          "repo": "simple-login/app",
+          "category": "Code Onboarding",
+          "language": "ts",
+          "rubric_items": 10,
+          "rank": 4,
+          "stratum": "all",
+          "order": 4,
+          "pilot": false,
+          "sha256": "c474db95c269e2ac2a6f2d64b2efddc70c7ad8134a8a2f52d8093d0977040cc0"
+        },
+        {
+          "task": "task-6905333b74f22949d97ba9ce",
+          "repo": "secdev/scapy",
+          "category": "Code Onboarding",
+          "language": "python",
+          "rubric_items": 7,
+          "rank": 8,
+          "stratum": "all",
+          "order": 5,
+          "pilot": false,
+          "sha256": "4506b5b3db2850e258762e947a45981ec48abcec920ee432975d64d5bdab1693"
+        },
+        {
+          "task": "task-6905333b74f22949d97baa15",
+          "repo": "foxcpp/maddy",
+          "category": "Root-cause analysis",
+          "language": "go",
+          "rubric_items": 9,
+          "rank": 27,
+          "stratum": "all",
+          "order": 6,
+          "pilot": false,
+          "sha256": "5d20fa9f61761529f4d36005ca36f7bf75abebb1b4fe648c9bedd235649fb637"
+        }
+      ]
+    },
+    {
+      "layer": "research",
+      "dataset": "deepsearchqa",
+      "candidates": 900,
+      "distinct": [
+        "category"
+      ],
+      "quota": {
+        "Set Answer": 4,
+        "Single Answer": 2
+      },
+      "tasks": [
+        {
+          "task": "deepsearchqa-0118",
+          "category": "Science",
+          "answer_type": "Set Answer",
+          "rank": 1,
+          "stratum": "Set Answer",
+          "order": 1,
+          "pilot": true,
+          "sha256": "b6a182702fd8a9230aecac2af404c9e42b43fb43b932575f4c116352f7086bc7"
+        },
+        {
+          "task": "deepsearchqa-0554",
+          "category": "Politics & Government",
+          "answer_type": "Single Answer",
+          "rank": 7,
+          "stratum": "Single Answer",
+          "order": 2,
+          "pilot": true,
+          "sha256": "11b73a4a18bda2f3ce0f9edc2978ae15d5a7e278b08bf29df2246a67948cb27a"
+        },
+        {
+          "task": "deepsearchqa-0190",
+          "category": "Finance & Economics",
+          "answer_type": "Set Answer",
+          "rank": 2,
+          "stratum": "Set Answer",
+          "order": 3,
+          "pilot": false,
+          "sha256": "ea19060fbacef9a848f7a72caad72452af7338890a66cd8b97a9896a2b3f694d"
+        },
+        {
+          "task": "deepsearchqa-0797",
+          "category": "Other",
+          "answer_type": "Set Answer",
+          "rank": 4,
+          "stratum": "Set Answer",
+          "order": 4,
+          "pilot": false,
+          "sha256": "4bc36cce394f03cc245dba4e750df17a13053c8e25519d962ffbe69c1b79633c"
+        },
+        {
+          "task": "deepsearchqa-0515",
+          "category": "Education",
+          "answer_type": "Set Answer",
+          "rank": 10,
+          "stratum": "Set Answer",
+          "order": 5,
+          "pilot": false,
+          "sha256": "ff8876c279e4303785b0420df51374c098ae5f97afb823683602fb570da2f641"
+        },
+        {
+          "task": "deepsearchqa-0793",
+          "category": "History",
+          "answer_type": "Single Answer",
+          "rank": 15,
+          "stratum": "Single Answer",
+          "order": 6,
+          "pilot": false,
+          "sha256": "4384b560cd3aee8471b689993e1f7d99657603c149cd283f8216dcefea551a8f"
+        }
+      ]
+    }
+  ]
+}
