@@ -94,4 +94,4 @@ results/
 
 ## 评测框架
 
-这个目录里是评测框架在 trial 之后的那一半：v1 用的 prompt 模板和题目列表、离线评分、分析和画表脚本。[REPRODUCE.md](REPRODUCE.md)（英文）说明怎样用 `data.json` 重画已发布的表，以及怎样评分、分析和发布一个版本。跑 trial 的那一半（Claude Code 和 Codex 搭配 agy-staff 的 Harbor agent、运行脚本和批量运行器）会在单独的 PR 里加入。
+评测框架就在这个目录里，包括：Claude Code 和 Codex 搭配 agy-staff 的 Harbor agent、运行脚本和批量运行器、v1 用的 prompt 模板和题目列表、离线评分、分析和画表脚本。[REPRODUCE.md](REPRODUCE.md)（英文）说明怎样用 `data.json` 重画已发布的表，以及怎样跑、评分和发布一个版本。这套框架只在 macOS（Apple Silicon）加 Docker Desktop 上完整跑过。

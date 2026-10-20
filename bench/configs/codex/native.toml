@@ -1,0 +1,4 @@
+# native: subagents use the cheap in-family worker model.
+[agents]
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "high"

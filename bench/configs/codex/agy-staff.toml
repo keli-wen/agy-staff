@@ -1,0 +1,12 @@
+# agy-staff: the plugin from the local marketplace baked at /opt/agy-staff (bake-task.sh). agy authenticates
+# with the user's own Antigravity sign-in; the agent uploads it into the container (bench/harbor_agents/agy_auth.py).
+[marketplaces.agy-staff]
+source_type = "local"
+source = "/opt/agy-staff"
+
+[plugins."agy@agy-staff"]
+enabled = true
+
+[shell_environment_policy.set]
+NO_PROXY = "localhost,127.0.0.1,host.docker.internal"
+no_proxy = "localhost,127.0.0.1,host.docker.internal"
