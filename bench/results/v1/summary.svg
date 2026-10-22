@@ -54,32 +54,32 @@
 <text x="56.0" y="314.0" font-size="15" font-weight="700" fill="#202124" text-anchor="start">SWE-bench Verified</text>
 <text x="221.0" y="314" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#5F6368">8 tasks</text>
 <text x="68" y="345" font-size="12.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#202124">resolved</text>
-<text x="294.2" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">7/8</text>
+<text x="294.2" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">6/8</text>
 <rect x="263.2" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="271.2" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="279.2" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="287.2" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="295.2" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="303.2" y="354" width="6" height="6" fill="#D97757"/>
-<rect x="311.2" y="354" width="6" height="6" fill="#D97757"/>
+<rect x="311.2" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="319.2" y="354" width="6" height="6" fill="#DADCE0"/>
-<text x="398.5" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">7/8</text>
+<text x="398.5" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">6/8</text>
 <rect x="367.5" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="375.5" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="383.5" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="391.5" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="399.5" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="407.5" y="354" width="6" height="6" fill="#D97757"/>
-<rect x="415.5" y="354" width="6" height="6" fill="#D97757"/>
+<rect x="415.5" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="423.5" y="354" width="6" height="6" fill="#DADCE0"/>
-<text x="502.8" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">7/8</text>
+<text x="502.8" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">6/8</text>
 <rect x="471.8" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="479.8" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="487.8" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="495.8" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="503.8" y="354" width="6" height="6" fill="#D97757"/>
 <rect x="511.8" y="354" width="6" height="6" fill="#D97757"/>
-<rect x="519.8" y="354" width="6" height="6" fill="#D97757"/>
+<rect x="519.8" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="527.8" y="354" width="6" height="6" fill="#DADCE0"/>
 <text x="607.2" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">5/8</text>
 <rect x="576.2" y="354" width="6" height="6" fill="#202123"/>
@@ -90,21 +90,21 @@
 <rect x="616.2" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="624.2" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="632.2" y="354" width="6" height="6" fill="#DADCE0"/>
-<text x="711.5" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">5/8</text>
+<text x="711.5" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">4/8</text>
 <rect x="680.5" y="354" width="6" height="6" fill="#202123"/>
 <rect x="688.5" y="354" width="6" height="6" fill="#202123"/>
 <rect x="696.5" y="354" width="6" height="6" fill="#202123"/>
 <rect x="704.5" y="354" width="6" height="6" fill="#202123"/>
-<rect x="712.5" y="354" width="6" height="6" fill="#202123"/>
+<rect x="712.5" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="720.5" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="728.5" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="736.5" y="354" width="6" height="6" fill="#DADCE0"/>
-<text x="815.8" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">5/8</text>
+<text x="815.8" y="345" font-size="15" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">4/8</text>
 <rect x="784.8" y="354" width="6" height="6" fill="#202123"/>
 <rect x="792.8" y="354" width="6" height="6" fill="#202123"/>
 <rect x="800.8" y="354" width="6" height="6" fill="#202123"/>
 <rect x="808.8" y="354" width="6" height="6" fill="#202123"/>
-<rect x="816.8" y="354" width="6" height="6" fill="#202123"/>
+<rect x="816.8" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="824.8" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="832.8" y="354" width="6" height="6" fill="#DADCE0"/>
 <rect x="840.8" y="354" width="6" height="6" fill="#DADCE0"/>
@@ -252,11 +252,11 @@
 <rect x="833.4" y="766.6" width="4.8" height="4.8" fill="#FFFFFF" stroke="#D93025" stroke-width="1.2"/>
 <text x="68" y="803" font-size="12.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#202124">host $</text>
 <text x="68.0" y="819.0" font-size="11" font-weight="400" fill="#9AA0A6" text-anchor="start">your plan's quota</text>
-<text x="294.2" y="803" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$0.68</text>
+<text x="294.2" y="803" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$0.66</text>
 <text x="294.2" y="819.0" font-size="10.5" font-weight="400" fill="#9AA0A6" text-anchor="middle">baseline</text>
 <text x="398.5" y="803.0" font-size="14" font-weight="400" fill="#BDC1C6" text-anchor="middle">—</text>
-<text x="502.8" y="803" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$0.34</text>
-<text x="502.8" y="819" font-size="11" font-weight="700" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums"><tspan fill="#188038">▼ 50%</tspan></text>
+<text x="502.8" y="803" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$0.41</text>
+<text x="502.8" y="819" font-size="11" font-weight="700" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums"><tspan fill="#188038">▼ 39%</tspan></text>
 <text x="607.2" y="803" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$0.44</text>
 <text x="607.2" y="819.0" font-size="10.5" font-weight="400" fill="#9AA0A6" text-anchor="middle">baseline</text>
 <text x="711.5" y="803.0" font-size="14" font-weight="400" fill="#BDC1C6" text-anchor="middle">—</text>
@@ -264,11 +264,11 @@
 <text x="815.8" y="819" font-size="11" font-weight="700" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums"><tspan fill="#188038">▼ 16%</tspan></text>
 <text x="68" y="847" font-size="12.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#202124">total $</text>
 <text x="68.0" y="863.0" font-size="11" font-weight="400" fill="#9AA0A6" text-anchor="start">host + worker</text>
-<text x="294.2" y="847" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$0.68</text>
+<text x="294.2" y="847" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$0.66</text>
 <text x="294.2" y="863.0" font-size="10.5" font-weight="400" fill="#9AA0A6" text-anchor="middle">baseline</text>
 <text x="398.5" y="847.0" font-size="14" font-weight="400" fill="#BDC1C6" text-anchor="middle">—</text>
-<text x="502.8" y="847" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$1.18</text>
-<text x="502.8" y="863" font-size="11" font-weight="700" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums"><tspan fill="#D93025">▲ 74%</tspan></text>
+<text x="502.8" y="847" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$1.25</text>
+<text x="502.8" y="863" font-size="11" font-weight="700" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums"><tspan fill="#D93025">▲ 88%</tspan></text>
 <text x="607.2" y="847" font-size="14" fill="#202124" text-anchor="middle" font-family="'num-source-serif', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">$0.44</text>
 <text x="607.2" y="863.0" font-size="10.5" font-weight="400" fill="#9AA0A6" text-anchor="middle">baseline</text>
 <text x="711.5" y="847.0" font-size="14" font-weight="400" fill="#BDC1C6" text-anchor="middle">—</text>

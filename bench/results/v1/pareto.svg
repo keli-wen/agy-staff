@@ -41,12 +41,12 @@
 <text x="434.4" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
 <line x1="511.0" y1="216.0" x2="511.0" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
 <text x="511.0" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
-<path d="M280.7,262.5 L302.4,231.5" fill="none" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
-<circle cx="399.1" cy="231.5" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="399.1" cy="231.5" r="5.5" fill="#D97757"/>
-<circle cx="349.1" cy="262.5" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="349.1" cy="262.5" r="5.5" fill="#202123"/>
-<circle cx="302.4" cy="231.5" r="6" fill="#F1CBBF" stroke="#D97757" stroke-width="2"/>
-<circle cx="299.3" cy="262.5" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
-<circle cx="418.8" cy="231.5" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<path d="M280.7,262.5 L302.4,247.0" fill="none" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
+<circle cx="399.1" cy="247.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="399.1" cy="247.0" r="5.5" fill="#D97757"/>
+<circle cx="349.1" cy="278.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="349.1" cy="278.0" r="5.5" fill="#202123"/>
+<circle cx="302.4" cy="247.0" r="6" fill="#F1CBBF" stroke="#D97757" stroke-width="2"/>
+<circle cx="299.3" cy="278.0" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
+<circle cx="418.8" cy="247.0" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
 <circle cx="280.7" cy="262.5" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
 <line x1="574.0" y1="340.0" x2="862.0" y2="340.0" stroke="#BDC1C6" stroke-width="1"/>
 <line x1="574.0" y1="278.0" x2="862.0" y2="278.0" stroke="#E8EAED" stroke-width="1"/>
@@ -59,12 +59,12 @@
 <text x="752.4" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
 <line x1="829.0" y1="216.0" x2="829.0" y2="340.0" stroke="#E8EAED" stroke-width="1"/>
 <text x="829.0" y="356.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
-<path d="M598.7,262.5 L722.4,231.5" fill="none" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
-<circle cx="828.4" cy="231.5" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="828.4" cy="231.5" r="5.5" fill="#D97757"/>
-<circle cx="841.9" cy="262.5" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="841.9" cy="262.5" r="5.5" fill="#202123"/>
-<circle cx="722.4" cy="231.5" r="6" fill="#F1CBBF" stroke="#D97757" stroke-width="2"/>
-<circle cx="629.4" cy="262.5" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
-<circle cx="736.8" cy="231.5" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<path d="M598.7,262.5 L722.4,247.0" fill="none" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
+<circle cx="828.4" cy="247.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="828.4" cy="247.0" r="5.5" fill="#D97757"/>
+<circle cx="841.9" cy="278.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="841.9" cy="278.0" r="5.5" fill="#202123"/>
+<circle cx="722.4" cy="247.0" r="6" fill="#F1CBBF" stroke="#D97757" stroke-width="2"/>
+<circle cx="629.4" cy="278.0" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
+<circle cx="736.8" cy="247.0" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
 <circle cx="598.7" cy="262.5" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
 <line x1="52.0" y1="376.0" x2="868.0" y2="376.0" stroke="#DADCE0" stroke-width="1"/>
 <text x="56.0" y="404.0" font-size="15" font-weight="700" fill="#202124" text-anchor="start">SWE-Atlas QnA</text>
@@ -119,10 +119,9 @@
 <text x="434.4" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
 <line x1="511.0" y1="584.0" x2="511.0" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
 <text x="511.0" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
-<path d="M315.5,646.0 L324.4,604.7" fill="none" stroke="#9AA0A6" stroke-width="1.5" stroke-dasharray="4 3"/>
-<circle cx="315.5" cy="646.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="315.5" cy="646.0" r="5.5" fill="#D97757"/>
+<circle cx="334.6" cy="646.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="334.6" cy="646.0" r="5.5" fill="#D97757"/>
 <circle cx="324.4" cy="604.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="324.4" cy="604.7" r="5.5" fill="#202123"/>
-<circle cx="391.8" cy="625.3" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="388.8" cy="625.3" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
 <circle cx="343.5" cy="604.7" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
 <line x1="574.0" y1="708.0" x2="862.0" y2="708.0" stroke="#BDC1C6" stroke-width="1"/>
 <line x1="574.0" y1="646.0" x2="862.0" y2="646.0" stroke="#E8EAED" stroke-width="1"/>
@@ -135,9 +134,9 @@
 <text x="752.4" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$1</text>
 <line x1="829.0" y1="584.0" x2="829.0" y2="708.0" stroke="#E8EAED" stroke-width="1"/>
 <text x="829.0" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
-<circle cx="770.7" cy="646.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="770.7" cy="646.0" r="5.5" fill="#D97757"/>
+<circle cx="776.6" cy="646.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="776.6" cy="646.0" r="5.5" fill="#D97757"/>
 <circle cx="808.3" cy="604.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="808.3" cy="604.7" r="5.5" fill="#202123"/>
-<circle cx="709.8" cy="625.3" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="706.8" cy="625.3" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
 <circle cx="661.5" cy="604.7" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
 <g stroke="#5F6368" stroke-width="1"><line x1="40" y1="784" x2="240.8" y2="784"/><line x1="679.2" y1="784" x2="880" y2="784"/><line x1="40" y1="779" x2="40" y2="789"/><line x1="880" y1="779" x2="880" y2="789"/></g>
 <text x="460.0" y="788" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#5F6368" text-anchor="middle">20 tasks · 3 benchmarks · 2 hosts × 3 setups · 1 run each</text>

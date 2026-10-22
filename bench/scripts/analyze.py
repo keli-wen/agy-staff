@@ -343,6 +343,34 @@ def grading(trial):
     return out or None
 
 
+# SymPy's runner prints one "test_name ok|F|E" line per test without the file, and SWE-bench's parser
+# (parse_log_sympy, swebench 4.0.x and main) keys statuses by that bare name, so a later file's test with the same
+# name overwrites an earlier failure. The failure summary keeps the file ("___ path.py:test_name ___").
+SYMPY_STATUS_RE = re.compile(r"^(test_\S+)\s+(ok|F|E)(?:\s+\[(?:OK|FAIL)\])?$")
+SYMPY_FAILURE_RE = re.compile(r"^_+ \S+\.py:(test_\S+) _+$")
+
+
+def swebench_hidden_failures(trial):
+    """FAIL_TO_PASS and PASS_TO_PASS tests that SWE-bench's report counts as passed although the test log shows
+    a test of that name failing. A trial with any of them is not resolved here (resolved_official keeps the
+    report's verdict)."""
+    report, log = trial / "verifier" / "report.json", trial / "verifier" / "test-stdout.txt"
+    if not report.exists() or not log.exists():
+        return []
+    status = (next(iter(json.loads(report.read_text()).values()), {}) or {}).get("tests_status") or {}
+    passed = {t for kind in ("FAIL_TO_PASS", "PASS_TO_PASS") for t in (status.get(kind) or {}).get("success", [])}
+    failing = set()
+    for line in log.read_text(errors="replace").splitlines():
+        line = line.strip()
+        m = SYMPY_STATUS_RE.match(line)
+        if m and m.group(2) != "ok":
+            failing.add(m.group(1))
+        m = SYMPY_FAILURE_RE.match(line)
+        if m:
+            failing.add(m.group(1))
+    return sorted(passed & failing)
+
+
 def cheat_hits(actions, dataset=None):
     hits = []
     for who, text in actions:
@@ -475,8 +503,13 @@ def summarize(job, trial):
         resolved = bool(grades) and all(g[key] >= 0.5 for g in grades.values())
         reward = round(sum(g["pass_rate" if dataset == "swe-atlas-qna" else "f1_mean"] for g in grades.values())
                        / len(grades), 4) if grades else None
+        resolved_official, hidden_failures = None, []
     else:
-        resolved = reward == 1.0
+        # SWE-bench: the verifier's verdict, unless the log shows a test it counted as passed failing.
+        resolved_official, hidden_failures = reward == 1.0, swebench_hidden_failures(trial)
+        resolved = resolved_official and not hidden_failures
+        if hidden_failures:
+            reward = 0.0
     return {
         "agy_staff_version": "%s (%s)" % agy_staff_provenance(trial),
         "host": "codex", "host_model": "+".join(m for r in host for m in r["models"]) or None,
@@ -484,7 +517,8 @@ def summarize(job, trial):
         "unpriced_models": sorted({m for r in rollouts for m in r["unpriced_models"]}),
         "dataset": dataset, "setup": setup, "instance_id": res.get("task_name"),
         "rep": int(m.group(1)) if m else None, "job": job.name, "trial": trial.name,
-        "resolved": resolved, "reward": reward, "adhered": adhered,
+        "resolved": resolved, "reward": reward, "resolved_official": resolved_official,
+        "hidden_test_failures": hidden_failures, "adhered": adhered,
         "usage_limited": "usage_limited" in infra, "infra_flags": infra,
         "timed_out": exc == "AgentTimeoutError", "exception": exc,
         "grading": grades, "answer_key_exposure": answer_key_exposure(trial, codex_txt),
@@ -508,8 +542,10 @@ def summarize(job, trial):
 # --- Claude Code trials ------------------------------------------------------------------------------
 # Claude Code's own per-model costUSD (result.modelUsage) is used as the list-price cost: on 2026-10-15 it
 # matched these list prices exactly for all three models, plus $10 per 1,000 WebSearch requests (the main
-# agent writes 1-hour cache entries, subagents 5-minute ones). The table below is only the fallback for a
-# run killed before its result event (e.g. a timeout). USD per 1M tokens:
+# agent writes 1-hour cache entries, subagents 5-minute ones). Only token costs count, for every host and
+# worker, so that per-request fee is taken back out (CLAUDE_WEB_SEARCH_FEE_USD); the tokens of the model call
+# behind each WebSearch stay in. The table below prices what no result event covers: a run killed before its
+# first one, or the turn a timeout cuts off. USD per 1M tokens:
 #   (input, cache read, 5-minute cache write, 1-hour cache write, output; output includes thinking)
 #   https://platform.claude.com/docs/en/models/opus-5-5/overview (and sonnet-5-5, haiku-5-5), checked 2026-10-15
 CLAUDE_PRICE_USD = {
@@ -517,6 +553,7 @@ CLAUDE_PRICE_USD = {
     "claude-sonnet-5-5": (2.00, 0.10, 2.50, 4.00, 10.00),  # $0.10 cache reads per the docs (the launch post said $0.20); costUSD agrees
     "claude-haiku-5-5": (0.10, 0.01, 0.125, 0.20, 0.50),
 }
+CLAUDE_WEB_SEARCH_FEE_USD = 10.00 / 1000  # per WebSearch request, inside costUSD; not a token cost
 CLAUDE_EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 CLAUDE_SPAWN_TOOLS = {"Agent", "Task"}
 
@@ -548,10 +585,16 @@ def claude_stream(trial):
     acts = {"host": [], "worker": []}
     edits = {"host": 0, "worker": 0}
     spawns, tool_out, errors, host_msgs, seen = [], [], [], set(), set()
+    # Each turn of a run ends with a result event whose modelUsage covers the run so far. A run stopped in the
+    # middle of a turn (the agent timeout) leaves that turn's messages out of the last result.
+    streamed, counted = set(), set()
     for e in ev:
         kind, who = e.get("type"), ("worker" if e.get("parent_tool_use_id") else "host")
+        if kind == "result":
+            counted = set(streamed)
         if kind == "assistant":
             msg = e.get("message") or {}
+            streamed.add(msg.get("id"))
             if who == "host":
                 host_msgs.add(msg.get("id"))
             for b in msg.get("content") or []:
@@ -576,7 +619,8 @@ def claude_stream(trial):
         errors.append(f"result {result.get('subtype')}: {str(result.get('result'))[:200]}")
     rate = next((e["rate_limit_info"] for e in reversed(ev) if e.get("type") == "rate_limit_event"), None)
     return {"init": init, "result": result, "acts": acts, "edits": edits, "spawns": spawns,
-            "tool_out": tool_out, "errors": errors, "host_turns": len(host_msgs - {None}), "rate": rate}
+            "tool_out": tool_out, "errors": errors, "host_turns": len(host_msgs - {None}), "rate": rate,
+            "counted_ids": counted - {None}}
 
 
 def claude_sessions(trial):
@@ -584,15 +628,19 @@ def claude_sessions(trial):
     return [("subagents" in p.parts, p) for p in sorted((trial / "agent").glob("sessions/projects/**/*.jsonl"))]
 
 
-def claude_transcript_usage(trial):
+def claude_transcript_usage(trial, skip=None):
     """Fallback per-model usage from the session transcripts (last entry per message id). Misses the side
-    calls that WebSearch and WebFetch make, so it undercounts runs that searched the web."""
+    calls that WebSearch and WebFetch make, so it undercounts runs that searched the web. With skip, only the
+    main session counts, less the message ids in skip: subagent transcripts use ids the stream does not."""
     usage = {}
-    for _, p in claude_sessions(trial):
+    for is_sub, p in claude_sessions(trial):
+        if skip is not None and is_sub:
+            continue
         last = {}
         for e in jsonl(p):
-            if e.get("type") == "assistant" and (e.get("message") or {}).get("id"):
-                last[e["message"]["id"]] = e["message"]
+            mid = (e.get("message") or {}).get("id")
+            if e.get("type") == "assistant" and mid and mid not in (skip or ()):
+                last[mid] = e["message"]
         for m in last.values():
             u, model = m.get("usage") or {}, m.get("model")
             cc = u.get("cache_creation") or {}
@@ -638,21 +686,31 @@ def summarize_claude(job, trial):
     run = res.get("agent_execution") or {}
     s = claude_stream(trial)
 
-    model_usage = (s["result"].get("modelUsage") or {})
+    model_usage = {k: dict(v) for k, v in (s["result"].get("modelUsage") or {}).items()}
     usage_source = "claude modelUsage"
     if not model_usage:
         model_usage, usage_source = claude_transcript_usage(trial), "session transcripts (no WebSearch/WebFetch side calls)"
+    else:
+        # A turn cut off by the timeout has no result event: add its main-session messages from the transcripts.
+        tail = claude_transcript_usage(trial, skip=s["counted_ids"])
+        if any(u.get("costUSD") for u in tail.values()):
+            for model, u in tail.items():
+                row = model_usage.setdefault(model, {})
+                for k in ("inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens", "costUSD"):
+                    row[k] = (row.get(k) or 0) + (u.get(k) or 0)
+            usage_source += " + session transcripts after the last result (no WebSearch/WebFetch side calls)"
     worker_model = CLAUDE_WORKER_MODEL.get(setup)
     zero = {"input": 0, "cache_creation": 0, "cache_read": 0, "output": 0, "reasoning": 0}
     host_tokens, native_tokens, host_cost, native_cost, unpriced = dict(zero), dict(zero), 0.0, 0.0, set()
     for model, u in model_usage.items():
         if u.get("costUSD") is None:
             unpriced.add(model)
+        token_cost = (u.get("costUSD") or 0) - (u.get("webSearchRequests") or 0) * CLAUDE_WEB_SEARCH_FEE_USD
         is_worker = setup in CLAUDE_WORKER_MODEL and model == worker_model
         if is_worker:
-            native_tokens, native_cost = add(native_tokens, claude_tokens(u)), native_cost + (u.get("costUSD") or 0)
+            native_tokens, native_cost = add(native_tokens, claude_tokens(u)), native_cost + token_cost
         else:
-            host_tokens, host_cost = add(host_tokens, claude_tokens(u)), host_cost + (u.get("costUSD") or 0)
+            host_tokens, host_cost = add(host_tokens, claude_tokens(u)), host_cost + token_cost
     sub_models = sorted({(e.get("message") or {}).get("model") for is_sub, p in claude_sessions(trial) if is_sub
                          for e in jsonl(p) if e.get("type") == "assistant"} - {None})
 
@@ -738,8 +796,13 @@ def summarize_claude(job, trial):
         resolved = bool(grades) and all(g[key] >= 0.5 for g in grades.values())
         reward = round(sum(g["pass_rate" if dataset == "swe-atlas-qna" else "f1_mean"] for g in grades.values())
                        / len(grades), 4) if grades else None
+        resolved_official, hidden_failures = None, []
     else:
-        resolved = reward == 1.0
+        # SWE-bench: the verifier's verdict, unless the log shows a test it counted as passed failing.
+        resolved_official, hidden_failures = reward == 1.0, swebench_hidden_failures(trial)
+        resolved = resolved_official and not hidden_failures
+        if hidden_failures:
+            reward = 0.0
     host_text = (trial / "agent" / "claude-code.txt").read_text(errors="replace")
     return {
         "agy_staff_version": "%s (%s)" % agy_staff_provenance(trial),
@@ -747,7 +810,8 @@ def summarize_claude(job, trial):
         "unpriced_models": sorted(str(x) for x in unpriced),
         "dataset": dataset, "setup": setup, "instance_id": res.get("task_name"),
         "rep": int(m.group(1)) if m else None, "job": job.name, "trial": trial.name,
-        "resolved": resolved, "reward": reward, "adhered": adhered,
+        "resolved": resolved, "reward": reward, "resolved_official": resolved_official,
+        "hidden_test_failures": hidden_failures, "adhered": adhered,
         "usage_limited": "usage_limited" in infra, "infra_flags": infra,
         "timed_out": exc == "AgentTimeoutError", "exception": exc,
         "grading": grades, "answer_key_exposure": answer_key_exposure(trial, host_text),

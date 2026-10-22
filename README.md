@@ -34,8 +34,8 @@ agy-staff Bench v1 runs Claude Code and Codex on three benchmarks, each task thr
 
 **What v1 says** (one run per task and setup, so a first baseline, not a verdict):
 
-- **agy suits research best.** DeepSearchQA is the only benchmark where agy cut host spend on both hosts: Claude Code −50%, Codex −16%. Host spend is what your Claude or ChatGPT plan pays.
-- **Claude Code's harness suits agy better.** With agy, Claude Code's host spend fell on all three benchmarks (−16% to −50%). Codex's rose on two (SWE-bench +86%, QnA +22%). Claude Code waits in the background until the agy job ends; Codex polls, and every wake-up carries its full context.
+- **agy suits research best.** DeepSearchQA is the only benchmark where agy cut host spend on both hosts: Claude Code −39%, Codex −16%. Host spend is what your Claude or ChatGPT plan pays.
+- **Claude Code's harness suits agy better.** With agy, Claude Code's host spend fell on all three benchmarks (−16% to −39%). Codex's rose on two (SWE-bench +86%, QnA +22%). Claude Code waits in the background until the agy job ends; Codex polls, and every wake-up carries its full context.
 - **The price is time.** Median time per task rose from 2–8 minutes alone to 13–26 minutes with agy. Tasks solved matched solo or dropped by one.
 
 **Method, caveats and versions →** [bench/README.md](bench/README.md)

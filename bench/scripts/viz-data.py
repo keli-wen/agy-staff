@@ -33,6 +33,13 @@ RUNS = {
                                   "cli": "Claude Code 2.1.296"},
 }
 TOKEN_KEYS = ("input", "cache_creation", "cache_read", "output")
+# analyze.py's cheat_flag is a heuristic, so every hit in a published run is reviewed by hand. The confirmed
+# rule violations (job -> what happened) go into data.json; the other hits were false positives.
+RULE_VIOLATIONS = {
+    "claude-agy-staff-deepsearchqa-0118-c55x-r1":
+        "the agy worker downloaded the DeepSearchQA answer table (DSQA-full.csv) and cited it; the host's brief had "
+        "left out the rule against looking up the benchmark. The host discarded the result and timed out re-checking.",
+}
 
 
 def run_key(r):
@@ -76,7 +83,9 @@ for agents:
             "agy_staff": version, "host": meta["host"], "model": meta["model"], "effort": meta["effort"], "cli": meta["cli"],
             "dataset": dataset, "setup": setup, "task": task.split("/")[-1], "rep": rep, "job": r["job"],
             "resolved": r["resolved"], "reward": r["reward"], "timed_out": r["timed_out"],
+            "resolved_official": r.get("resolved_official"),
             "answer_key_exposure": bool(r.get("answer_key_exposure")),
+            "rule_violation": RULE_VIOLATIONS.get(r["job"]),
             "host_cost": r["host_cost_usd"], "worker_cost": r["worker_cost_usd"],
             "host_tokens": {k: r["host_tokens"].get(k, 0) for k in TOKEN_KEYS},
             "worker_tokens": {k: r["worker_tokens"].get(k, 0) for k in TOKEN_KEYS},
@@ -93,6 +102,8 @@ for agents:
         aggregates.append({
             "agy_staff": version, "host": host, "model": model, "effort": effort, "dataset": dataset,
             "setup": setup, "trials": n, "resolved": sum(t["resolved"] for t in ts),
+            "resolved_official": (sum(bool(t["resolved_official"]) for t in ts)
+                                  if any(t["resolved_official"] is not None for t in ts) else None),
             "resolve_rate": round(sum(t["resolved"] for t in ts) / n, 4),
             "host_cost": round(hc, 4), "worker_cost": round(wc, 4), "total_cost": round(hc + wc, 4),
             "host_cost_per_trial": round(hc / n, 4), "total_cost_per_trial": round((hc + wc) / n, 4),
@@ -101,6 +112,7 @@ for agents:
             "median_minutes": round(st.median(t["wall_clock_s"] for t in ts) / 60, 2),
             "timeouts": sum(t["timed_out"] for t in ts),
             "exposure": sum(t["answer_key_exposure"] for t in ts),
+            "rule_violations": sum(t["rule_violation"] is not None for t in ts),
         })
     doc = {
         "source": str(src.relative_to(ROOT.parent)) if src.is_relative_to(ROOT.parent) else str(src),

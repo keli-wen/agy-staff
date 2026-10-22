@@ -14,9 +14,9 @@ agy-staff Bench 衡量主 agent 把工作委派给 agy 要付出什么、能换�
 
 ## v1 的结论
 
-- **Claude Code 当 host：** 用 agy 之后，三个 benchmark 的 host 成本都下降了：SWE-bench Verified −16%，SWE-Atlas QnA −36%，DeepSearchQA −50%。host 成本就是从你的 Claude 订阅里扣的那部分。SWE-bench 上三种编排方案的结果完全相同，都是 7/8。代价是时间（耗时中位 13–19 分钟，单独做是 2–8 分钟），以及 agy 自己额度上的 worker 成本。
+- **Claude Code 当 host：** 用 agy 之后，三个 benchmark 的 host 成本都下降了：SWE-bench Verified −16%，SWE-Atlas QnA −36%，DeepSearchQA −39%。host 成本就是从你的 Claude 订阅里扣的那部分。SWE-bench 上三种编排方案的结果完全相同，都是 6/8。代价是时间（耗时中位 13–19 分钟，单独做是 2–8 分钟），以及 agy 自己额度上的 worker 成本。
 - **Codex 当 host：** 只有 DeepSearchQA 的 host 成本下降了（−16%）。SWE-bench（+86%）和 QnA（+22%）都更贵。Codex 等 agy 时会反复轮询，每次被唤醒都要带上完整的上下文；Claude Code 在后台等，任务完成后才被唤醒。
-- **agy 输在哪：** Claude Code 这一侧，有 3 道题单独做解出了、用 agy 没解出。其中 2 道是 DeepSearchQA 跑到 30 分钟上限，还没写出答案；1 道是 QnA 的评委分歧：Gemini 3 次都判通过，DeepSeek 只判通过 1 次。另外有 1 道 DeepSearchQA，Claude Code 单独做没解出，用 agy 解出了。
+- **agy 输在哪：** Claude Code 这一侧，有 3 道题单独做解出了、用 agy 没解出。其中 2 道是 DeepSearchQA 跑到 30 分钟上限，还没写出答案；1 道是 QnA 的评委分歧：Gemini 3 次都判通过，DeepSeek 只判通过 1 次。另外有 1 道 DeepSearchQA，Claude Code 单独做没解出，用 agy 解出了；两份答案给出的州相同，差别只是一个评委对一句提到 Puerto Rico 的话判法不同。
 - **每种编排方案每道题只跑 1 次，一共 20 道题。** 差 1 道题在噪声范围内。v1 只是第一版基线，不是定论。
 
 ## 图表
@@ -66,17 +66,21 @@ v1 只在 SWE-bench Verified 上跑了"+ subagents"。
 
 - **运行框架：** [Harbor](https://github.com/harbor-framework/harbor) 0.24.0，每个 job 的 `lock.json` 都记录了这个版本。每次 trial 都在一个全新的容器里跑。容器用 benchmark 自己的镜像构建，再装上 host CLI、agy 和 agy-staff。
 - **agy-staff 版本：** 0.7.3（`f00d149`）。对 Claude Code 和 Codex 来说，0.7.4 没有改动任何 skill、companion 代码或 prompt 模板，所以这批结果也代表 0.7.4。
-- **评分：** SWE-bench 按测试评分。QnA 和 DeepSearchQA 在离线评分，沿用各数据集自己的评分 prompt、rubric 和汇总规则。和官方做法唯一的不同是评委模型：用 Gemini 3.8 Flash 和 DeepSeek V4 Pro，各评 3 次。只有两个评委各自多数判通过，才算解出。
+- **评分：** SWE-bench 按测试评分。只有同名测试一个都没失败，才算通过：SWE-bench 的 SymPy 日志解析器按裸测试名记结果，后面同名的测试会盖掉前面的失败。v1 里这条规则改变了 1 道题的结果，官方的判定保留在 `data.json` 的 `resolved_official` 里。QnA 和 DeepSearchQA 在离线评分，沿用各数据集自己的评分 prompt、rubric 和汇总规则。和官方做法唯一的不同是评委模型：用 Gemini 3.8 Flash 和 DeepSeek V4 Pro，各评 3 次。只有两个评委各自多数判通过，才算解出。
 - **成本：** 按 API 标价计，单位是美元。
   - host 成本是 host 模型自己用掉的部分，也就是从你的 Claude 或 ChatGPT 订阅里扣的那部分。
   - 总成本再加上 worker。自家 subagent 和 host 用同一份订阅；agy 按 Gemini 标价折算，但用的是 agy 自己的额度。
-  - Claude Code 的成本取它自己报告的 `costUSD`，已经和标价核对过；Codex 的成本按它的 token 数计算。
+  - 所有 host 和 worker 都只算 token 成本：工具按次收的费用不算，工具背后那次模型调用的 token 照算。
+  - Claude Code 的成本取它自己报告的 `costUSD`（已经和标价核对过），再减去 WebSearch 按次收的费用；Codex 的成本按它的 token 数计算。
 - **耗时：** 每次 trial 的墙钟时间取中位数。trial 是两到三个同时跑的，耗时是在这种负载下测的。
 - **时限：** 按各 benchmark 自己的规定。DeepSearchQA 到 30 分钟就停止 agent，评当时答案文件里的内容，所以没写出答案的 trial 算没解出。
 - **重跑：** 基础设施故障一律重跑，不算作没解出。
   - 有 12 次 trial 里 Claude Code 卡死了，或者被卡死检测误停了。它在容器里跑的是 x86 版，经过转译运行，所以这些 trial 用同一版本的 arm64 原生版重跑。`data.json` 里每次 trial 用的是哪个版本记在 `claude_binary` 字段。
   - Claude Code"+ subagents"的第一版 prompt 让 host 去自己写 subagent 定义，而没有直接委派。prompt 改过之后，这 8 次 trial 全部重跑，表里用的是重跑的结果。
-- **答案暴露：** DeepSearchQA 的答案表在网上有镜像。tool output 里出现过答案表的 trial 在 `data.json` 里标了 `answer_key_exposure`。v1 里有 2 次，都是 0118 这道题：Claude Code + agy（超时，没解出）和 Codex solo（解出）。两次都照常计入表中。
+- **答案暴露和一次违规：** DeepSearchQA 的答案表在网上有镜像。trajectory 里碰到过答案表或它所在数据集页面的 trial，在 `data.json` 里标了 `answer_key_exposure`。v1 里有 2 次，都是 0118 这道题：
+  - Codex solo（解出）：有一条搜索结果链到数据集页面，摘要里只有题面。答案来自原始报告。
+  - Claude Code + agy（没解出）：host 写给 agy 的 brief 漏掉了“不要查这个 benchmark”的规则，agy 下载了答案表，还在报告里引用了它。host 发现后弃用了 agy 的结果，自己重新核对原始资料，30 分钟到了还没核完。`data.json` 里用 `rule_violation` 记下了这次违规。v1 的作弊扫描命中都经过人工复核，这是唯一确认的一次，其余都是误报。
+  - 两次都照常计入表中。
 
 ## 已知局限
 
@@ -99,7 +103,7 @@ results/
     └── data.json     表和图背后的 96 次 trial，以及每个格子的汇总
 ```
 
-`data.json` 里每次 trial 记录了 host、模型、编排方案、benchmark 和题目；是否解出、reward、`timed_out` 和 `answer_key_exposure`；host 和 worker 各自的成本和 token；以及耗时（秒）。
+`data.json` 里每次 trial 记录了 host、模型、编排方案、benchmark 和题目；是否解出（SWE-bench 另有 `resolved_official`）、reward、`timed_out`、`answer_key_exposure` 和 `rule_violation`；host 和 worker 各自的成本和 token；以及耗时（秒）。
 
 ## 版本
 
@@ -112,6 +116,14 @@ results/
 **v1 补充（2026-10-20）：** 新增三张图，都由同一份 `data.json` 画出：每次 trial 的成本、token 用量，以及解题数与成本。之前发布的文件都没有改动。
 
 **v1 勘误（2026-10-20）：** 方法和表格注释里原来写的是 Harbor commit `3e30cca`，但 trial 实际跑的是 Harbor 0.24.0，每个 job 的 `lock.json` 都这样记录；两处都已改为 0.24.0。“已知局限”里原来说超时的 run 中有一次到 30 分钟 agy 还在跑，实际是两次。数字都没有变。
+
+**v1 勘误（2026-10-21）：** 两处成本更正、一处评分更正，以及一处答案暴露说明的更正。
+- 有一次 Claude Code trial 的 host 成本少算了。`claude-agy-staff-deepsearchqa-0118` 在一轮进行到一半时撞上了 30 分钟上限，这一轮没有写出 `result` 事件，`analyze.py` 于是取了前几轮 result 里的成本。现在把那个 result 之后主会话里的消息按标价补上：$0.61，不是 $0.22。这个数仍是下限：被截断的那一轮有 4 次 WebSearch，每次都在会话记录之外调用一次模型，按 solo 那几次的费率估计还要再加约 $0.32。
+- 成本改为只算 token，所有 host 和 worker 都一样。Claude Code 的 `costUSD` 里含有 WebSearch 每千次 $10 的按次费用，Codex 的数字里本来就没有这一项。现在把它去掉，每次搜索背后那次模型调用的 token 照算。这让两次 Claude Code solo 的 DeepSearchQA trial 分别少了 $0.08 和 $0.03。
+- `sympy__sympy-14248` 其实没有一次 trial 解出，但 6 次里有 5 次被算作解出。它的两个 FAIL_TO_PASS 测试和别的文件里的测试同名，而 SWE-bench 的 SymPy 日志解析器按裸测试名记结果，于是 LaTeX 文件里的 `test_MatrixSymbol_printing ... ok` 盖掉了 pretty 打印器文件里的 `F`。每次运行都没通过 pretty 打印器的断言。现在只有同名测试一个都没失败才算通过。Claude Code 三个方案都从 7/8 降到 6/8；Codex 的 + subagents 和 + agy 从 5/8 降到 4/8，Codex solo 仍是 5/8。`resolved_official` 保留了 SWE-bench 自己的判定；用官方 harness 原样跑，这 5 次仍会算作解出。
+- 答案暴露的说明，一处说轻了，一处说重了。`claude-agy-staff-deepsearchqa-0118` 里，agy 不是碰巧看到了答案表，而是主动下载了它，原因是 host 的 brief 漏掉了 benchmark 的规则。`data.json` 现在用 `rule_violation` 记下这一点；这次 trial 本来就没解出。`codex-solo-deepsearchqa-0118` 的 tool output 里只有数据集页面的链接和题面，没有答案表。
+
+两处成本更正合起来，Claude Code 在 DeepSearchQA 上用 agy 的 host 成本，相对单独做从 −50% 改为 −39%，总成本从 +74% 改为 +88%。`data.json`、表格和三张图都已重画。其余 Claude Code trial 都和会话记录对得上，没有变化。
 
 ## 评测框架
 

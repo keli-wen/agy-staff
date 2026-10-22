@@ -34,8 +34,8 @@ agy-staff Bench v1 让 Claude Code 和 Codex 在三个 benchmark 上做题，每
 
 **v1 的结论**（每种编排方案每道题只跑了 1 次，是第一版基线，不是定论）：
 
-- **agy 最适合调研类任务。** DeepSearchQA 是唯一一个两个 host 用了 agy 都省下 host 成本的 benchmark：Claude Code −50%，Codex −16%。host 成本就是从你的 Claude 或 ChatGPT 订阅里扣的那部分。
-- **Claude Code 的 harness 和 agy 更搭。** 用了 agy，Claude Code 三个 benchmark 的 host 成本都下降了（−16% 到 −50%）；Codex 有两个反而上升（SWE-bench +86%，QnA +22%）。Claude Code 在后台等 agy，任务结束才被唤醒；Codex 会反复轮询，每次醒来都带着完整的上下文。
+- **agy 最适合调研类任务。** DeepSearchQA 是唯一一个两个 host 用了 agy 都省下 host 成本的 benchmark：Claude Code −39%，Codex −16%。host 成本就是从你的 Claude 或 ChatGPT 订阅里扣的那部分。
+- **Claude Code 的 harness 和 agy 更搭。** 用了 agy，Claude Code 三个 benchmark 的 host 成本都下降了（−16% 到 −39%）；Codex 有两个反而上升（SWE-bench +86%，QnA +22%）。Claude Code 在后台等 agy，任务结束才被唤醒；Codex 会反复轮询，每次醒来都带着完整的上下文。
 - **代价是时间。** 每道题的耗时中位数从单独做的 2–8 分钟，变成用 agy 的 13–26 分钟。解出数和单独做持平，或少 1 道。
 
 **方法、局限和版本 →** [bench/README.zh-CN.md](bench/README.zh-CN.md)

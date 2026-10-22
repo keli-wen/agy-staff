@@ -36,14 +36,16 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": true,
+   "resolved_official": null,
    "answer_key_exposure": true,
-   "host_cost": 0.2242,
+   "rule_violation": "the agy worker downloaded the DeepSearchQA answer table (DSQA-full.csv) and cited it; the host's brief had left out the rule against looking up the benchmark. The host discarded the result and timed out re-checking.",
+   "host_cost": 0.6102,
    "worker_cost": 1.4624,
    "host_tokens": {
-    "input": 20,
-    "cache_creation": 16302,
-    "cache_read": 199507,
-    "output": 2690
+    "input": 48,
+    "cache_creation": 39771,
+    "cache_read": 726650,
+    "output": 7324
    },
    "worker_tokens": {
     "input": 432121,
@@ -68,7 +70,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": true,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2125,
    "worker_cost": 1.7818,
    "host_tokens": {
@@ -100,7 +104,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3034,
    "worker_cost": 0.2017,
    "host_tokens": {
@@ -132,7 +138,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4034,
    "worker_cost": 0.6963,
    "host_tokens": {
@@ -164,7 +172,9 @@
    "resolved": false,
    "reward": 0.8889,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.5743,
    "worker_cost": 0.5978,
    "host_tokens": {
@@ -196,7 +206,9 @@
    "resolved": true,
    "reward": 0.9667,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3272,
    "worker_cost": 0.3001,
    "host_tokens": {
@@ -228,8 +240,10 @@
    "resolved": true,
    "reward": 0.9823,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
-   "host_cost": 2.2519,
+   "rule_violation": null,
+   "host_cost": 2.1719,
    "worker_cost": 0.0,
    "host_tokens": {
     "input": 114723,
@@ -260,8 +274,10 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
-   "host_cost": 0.748,
+   "rule_violation": null,
+   "host_cost": 0.718,
    "worker_cost": 0.0,
    "host_tokens": {
     "input": 39134,
@@ -292,7 +308,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2552,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -324,7 +342,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3192,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -356,7 +376,9 @@
    "resolved": false,
    "reward": 0.8889,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3097,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -388,7 +410,9 @@
    "resolved": false,
    "reward": 0.9334,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1983,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -420,7 +444,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.7078,
    "worker_cost": 0.8593,
    "host_tokens": {
@@ -452,7 +478,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.2006,
    "worker_cost": 0.6059,
    "host_tokens": {
@@ -484,7 +512,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.5631,
    "worker_cost": 0.6262,
    "host_tokens": {
@@ -516,7 +546,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.0153,
    "worker_cost": 1.0955,
    "host_tokens": {
@@ -548,7 +580,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.6428,
    "worker_cost": 0.6814,
    "host_tokens": {
@@ -580,7 +614,9 @@
    "resolved": false,
    "reward": 0.6667,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.9678,
    "worker_cost": 0.3318,
    "host_tokens": {
@@ -612,7 +648,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.9002,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -644,7 +682,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.7918,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -676,7 +716,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 2.37,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -708,7 +750,9 @@
    "resolved": false,
    "reward": 0.3333,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 2.5551,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -740,7 +784,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.4066,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -772,7 +818,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.1395,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -804,7 +852,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.681,
    "worker_cost": 0.8821,
    "host_tokens": {
@@ -836,7 +886,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.7264,
    "worker_cost": 1.4773,
    "host_tokens": {
@@ -868,7 +920,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.6025,
    "worker_cost": 1.1905,
    "host_tokens": {
@@ -900,7 +954,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.5602,
    "worker_cost": 0.7525,
    "host_tokens": {
@@ -932,7 +988,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3836,
    "worker_cost": 0.7423,
    "host_tokens": {
@@ -964,7 +1022,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4137,
    "worker_cost": 0.9361,
    "host_tokens": {
@@ -996,7 +1056,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.0072,
    "worker_cost": 1.6801,
    "host_tokens": {
@@ -1025,10 +1087,12 @@
    "task": "sympy__sympy-14248",
    "rep": 1,
    "job": "claude-agy-staff-sympy__sympy-14248-c55x-r1",
-   "resolved": true,
-   "reward": 1.0,
+   "resolved": false,
+   "reward": 0.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.4379,
    "worker_cost": 2.4502,
    "host_tokens": {
@@ -1060,7 +1124,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3396,
    "worker_cost": 0.4307,
    "host_tokens": {
@@ -1092,7 +1158,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4604,
    "worker_cost": 0.604,
    "host_tokens": {
@@ -1124,7 +1192,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.201,
    "worker_cost": 0.3072,
    "host_tokens": {
@@ -1156,7 +1226,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3127,
    "worker_cost": 0.3388,
    "host_tokens": {
@@ -1188,7 +1260,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2031,
    "worker_cost": 0.1842,
    "host_tokens": {
@@ -1220,7 +1294,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3196,
    "worker_cost": 0.2403,
    "host_tokens": {
@@ -1252,7 +1328,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2264,
    "worker_cost": 0.3068,
    "host_tokens": {
@@ -1281,10 +1359,12 @@
    "task": "sympy__sympy-14248",
    "rep": 1,
    "job": "claude-native-sympy__sympy-14248-c55x-r1-rerun2",
-   "resolved": true,
-   "reward": 1.0,
+   "resolved": false,
+   "reward": 0.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3593,
    "worker_cost": 1.263,
    "host_tokens": {
@@ -1316,7 +1396,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.6682,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1348,7 +1430,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 1.1067,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1380,7 +1464,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.7334,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1412,7 +1498,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3486,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1444,7 +1532,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2396,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1476,7 +1566,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4631,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1508,7 +1600,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.9145,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1537,10 +1631,12 @@
    "task": "sympy__sympy-14248",
    "rep": 1,
    "job": "claude-solo-sympy__sympy-14248-c55x-r1-rerun1",
-   "resolved": true,
-   "reward": 1.0,
+   "resolved": false,
+   "reward": 0.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 2.4742,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1572,7 +1668,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": true,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.5687,
    "worker_cost": 2.5666,
    "host_tokens": {
@@ -1604,7 +1702,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4575,
    "worker_cost": 1.2976,
    "host_tokens": {
@@ -1636,7 +1736,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1566,
    "worker_cost": 0.4328,
    "host_tokens": {
@@ -1668,7 +1770,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3675,
    "worker_cost": 1.1093,
    "host_tokens": {
@@ -1700,7 +1804,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3552,
    "worker_cost": 1.0057,
    "host_tokens": {
@@ -1732,7 +1838,9 @@
    "resolved": true,
    "reward": 0.9667,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3107,
    "worker_cost": 1.3227,
    "host_tokens": {
@@ -1764,7 +1872,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": true,
+   "rule_violation": null,
    "host_cost": 1.2017,
    "worker_cost": 0,
    "host_tokens": {
@@ -1796,7 +1906,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2261,
    "worker_cost": 0,
    "host_tokens": {
@@ -1828,7 +1940,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.104,
    "worker_cost": 0,
    "host_tokens": {
@@ -1860,7 +1974,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.8068,
    "worker_cost": 0,
    "host_tokens": {
@@ -1892,7 +2008,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1371,
    "worker_cost": 0,
    "host_tokens": {
@@ -1924,7 +2042,9 @@
    "resolved": false,
    "reward": 0.8667,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1593,
    "worker_cost": 0,
    "host_tokens": {
@@ -1956,7 +2076,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.5765,
    "worker_cost": 0.743,
    "host_tokens": {
@@ -1988,7 +2110,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.9287,
    "worker_cost": 0.8279,
    "host_tokens": {
@@ -2020,7 +2144,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.5259,
    "worker_cost": 1.2499,
    "host_tokens": {
@@ -2052,7 +2178,9 @@
    "resolved": false,
    "reward": 0.5,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.7525,
    "worker_cost": 1.2974,
    "host_tokens": {
@@ -2084,7 +2212,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.5019,
    "worker_cost": 0.9996,
    "host_tokens": {
@@ -2116,7 +2246,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4682,
    "worker_cost": 0.5038,
    "host_tokens": {
@@ -2148,7 +2280,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.5237,
    "worker_cost": 0,
    "host_tokens": {
@@ -2180,7 +2314,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4979,
    "worker_cost": 0,
    "host_tokens": {
@@ -2212,7 +2348,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3796,
    "worker_cost": 0,
    "host_tokens": {
@@ -2244,7 +2382,9 @@
    "resolved": true,
    "reward": 0.6667,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.872,
    "worker_cost": 0,
    "host_tokens": {
@@ -2276,7 +2416,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4263,
    "worker_cost": 0,
    "host_tokens": {
@@ -2308,7 +2450,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": null,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3845,
    "worker_cost": 0,
    "host_tokens": {
@@ -2340,7 +2484,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.728,
    "worker_cost": 2.5965,
    "host_tokens": {
@@ -2372,7 +2518,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.6044,
    "worker_cost": 2.6697,
    "host_tokens": {
@@ -2404,7 +2552,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3349,
    "worker_cost": 1.1304,
    "host_tokens": {
@@ -2436,7 +2586,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3306,
    "worker_cost": 1.2215,
    "host_tokens": {
@@ -2468,7 +2620,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.248,
    "worker_cost": 0.8311,
    "host_tokens": {
@@ -2500,7 +2654,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4701,
    "worker_cost": 1.3226,
    "host_tokens": {
@@ -2532,7 +2688,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.399,
    "worker_cost": 1.2213,
    "host_tokens": {
@@ -2561,10 +2719,12 @@
    "task": "sympy__sympy-14248",
    "rep": 1,
    "job": "codex-agy-staff-sympy__sympy-14248-s61x-r1",
-   "resolved": true,
-   "reward": 1.0,
+   "resolved": false,
+   "reward": 0.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.5818,
    "worker_cost": 3.2901,
    "host_tokens": {
@@ -2596,7 +2756,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3442,
    "worker_cost": 0.0148,
    "host_tokens": {
@@ -2628,7 +2790,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.4337,
    "worker_cost": 0.0461,
    "host_tokens": {
@@ -2660,7 +2824,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2267,
    "worker_cost": 0.0338,
    "host_tokens": {
@@ -2692,7 +2858,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2435,
    "worker_cost": 0.0196,
    "host_tokens": {
@@ -2724,7 +2892,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1613,
    "worker_cost": 0.019,
    "host_tokens": {
@@ -2756,7 +2926,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1723,
    "worker_cost": 0.01,
    "host_tokens": {
@@ -2788,7 +2960,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1909,
    "worker_cost": 0.0299,
    "host_tokens": {
@@ -2817,10 +2991,12 @@
    "task": "sympy__sympy-14248",
    "rep": 1,
    "job": "codex-native-sympy__sympy-14248-s61x-r1",
-   "resolved": true,
-   "reward": 1.0,
+   "resolved": false,
+   "reward": 0.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.583,
    "worker_cost": 0.0986,
    "host_tokens": {
@@ -2852,7 +3028,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2184,
    "worker_cost": 0,
    "host_tokens": {
@@ -2884,7 +3062,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.3338,
    "worker_cost": 0,
    "host_tokens": {
@@ -2916,7 +3096,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.188,
    "worker_cost": 0,
    "host_tokens": {
@@ -2948,7 +3130,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1384,
    "worker_cost": 0,
    "host_tokens": {
@@ -2980,7 +3164,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2208,
    "worker_cost": 0,
    "host_tokens": {
@@ -3012,7 +3198,9 @@
    "resolved": true,
    "reward": 1.0,
    "timed_out": false,
+   "resolved_official": true,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.1902,
    "worker_cost": 0,
    "host_tokens": {
@@ -3044,7 +3232,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.2219,
    "worker_cost": 0,
    "host_tokens": {
@@ -3076,7 +3266,9 @@
    "resolved": false,
    "reward": 0.0,
    "timed_out": false,
+   "resolved_official": false,
    "answer_key_exposure": false,
+   "rule_violation": null,
    "host_cost": 0.478,
    "worker_cost": 0,
    "host_tokens": {
@@ -3105,17 +3297,18 @@
    "setup": "agy-staff",
    "trials": 6,
    "resolved": 3,
+   "resolved_official": null,
    "resolve_rate": 0.5,
-   "host_cost": 2.045,
+   "host_cost": 2.431,
    "worker_cost": 5.0401,
-   "total_cost": 7.0851,
-   "host_cost_per_trial": 0.3408,
-   "total_cost_per_trial": 1.1808,
+   "total_cost": 7.4711,
+   "host_cost_per_trial": 0.4052,
+   "total_cost_per_trial": 1.2452,
    "host_tokens": {
-    "input": 334894,
-    "cache_creation": 138503,
-    "cache_read": 1823986,
-    "output": 38054
+    "input": 334922,
+    "cache_creation": 161972,
+    "cache_read": 2351129,
+    "output": 42688
    },
    "worker_tokens": {
     "input": 1752029,
@@ -3125,7 +3318,8 @@
    },
    "median_minutes": 13.31,
    "timeouts": 2,
-   "exposure": 1
+   "exposure": 1,
+   "rule_violations": 1
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3136,12 +3330,13 @@
    "setup": "solo",
    "trials": 6,
    "resolved": 4,
+   "resolved_official": null,
    "resolve_rate": 0.6667,
-   "host_cost": 4.0823,
+   "host_cost": 3.9723,
    "worker_cost": 0.0,
-   "total_cost": 4.0823,
-   "host_cost_per_trial": 0.6804,
-   "total_cost_per_trial": 0.6804,
+   "total_cost": 3.9723,
+   "host_cost_per_trial": 0.662,
+   "total_cost_per_trial": 0.662,
    "host_tokens": {
     "input": 519414,
     "cache_creation": 186264,
@@ -3156,7 +3351,8 @@
    },
    "median_minutes": 2.36,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3167,6 +3363,7 @@
    "setup": "agy-staff",
    "trials": 6,
    "resolved": 4,
+   "resolved_official": null,
    "resolve_rate": 0.6667,
    "host_cost": 7.0974,
    "worker_cost": 4.2001,
@@ -3187,7 +3384,8 @@
    },
    "median_minutes": 15.54,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3198,6 +3396,7 @@
    "setup": "solo",
    "trials": 6,
    "resolved": 5,
+   "resolved_official": null,
    "resolve_rate": 0.8333,
    "host_cost": 11.1632,
    "worker_cost": 0.0,
@@ -3218,7 +3417,8 @@
    },
    "median_minutes": 7.47,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3228,8 +3428,9 @@
    "dataset": "swebench-verified",
    "setup": "agy-staff",
    "trials": 8,
-   "resolved": 7,
-   "resolve_rate": 0.875,
+   "resolved": 6,
+   "resolved_official": 7,
+   "resolve_rate": 0.75,
    "host_cost": 5.8125,
    "worker_cost": 10.1111,
    "total_cost": 15.9236,
@@ -3249,7 +3450,8 @@
    },
    "median_minutes": 19.41,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3259,8 +3461,9 @@
    "dataset": "swebench-verified",
    "setup": "native",
    "trials": 8,
-   "resolved": 7,
-   "resolve_rate": 0.875,
+   "resolved": 6,
+   "resolved_official": 7,
+   "resolve_rate": 0.75,
    "host_cost": 2.4221,
    "worker_cost": 3.675,
    "total_cost": 6.0971,
@@ -3280,7 +3483,8 @@
    },
    "median_minutes": 9.72,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3290,8 +3494,9 @@
    "dataset": "swebench-verified",
    "setup": "solo",
    "trials": 8,
-   "resolved": 7,
-   "resolve_rate": 0.875,
+   "resolved": 6,
+   "resolved_official": 7,
+   "resolve_rate": 0.75,
    "host_cost": 6.9483,
    "worker_cost": 0.0,
    "total_cost": 6.9483,
@@ -3311,7 +3516,8 @@
    },
    "median_minutes": 5.86,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3322,6 +3528,7 @@
    "setup": "agy-staff",
    "trials": 6,
    "resolved": 5,
+   "resolved_official": null,
    "resolve_rate": 0.8333,
    "host_cost": 2.2162,
    "worker_cost": 7.7347,
@@ -3342,7 +3549,8 @@
    },
    "median_minutes": 20.69,
    "timeouts": 1,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3353,6 +3561,7 @@
    "setup": "solo",
    "trials": 6,
    "resolved": 5,
+   "resolved_official": null,
    "resolve_rate": 0.8333,
    "host_cost": 2.635,
    "worker_cost": 0,
@@ -3373,7 +3582,8 @@
    },
    "median_minutes": 2.41,
    "timeouts": 0,
-   "exposure": 1
+   "exposure": 1,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3384,6 +3594,7 @@
    "setup": "agy-staff",
    "trials": 6,
    "resolved": 5,
+   "resolved_official": null,
    "resolve_rate": 0.8333,
    "host_cost": 3.7537,
    "worker_cost": 5.6216,
@@ -3404,7 +3615,8 @@
    },
    "median_minutes": 22.57,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3415,6 +3627,7 @@
    "setup": "solo",
    "trials": 6,
    "resolved": 6,
+   "resolved_official": null,
    "resolve_rate": 1.0,
    "host_cost": 3.084,
    "worker_cost": 0,
@@ -3435,7 +3648,8 @@
    },
    "median_minutes": 8.03,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3445,8 +3659,9 @@
    "dataset": "swebench-verified",
    "setup": "agy-staff",
    "trials": 8,
-   "resolved": 5,
-   "resolve_rate": 0.625,
+   "resolved": 4,
+   "resolved_official": 5,
+   "resolve_rate": 0.5,
    "host_cost": 3.6968,
    "worker_cost": 14.2832,
    "total_cost": 17.98,
@@ -3466,7 +3681,8 @@
    },
    "median_minutes": 25.47,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3476,8 +3692,9 @@
    "dataset": "swebench-verified",
    "setup": "native",
    "trials": 8,
-   "resolved": 5,
-   "resolve_rate": 0.625,
+   "resolved": 4,
+   "resolved_official": 5,
+   "resolve_rate": 0.5,
    "host_cost": 2.3556,
    "worker_cost": 0.2718,
    "total_cost": 2.6274,
@@ -3497,7 +3714,8 @@
    },
    "median_minutes": 4.55,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3508,6 +3726,7 @@
    "setup": "solo",
    "trials": 8,
    "resolved": 5,
+   "resolved_official": 5,
    "resolve_rate": 0.625,
    "host_cost": 1.9895,
    "worker_cost": 0,
@@ -3528,7 +3747,8 @@
    },
    "median_minutes": 3.52,
    "timeouts": 0,
-   "exposure": 0
+   "exposure": 0,
+   "rule_violations": 0
   }
  ]
 }

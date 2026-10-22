@@ -122,9 +122,9 @@
 <path d="M282.2,750.0 V749.1 Q282.2,745.1 286.2,745.1 H302.2 Q306.2,745.1 306.2,749.1 V750.0 Z" fill="#D97757"/>
 <text x="294.2" y="738.1" font-size="12.5" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif-charts', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">0.8M</text>
 <text x="398.5" y="742.0" font-size="14" font-weight="400" fill="#BDC1C6" text-anchor="middle">—</text>
-<rect x="490.8" y="747.5" width="24.0" height="2.5" fill="#D97757"/>
-<path d="M490.8,745.5 V707.5 Q490.8,703.5 494.8,703.5 H510.8 Q514.8,703.5 514.8,707.5 V745.5 Z" fill="#4285F4"/>
-<text x="502.8" y="696.5" font-size="12.5" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif-charts', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">7.0M</text>
+<rect x="490.8" y="746.9" width="24.0" height="3.1" fill="#D97757"/>
+<path d="M490.8,744.9 V706.9 Q490.8,702.9 494.8,702.9 H510.8 Q514.8,702.9 514.8,706.9 V744.9 Z" fill="#4285F4"/>
+<text x="502.8" y="695.9" font-size="12.5" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif-charts', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">7.1M</text>
 <path d="M595.2,750.0 V741.9 Q595.2,737.9 599.2,737.9 H615.2 Q619.2,737.9 619.2,741.9 V750.0 Z" fill="#202123"/>
 <text x="607.2" y="730.9" font-size="12.5" font-weight="700" fill="#202124" text-anchor="middle" font-family="'num-source-serif-charts', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, 'PingFang SC', sans-serif" style="font-variant-numeric:tabular-nums lining-nums">1.9M</text>
 <text x="711.5" y="742.0" font-size="14" font-weight="400" fill="#BDC1C6" text-anchor="middle">—</text>

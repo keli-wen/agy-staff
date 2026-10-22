@@ -14,9 +14,9 @@ agy-staff Bench measures what delegating to agy costs a host agent and what it b
 
 ## What v1 shows
 
-- **Claude Code as host:** with agy, host spend fell on all three benchmarks: SWE-bench Verified −16%, SWE-Atlas QnA −36%, DeepSearchQA −50%. Host spend is the part billed to your Claude plan. SWE-bench results were identical: 7/8 in every setup. The price is time (median 13–19 minutes, against 2–8 minutes solo) and worker spend on agy's own quota.
+- **Claude Code as host:** with agy, host spend fell on all three benchmarks: SWE-bench Verified −16%, SWE-Atlas QnA −36%, DeepSearchQA −39%. Host spend is the part billed to your Claude plan. SWE-bench results were identical: 6/8 in every setup. The price is time (median 13–19 minutes, against 2–8 minutes solo) and worker spend on agy's own quota.
 - **Codex as host:** host spend fell only on DeepSearchQA (−16%). SWE-bench (+86%) and QnA (+22%) cost more. Codex polls while it waits for agy, and every wake-up carries the full context. Claude Code waits in the background and is woken when the job finishes.
-- **Where agy lost tasks:** on the Claude Code side, three tasks were solved alone but not with agy. Two were DeepSearchQA runs that hit the 30-minute limit before writing an answer. One was a QnA judge split: Gemini passed it 3/3, DeepSeek 1/3. With agy, Claude Code solved one DeepSearchQA task that it missed alone.
+- **Where agy lost tasks:** on the Claude Code side, three tasks were solved alone but not with agy. Two were DeepSearchQA runs that hit the 30-minute limit before writing an answer. One was a QnA judge split: Gemini passed it 3/3, DeepSeek 1/3. With agy, Claude Code solved one DeepSearchQA task that it missed alone; both answers named the same states, and the difference was a judge split over a remark about Puerto Rico.
 - **One run per task and setup, 20 tasks.** A one-task difference is within noise. Read v1 as a first baseline, not a verdict.
 
 ## Charts
@@ -66,17 +66,21 @@ Tasks were drawn with a fixed seed; their IDs are in `data.json`.
 
 - **Runner.** [Harbor](https://github.com/harbor-framework/harbor) 0.24.0, the release every job's `lock.json` records. Every trial runs in a fresh container built from the benchmark's own image, with the host CLI, agy and agy-staff installed on top.
 - **agy-staff version.** 0.7.3 (`f00d149`). For Claude Code and Codex, 0.7.4 changes no skill, companion code or prompt template, so these results also stand for 0.7.4.
-- **Grading.** SWE-bench is graded by its tests. QnA and DeepSearchQA are graded offline with each dataset's own grading prompts, rubrics and aggregation. The one deviation from the official setup is the judge model: Gemini 3.8 Flash and DeepSeek V4 Pro, three runs each. A task counts as solved only when a majority of each judge's runs pass it.
+- **Grading.** SWE-bench is graded by its tests. A test counts as passed only if no test of that name failed: SWE-bench's SymPy log parser keys results by the bare test name, so a later test with the same name can hide a failure. This changed one task in v1, and `resolved_official` in `data.json` keeps the official verdict. QnA and DeepSearchQA are graded offline with each dataset's own grading prompts, rubrics and aggregation. The one deviation from the official setup is the judge model: Gemini 3.8 Flash and DeepSeek V4 Pro, three runs each. A task counts as solved only when a majority of each judge's runs pass it.
 - **Cost.** US dollars at API list price.
   - Host $ is what the host model uses, the part that comes out of your Claude or ChatGPT plan.
   - Total $ adds the worker. Native subagents bill the host's plan. agy is priced at Gemini list price but runs on agy's own quota.
-  - Claude Code's cost is its own reported `costUSD`, checked against list price. Codex's is computed from its token counts.
+  - Only token costs count, for every host and worker: a tool's per-request fee is left out, and the tokens of the model calls a tool makes stay in.
+  - Claude Code's cost is its own reported `costUSD`, checked against list price, less WebSearch's per-request fee. Codex's is computed from its token counts.
 - **Time.** Median wall clock per trial. Trials ran two or three at a time, so times were measured under that load.
 - **Time limits.** Each benchmark's own. DeepSearchQA stops the agent at 30 minutes and grades whatever answer file exists, so a run with no answer counts as unsolved.
 - **Reruns.** Infrastructure failures are rerun, never counted as unsolved.
   - In 12 trials, Claude Code froze or was stopped by the stall watchdog. In the container it ran as an x86 build under emulation, so those trials were rerun with the native arm64 build of the same version. `data.json` records the build per trial (`claude_binary`).
   - The first Claude Code "+ subagents" prompt led the host to write its own subagent definitions instead of delegating. The prompt was revised, all 8 of those trials were rerun, and the table uses the reruns.
-- **Answer exposure.** DeepSearchQA's answer tables are mirrored on the web. Runs whose tool output contained the answer table are flagged in `data.json` (`answer_key_exposure`). v1 has two, both on task 0118: Claude Code + agy (unsolved, timed out) and Codex solo (solved). Both stay in the table as graded.
+- **Answer exposure and a rule violation.** DeepSearchQA's answer tables are mirrored on the web. `answer_key_exposure` in `data.json` flags runs whose trajectory reached the answer table or its dataset page. v1 has two, both on task 0118:
+  - Codex solo (solved): one search result linked the dataset page, and its snippet showed the question only. The answer came from the original reports.
+  - Claude Code + agy (unsolved): the host's brief to agy left out the rule against looking up the benchmark, and agy downloaded the answer table and cited it. The host saw this, discarded agy's result and was still re-checking the sources when the 30-minute limit hit. `rule_violation` in `data.json` records it. It is the only confirmed violation: every cheat-scan hit in v1 was reviewed by hand, and the rest were false positives.
+  - Both stay in the table as graded.
 
 ## Known limits
 
@@ -99,7 +103,7 @@ results/
     └── data.json     the 96 trials behind the table and the charts, plus per-cell aggregates
 ```
 
-Each trial in `data.json` records the host, model, setup, benchmark and task; whether it was solved, its reward, `timed_out` and `answer_key_exposure`; host and worker cost and tokens; and wall-clock seconds.
+Each trial in `data.json` records the host, model, setup, benchmark and task; whether it was solved (and, for SWE-bench, `resolved_official`), its reward, `timed_out`, `answer_key_exposure` and `rule_violation`; host and worker cost and tokens; and wall-clock seconds.
 
 ## Versions
 
@@ -112,6 +116,14 @@ Each published table gets its own directory under `results/`. A published versio
 **Addition, v1 (2026-10-20).** Three charts drawn from the same `data.json`: cost per trial, tokens per trial, and solved vs cost. No file published before changed.
 
 **Erratum, v1 (2026-10-20).** The method and the table's notes named Harbor commit `3e30cca`, but the trials ran Harbor 0.24.0, as every job's `lock.json` records; both now say 0.24.0. The timeout note under Known limits said one timed-out run still had agy working at 30 minutes; two did. No number changed.
+
+**Erratum, v1 (2026-10-21).** Two cost corrections, one grading correction and a correction to the answer-exposure note.
+- One Claude Code trial's host cost was undercounted. `claude-agy-staff-deepsearchqa-0118` hit the 30-minute limit in the middle of a turn, so that turn never wrote a `result` event, and `analyze.py` took the cost from the earlier turns' result. The main session's messages after that result are now added at list price: $0.61, not $0.22. This is still a lower bound: the cut-off turn's 4 WebSearch calls each ran a model call outside the session transcript, about $0.32 more at the rate the solo runs show.
+- Costs now count tokens only, for every host and worker. Claude Code's `costUSD` included WebSearch's $10 per 1,000 requests, a fee the Codex figures never had. It is taken back out, and the tokens of the model call behind each search stay in. This lowers two Claude Code solo DeepSearchQA trials by $0.08 and $0.03.
+- `sympy__sympy-14248` was solved in no trial, although 5 of 6 counted as solved. Its two FAIL_TO_PASS tests share their names with tests in other files, and SWE-bench's SymPy log parser keys results by the bare name, so the LaTeX file's `test_MatrixSymbol_printing ... ok` overwrote the pretty-printer file's `F`. Every run failed the pretty-printer assertion. A test now passes only if no test of that name failed. Claude Code drops from 7/8 to 6/8 in every setup; Codex + subagents and + agy drop from 5/8 to 4/8, and Codex solo stays at 5/8. `resolved_official` keeps SWE-bench's own verdict, and the official harness would still count the 5 as solved.
+- The answer-exposure note understated one trial and overstated another. In `claude-agy-staff-deepsearchqa-0118`, agy did not just come across the answer table: it downloaded it, because the host's brief had left out the benchmark rule. `data.json` now records this as `rule_violation`; the trial was already unsolved. In `codex-solo-deepsearchqa-0118`, the tool output held a link to the dataset page and the question, not the answer table.
+
+The two cost corrections move Claude Code's DeepSearchQA + agy host spend from −50% to −39% against solo, and its total cost from +74% to +88%. `data.json`, the table and the three charts are redrawn. The other Claude Code trials match their transcripts and did not change.
 
 ## Harness
 
