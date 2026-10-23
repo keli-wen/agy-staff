@@ -9,6 +9,8 @@
    "model": "GPT-6.1 Sol",
    "effort": "xhigh",
    "cli": "Codex 0.160.1",
+   "native_worker_model": "gpt-6-luna",
+   "native_worker_effort": "high",
    "model_id": "gpt-6.1-sol",
    "tag": "s61x"
   },
@@ -17,6 +19,8 @@
    "model": "Claude Opus 5.5",
    "effort": "xhigh",
    "cli": "Claude Code 2.1.296",
+   "native_worker_model": "claude-sonnet-5-5",
+   "native_worker_effort": "xhigh",
    "model_id": "claude-opus-5-5",
    "tag": "c55x"
   }
@@ -39,6 +43,7 @@
    "resolved_official": null,
    "answer_key_exposure": true,
    "rule_violation": "the agy worker downloaded the DeepSearchQA answer table (DSQA-full.csv) and cited it; the host's brief had left out the rule against looking up the benchmark. The host discarded the result and timed out re-checking.",
+   "answer_key_contamination": null,
    "host_cost": 0.6102,
    "worker_cost": 1.4624,
    "host_tokens": {
@@ -73,6 +78,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2125,
    "worker_cost": 1.7818,
    "host_tokens": {
@@ -107,6 +113,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3034,
    "worker_cost": 0.2017,
    "host_tokens": {
@@ -141,6 +148,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4034,
    "worker_cost": 0.6963,
    "host_tokens": {
@@ -175,6 +183,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.5743,
    "worker_cost": 0.5978,
    "host_tokens": {
@@ -209,6 +218,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3272,
    "worker_cost": 0.3001,
    "host_tokens": {
@@ -243,6 +253,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 2.1719,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -277,6 +288,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.718,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -311,6 +323,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2552,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -345,6 +358,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3192,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -379,6 +393,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3097,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -413,6 +428,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1983,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -447,6 +463,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.7078,
    "worker_cost": 0.8593,
    "host_tokens": {
@@ -481,6 +498,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.2006,
    "worker_cost": 0.6059,
    "host_tokens": {
@@ -515,6 +533,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.5631,
    "worker_cost": 0.6262,
    "host_tokens": {
@@ -549,6 +568,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.0153,
    "worker_cost": 1.0955,
    "host_tokens": {
@@ -583,6 +603,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.6428,
    "worker_cost": 0.6814,
    "host_tokens": {
@@ -617,6 +638,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.9678,
    "worker_cost": 0.3318,
    "host_tokens": {
@@ -651,6 +673,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.9002,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -685,6 +708,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.7918,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -719,6 +743,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 2.37,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -753,6 +778,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 2.5551,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -787,6 +813,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.4066,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -821,6 +848,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.1395,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -855,6 +883,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.681,
    "worker_cost": 0.8821,
    "host_tokens": {
@@ -889,6 +918,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.7264,
    "worker_cost": 1.4773,
    "host_tokens": {
@@ -923,6 +953,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.6025,
    "worker_cost": 1.1905,
    "host_tokens": {
@@ -957,6 +988,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.5602,
    "worker_cost": 0.7525,
    "host_tokens": {
@@ -991,6 +1023,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3836,
    "worker_cost": 0.7423,
    "host_tokens": {
@@ -1025,6 +1058,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4137,
    "worker_cost": 0.9361,
    "host_tokens": {
@@ -1059,6 +1093,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.0072,
    "worker_cost": 1.6801,
    "host_tokens": {
@@ -1093,6 +1128,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.4379,
    "worker_cost": 2.4502,
    "host_tokens": {
@@ -1127,6 +1163,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3396,
    "worker_cost": 0.4307,
    "host_tokens": {
@@ -1161,6 +1198,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4604,
    "worker_cost": 0.604,
    "host_tokens": {
@@ -1195,6 +1233,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.201,
    "worker_cost": 0.3072,
    "host_tokens": {
@@ -1229,6 +1268,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3127,
    "worker_cost": 0.3388,
    "host_tokens": {
@@ -1263,6 +1303,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2031,
    "worker_cost": 0.1842,
    "host_tokens": {
@@ -1297,6 +1338,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3196,
    "worker_cost": 0.2403,
    "host_tokens": {
@@ -1331,6 +1373,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2264,
    "worker_cost": 0.3068,
    "host_tokens": {
@@ -1365,6 +1408,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3593,
    "worker_cost": 1.263,
    "host_tokens": {
@@ -1399,6 +1443,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.6682,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1433,6 +1478,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.1067,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1467,6 +1513,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.7334,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1501,6 +1548,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3486,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1535,6 +1583,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2396,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1569,6 +1618,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4631,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1603,6 +1653,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.9145,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1637,6 +1688,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 2.4742,
    "worker_cost": 0.0,
    "host_tokens": {
@@ -1671,6 +1723,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.5687,
    "worker_cost": 2.5666,
    "host_tokens": {
@@ -1705,6 +1758,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4575,
    "worker_cost": 1.2976,
    "host_tokens": {
@@ -1739,6 +1793,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1566,
    "worker_cost": 0.4328,
    "host_tokens": {
@@ -1773,6 +1828,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3675,
    "worker_cost": 1.1093,
    "host_tokens": {
@@ -1807,6 +1863,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3552,
    "worker_cost": 1.0057,
    "host_tokens": {
@@ -1841,6 +1898,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3107,
    "worker_cost": 1.3227,
    "host_tokens": {
@@ -1865,6 +1923,222 @@
    "effort": "xhigh",
    "cli": "Codex 0.160.1",
    "dataset": "deepsearchqa",
+   "setup": "native",
+   "task": "deepsearchqa-0118",
+   "rep": 1,
+   "job": "codex-native-deepsearchqa-0118-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": false,
+   "reward": 0.8688,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": true,
+   "rule_violation": null,
+   "answer_key_contamination": "The Luna worker received the exact answer row in ordinary search results. Actual answer-content contamination is confirmed; intentional benchmark lookup is not established. The trial remains unsolved.",
+   "host_cost": 0.3799,
+   "worker_cost": 0.0834,
+   "host_tokens": {
+    "input": 84564,
+    "cache_creation": 0,
+    "cache_read": 1534336,
+    "output": 5731
+   },
+   "worker_tokens": {
+    "input": 200422,
+    "cache_creation": 0,
+    "cache_read": 5514752,
+    "output": 16330
+   },
+   "wall_clock_s": 346,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "deepsearchqa",
+   "setup": "native",
+   "task": "deepsearchqa-0190",
+   "rep": 1,
+   "job": "codex-native-deepsearchqa-0190-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.3868,
+   "worker_cost": 0.0302,
+   "host_tokens": {
+    "input": 91542,
+    "cache_creation": 0,
+    "cache_read": 1612416,
+    "output": 4252
+   },
+   "worker_tokens": {
+    "input": 84102,
+    "cache_creation": 0,
+    "cache_read": 1782912,
+    "output": 7890
+   },
+   "wall_clock_s": 187,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "deepsearchqa",
+   "setup": "native",
+   "task": "deepsearchqa-0515",
+   "rep": 1,
+   "job": "codex-native-deepsearchqa-0515-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.083,
+   "worker_cost": 0.007,
+   "host_tokens": {
+    "input": 24486,
+    "cache_creation": 0,
+    "cache_read": 266880,
+    "output": 736
+   },
+   "worker_tokens": {
+    "input": 42498,
+    "cache_creation": 0,
+    "cache_read": 196480,
+    "output": 1511
+   },
+   "wall_clock_s": 65,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "deepsearchqa",
+   "setup": "native",
+   "task": "deepsearchqa-0554",
+   "rep": 1,
+   "job": "codex-native-deepsearchqa-0554-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.3272,
+   "worker_cost": 0.0217,
+   "host_tokens": {
+    "input": 74090,
+    "cache_creation": 0,
+    "cache_read": 1261568,
+    "output": 5283
+   },
+   "worker_tokens": {
+    "input": 55258,
+    "cache_creation": 0,
+    "cache_read": 1085440,
+    "output": 10701
+   },
+   "wall_clock_s": 264,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "deepsearchqa",
+   "setup": "native",
+   "task": "deepsearchqa-0793",
+   "rep": 1,
+   "job": "codex-native-deepsearchqa-0793-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.188,
+   "worker_cost": 0.0168,
+   "host_tokens": {
+    "input": 57976,
+    "cache_creation": 0,
+    "cache_read": 451328,
+    "output": 2687
+   },
+   "worker_tokens": {
+    "input": 88624,
+    "cache_creation": 0,
+    "cache_read": 582528,
+    "output": 4168
+   },
+   "wall_clock_s": 141,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "deepsearchqa",
+   "setup": "native",
+   "task": "deepsearchqa-0797",
+   "rep": 1,
+   "job": "codex-native-deepsearchqa-0797-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.229,
+   "worker_cost": 0.0145,
+   "host_tokens": {
+    "input": 64689,
+    "cache_creation": 0,
+    "cache_read": 679424,
+    "output": 3168
+   },
+   "worker_tokens": {
+    "input": 49649,
+    "cache_creation": 0,
+    "cache_read": 688000,
+    "output": 5251
+   },
+   "wall_clock_s": 143,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "deepsearchqa",
    "setup": "solo",
    "task": "deepsearchqa-0118",
    "rep": 1,
@@ -1875,6 +2149,7 @@
    "resolved_official": null,
    "answer_key_exposure": true,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 1.2017,
    "worker_cost": 0,
    "host_tokens": {
@@ -1909,6 +2184,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2261,
    "worker_cost": 0,
    "host_tokens": {
@@ -1943,6 +2219,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.104,
    "worker_cost": 0,
    "host_tokens": {
@@ -1977,6 +2254,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.8068,
    "worker_cost": 0,
    "host_tokens": {
@@ -2011,6 +2289,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1371,
    "worker_cost": 0,
    "host_tokens": {
@@ -2045,6 +2324,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1593,
    "worker_cost": 0,
    "host_tokens": {
@@ -2079,6 +2359,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.5765,
    "worker_cost": 0.743,
    "host_tokens": {
@@ -2113,6 +2394,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.9287,
    "worker_cost": 0.8279,
    "host_tokens": {
@@ -2147,6 +2429,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.5259,
    "worker_cost": 1.2499,
    "host_tokens": {
@@ -2181,6 +2464,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.7525,
    "worker_cost": 1.2974,
    "host_tokens": {
@@ -2215,6 +2499,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.5019,
    "worker_cost": 0.9996,
    "host_tokens": {
@@ -2249,6 +2534,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4682,
    "worker_cost": 0.5038,
    "host_tokens": {
@@ -2273,6 +2559,222 @@
    "effort": "xhigh",
    "cli": "Codex 0.160.1",
    "dataset": "swe-atlas-qna",
+   "setup": "native",
+   "task": "task-6905333b74f22949d97ba9a8",
+   "rep": 1,
+   "job": "codex-native-task-6905333b74f22949d97ba9a8-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.4682,
+   "worker_cost": 0.0525,
+   "host_tokens": {
+    "input": 96626,
+    "cache_creation": 0,
+    "cache_read": 1633536,
+    "output": 11156
+   },
+   "worker_tokens": {
+    "input": 87873,
+    "cache_creation": 0,
+    "cache_read": 3664128,
+    "output": 14098
+   },
+   "wall_clock_s": 429,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "swe-atlas-qna",
+   "setup": "native",
+   "task": "task-6905333b74f22949d97ba9bc",
+   "rep": 1,
+   "job": "codex-native-task-6905333b74f22949d97ba9bc-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.5427,
+   "worker_cost": 0.0253,
+   "host_tokens": {
+    "input": 100016,
+    "cache_creation": 0,
+    "cache_read": 2037120,
+    "output": 13896
+   },
+   "worker_tokens": {
+    "input": 72337,
+    "cache_creation": 0,
+    "cache_read": 1329792,
+    "output": 9486
+   },
+   "wall_clock_s": 513,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "swe-atlas-qna",
+   "setup": "native",
+   "task": "task-6905333b74f22949d97ba9ce",
+   "rep": 1,
+   "job": "codex-native-task-6905333b74f22949d97ba9ce-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.7078,
+   "worker_cost": 0.044,
+   "host_tokens": {
+    "input": 81860,
+    "cache_creation": 0,
+    "cache_read": 3578368,
+    "output": 18622
+   },
+   "worker_tokens": {
+    "input": 114237,
+    "cache_creation": 0,
+    "cache_read": 2762880,
+    "output": 9818
+   },
+   "wall_clock_s": 539,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "swe-atlas-qna",
+   "setup": "native",
+   "task": "task-6905333b74f22949d97ba9dd",
+   "rep": 1,
+   "job": "codex-native-task-6905333b74f22949d97ba9dd-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": false,
+   "reward": 0.5,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.9216,
+   "worker_cost": 0.1343,
+   "host_tokens": {
+    "input": 116542,
+    "cache_creation": 0,
+    "cache_read": 4812800,
+    "output": 20726
+   },
+   "worker_tokens": {
+    "input": 135106,
+    "cache_creation": 0,
+    "cache_read": 10424704,
+    "output": 33095
+   },
+   "wall_clock_s": 846,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "swe-atlas-qna",
+   "setup": "native",
+   "task": "task-6905333b74f22949d97baa04",
+   "rep": 1,
+   "job": "codex-native-task-6905333b74f22949d97baa04-s61x-native-supplement-20261023-r1-rerun1",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.2266,
+   "worker_cost": 0.0214,
+   "host_tokens": {
+    "input": 45708,
+    "cache_creation": 0,
+    "cache_read": 698496,
+    "output": 6537
+   },
+   "worker_tokens": {
+    "input": 73838,
+    "cache_creation": 0,
+    "cache_read": 1034240,
+    "output": 7345
+   },
+   "wall_clock_s": 244,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "swe-atlas-qna",
+   "setup": "native",
+   "task": "task-6905333b74f22949d97baa15",
+   "rep": 1,
+   "job": "codex-native-task-6905333b74f22949d97baa15-s61x-native-supplement-20261023-r1-rerun4",
+   "resolved": true,
+   "reward": 1.0,
+   "timed_out": false,
+   "resolved_official": null,
+   "answer_key_exposure": false,
+   "rule_violation": null,
+   "answer_key_contamination": null,
+   "host_cost": 0.3739,
+   "worker_cost": 0.0219,
+   "host_tokens": {
+    "input": 82508,
+    "cache_creation": 0,
+    "cache_read": 1108608,
+    "output": 9803
+   },
+   "worker_tokens": {
+    "input": 100030,
+    "cache_creation": 0,
+    "cache_read": 799616,
+    "output": 7707
+   },
+   "wall_clock_s": 349,
+   "claude_binary": null,
+   "source_phase": "2026-10-23 native supplement"
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "cli": "Codex 0.160.1",
+   "dataset": "swe-atlas-qna",
    "setup": "solo",
    "task": "task-6905333b74f22949d97ba9a8",
    "rep": 1,
@@ -2283,6 +2785,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.5237,
    "worker_cost": 0,
    "host_tokens": {
@@ -2317,6 +2820,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4979,
    "worker_cost": 0,
    "host_tokens": {
@@ -2351,6 +2855,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3796,
    "worker_cost": 0,
    "host_tokens": {
@@ -2385,6 +2890,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.872,
    "worker_cost": 0,
    "host_tokens": {
@@ -2419,6 +2925,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4263,
    "worker_cost": 0,
    "host_tokens": {
@@ -2453,6 +2960,7 @@
    "resolved_official": null,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3845,
    "worker_cost": 0,
    "host_tokens": {
@@ -2487,6 +2995,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.728,
    "worker_cost": 2.5965,
    "host_tokens": {
@@ -2521,6 +3030,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.6044,
    "worker_cost": 2.6697,
    "host_tokens": {
@@ -2555,6 +3065,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3349,
    "worker_cost": 1.1304,
    "host_tokens": {
@@ -2589,6 +3100,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3306,
    "worker_cost": 1.2215,
    "host_tokens": {
@@ -2623,6 +3135,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.248,
    "worker_cost": 0.8311,
    "host_tokens": {
@@ -2657,6 +3170,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4701,
    "worker_cost": 1.3226,
    "host_tokens": {
@@ -2691,6 +3205,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.399,
    "worker_cost": 1.2213,
    "host_tokens": {
@@ -2725,6 +3240,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.5818,
    "worker_cost": 3.2901,
    "host_tokens": {
@@ -2759,6 +3275,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3442,
    "worker_cost": 0.0148,
    "host_tokens": {
@@ -2793,6 +3310,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.4337,
    "worker_cost": 0.0461,
    "host_tokens": {
@@ -2827,6 +3345,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2267,
    "worker_cost": 0.0338,
    "host_tokens": {
@@ -2861,6 +3380,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2435,
    "worker_cost": 0.0196,
    "host_tokens": {
@@ -2895,6 +3415,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1613,
    "worker_cost": 0.019,
    "host_tokens": {
@@ -2929,6 +3450,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1723,
    "worker_cost": 0.01,
    "host_tokens": {
@@ -2963,6 +3485,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1909,
    "worker_cost": 0.0299,
    "host_tokens": {
@@ -2997,6 +3520,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.583,
    "worker_cost": 0.0986,
    "host_tokens": {
@@ -3031,6 +3555,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2184,
    "worker_cost": 0,
    "host_tokens": {
@@ -3065,6 +3590,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.3338,
    "worker_cost": 0,
    "host_tokens": {
@@ -3099,6 +3625,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.188,
    "worker_cost": 0,
    "host_tokens": {
@@ -3133,6 +3660,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1384,
    "worker_cost": 0,
    "host_tokens": {
@@ -3167,6 +3695,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2208,
    "worker_cost": 0,
    "host_tokens": {
@@ -3201,6 +3730,7 @@
    "resolved_official": true,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.1902,
    "worker_cost": 0,
    "host_tokens": {
@@ -3235,6 +3765,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.2219,
    "worker_cost": 0,
    "host_tokens": {
@@ -3269,6 +3800,7 @@
    "resolved_official": false,
    "answer_key_exposure": false,
    "rule_violation": null,
+   "answer_key_contamination": null,
    "host_cost": 0.478,
    "worker_cost": 0,
    "host_tokens": {
@@ -3319,7 +3851,8 @@
    "median_minutes": 13.31,
    "timeouts": 2,
    "exposure": 1,
-   "rule_violations": 1
+   "rule_violations": 1,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3352,7 +3885,8 @@
    "median_minutes": 2.36,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3385,7 +3919,8 @@
    "median_minutes": 15.54,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3418,7 +3953,8 @@
    "median_minutes": 7.47,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3451,7 +3987,8 @@
    "median_minutes": 19.41,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3484,7 +4021,8 @@
    "median_minutes": 9.72,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3517,7 +4055,8 @@
    "median_minutes": 5.86,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3550,7 +4089,42 @@
    "median_minutes": 20.69,
    "timeouts": 1,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "dataset": "deepsearchqa",
+   "setup": "native",
+   "trials": 6,
+   "resolved": 5,
+   "resolved_official": null,
+   "resolve_rate": 0.8333,
+   "host_cost": 1.5939,
+   "worker_cost": 0.1736,
+   "total_cost": 1.7675,
+   "host_cost_per_trial": 0.2656,
+   "total_cost_per_trial": 0.2946,
+   "host_tokens": {
+    "input": 397347,
+    "cache_creation": 0,
+    "cache_read": 5805952,
+    "output": 21857
+   },
+   "worker_tokens": {
+    "input": 520553,
+    "cache_creation": 0,
+    "cache_read": 9850112,
+    "output": 45851
+   },
+   "median_minutes": 2.75,
+   "timeouts": 0,
+   "exposure": 1,
+   "rule_violations": 0,
+   "answer_key_contaminations": 1
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3583,7 +4157,8 @@
    "median_minutes": 2.41,
    "timeouts": 0,
    "exposure": 1,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3616,7 +4191,42 @@
    "median_minutes": 22.57,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
+  },
+  {
+   "agy_staff": "0.7.3 (f00d149)",
+   "host": "Codex",
+   "model": "GPT-6.1 Sol",
+   "effort": "xhigh",
+   "dataset": "swe-atlas-qna",
+   "setup": "native",
+   "trials": 6,
+   "resolved": 5,
+   "resolved_official": null,
+   "resolve_rate": 0.8333,
+   "host_cost": 3.2408,
+   "worker_cost": 0.2994,
+   "total_cost": 3.5402,
+   "host_cost_per_trial": 0.5401,
+   "total_cost_per_trial": 0.59,
+   "host_tokens": {
+    "input": 523260,
+    "cache_creation": 0,
+    "cache_read": 13868928,
+    "output": 80740
+   },
+   "worker_tokens": {
+    "input": 583421,
+    "cache_creation": 0,
+    "cache_read": 20015360,
+    "output": 81549
+   },
+   "median_minutes": 7.85,
+   "timeouts": 0,
+   "exposure": 0,
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3649,7 +4259,8 @@
    "median_minutes": 8.03,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3682,7 +4293,8 @@
    "median_minutes": 25.47,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3715,7 +4327,8 @@
    "median_minutes": 4.55,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   },
   {
    "agy_staff": "0.7.3 (f00d149)",
@@ -3748,7 +4361,8 @@
    "median_minutes": 3.52,
    "timeouts": 0,
    "exposure": 0,
-   "rule_violations": 0
+   "rule_violations": 0,
+   "answer_key_contaminations": 0
   }
  ]
 }

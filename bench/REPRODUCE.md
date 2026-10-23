@@ -13,7 +13,7 @@ Every script answers `--help` with its arguments, defaults, examples, exit codes
 - Credentials go in only as file paths through the options. Never print, copy or `cat` a credential file, and never print the environment.
 - On a leak-scan hit (exit 3) or a failed egress check (exit 4), stop and tell the user.
 - Exit 5 means the environment failed before agent setup and could not produce a container egress record. The batch stops and reports the environment failure; this does not establish a network or IP mismatch.
-- A published version (`results/vN/`) is never edited, and the task records in `tasks/` change only for a new version.
+- Change a published version (`results/vN/`) only for an explicitly approved, documented erratum or dated supplement that preserves the existing trials. New models, prompts or task sets require a new version.
 
 | script | what it does | costs or touches |
 |---|---|---|
@@ -38,6 +38,8 @@ bench/scripts/render-png.sh /tmp/v1/summary.svg                              # n
 ```
 
 Each SVG is byte for byte its file in `results/v1/`: the embedded number font is subset without timestamps, so the same `data.json` always gives the same SVGs.
+
+With the original local analysis records, `python3 bench/scripts/viz-data.py --out /tmp/v1-data.json` also regenerates v1's `data.json`. `results/trials.jsonl` is a local, git-ignored input, not part of a fresh checkout; it must include the 12 manifest-selected Codex native supplement records and their `source_phase`. The exporter retains their batch identity and manually reviewed answer-contamination flag. Native worker reasoning efforts are recorded in `runs` and shown in the summary's existing worker note. Redrawing the figures needs only the published `data.json`.
 
 ## Run trials
 

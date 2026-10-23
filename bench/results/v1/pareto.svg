@@ -85,6 +85,7 @@
 <text x="511.0" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
 <circle cx="452.9" cy="441.3" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="452.9" cy="441.3" r="5.5" fill="#D97757"/>
 <circle cx="382.6" cy="420.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="382.6" cy="420.7" r="5.5" fill="#202123"/>
+<circle cx="366.3" cy="420.7" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
 <circle cx="503.0" cy="420.7" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
 <circle cx="360.9" cy="400.0" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
 <line x1="574.0" y1="524.0" x2="862.0" y2="524.0" stroke="#BDC1C6" stroke-width="1"/>
@@ -100,6 +101,7 @@
 <text x="829.0" y="540.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
 <circle cx="822.3" cy="441.3" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="822.3" cy="441.3" r="5.5" fill="#D97757"/>
 <circle cx="801.7" cy="420.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="801.7" cy="420.7" r="5.5" fill="#202123"/>
+<circle cx="694.1" cy="420.7" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
 <circle cx="821.0" cy="420.7" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
 <circle cx="678.9" cy="400.0" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
 <line x1="52.0" y1="560.0" x2="868.0" y2="560.0" stroke="#DADCE0" stroke-width="1"/>
@@ -121,6 +123,7 @@
 <text x="511.0" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
 <circle cx="334.6" cy="646.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="334.6" cy="646.0" r="5.5" fill="#D97757"/>
 <circle cx="324.4" cy="604.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="324.4" cy="604.7" r="5.5" fill="#202123"/>
+<circle cx="287.9" cy="604.7" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
 <circle cx="388.8" cy="625.3" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
 <circle cx="343.5" cy="604.7" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
 <line x1="574.0" y1="708.0" x2="862.0" y2="708.0" stroke="#BDC1C6" stroke-width="1"/>
@@ -136,6 +139,7 @@
 <text x="829.0" y="724.0" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#9AA0A6" text-anchor="middle">$2</text>
 <circle cx="776.6" cy="646.0" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="776.6" cy="646.0" r="5.5" fill="#D97757"/>
 <circle cx="808.3" cy="604.7" r="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="3"/><circle cx="808.3" cy="604.7" r="5.5" fill="#202123"/>
+<circle cx="617.4" cy="604.7" r="6" fill="#AAABAB" stroke="#202123" stroke-width="2"/>
 <circle cx="706.8" cy="625.3" r="6.5" fill="#D97757" stroke="#FFFFFF" stroke-width="2"/>
 <circle cx="661.5" cy="604.7" r="6.5" fill="#202123" stroke="#FFFFFF" stroke-width="2"/>
 <g stroke="#5F6368" stroke-width="1"><line x1="40" y1="784" x2="240.8" y2="784"/><line x1="679.2" y1="784" x2="880" y2="784"/><line x1="40" y1="779" x2="40" y2="789"/><line x1="880" y1="779" x2="880" y2="789"/></g>

@@ -369,20 +369,18 @@ def swatches(colors, size=8, gap=2):
 def task_square(f, x, y, color, resolved=False, timed_out=False, issue=False):
     """Use the table's pixel squares for outcomes and reviewed answer-key issues.
 
-    A solid red square is an issue; a hollow one is a timeout. When both apply,
-    a red center inside the hollow square keeps both visible without a new glyph or color.
+    A solid red square is an issue; a hollow one is a timeout. Timeout takes visual
+    precedence; any overlapping issue remains in the trial's title and audit data.
     """
     fill = RED if issue else (color if resolved else "#DADCE0")
     if timed_out:
         f.add(f'<rect x="{x + 0.6:.1f}" y="{y + 0.6:.1f}" width="4.8" height="4.8" fill="#FFFFFF" '
               f'stroke="{RED}" stroke-width="1.2"/>')
-        if issue:
-            f.add(f'<rect x="{x + 2:.1f}" y="{y + 2:.1f}" width="2" height="2" fill="{RED}"/>')
     else:
         f.add(f'<rect x="{x:.1f}" y="{y}" width="6" height="6" fill="{fill}"/>')
 
 
-def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials, presentation=None):
+def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials):
     """The headline table: every benchmark, both hosts, three setups, in one image.
 
     Each column says what it is with marks, not words: the host alone; the host with two small copies of itself
@@ -391,8 +389,9 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
     the + agy columns framed as agy's staff badge, and
     both cost rows compared with the same host's solo (the baseline) as green / red arrows.
     """
-    presentation = presentation or {}
     get = {(a["dataset"], a["host"], a["setup"]): a for a in aggs}
+    worker_efforts = "; ".join(f'{HOSTS[h]["subagent"]} {next(r for r in runs if r["host"] == h).get("native_worker_effort", "not recorded")}'
+                               for h in HOSTS)
     trial_groups = {}
     for t in trials:
         trial_groups.setdefault((t["dataset"], t["host"], t["setup"]), []).append(t)
@@ -428,7 +427,7 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
         ("Resolved", "SWE-bench by its tests. QnA and DeepSearchQA only when both judges pass (Gemini 3.8 Flash, DeepSeek V4 Pro)."),
         ("Host $", "what the host model itself uses, at API list price: the part that comes out of your Claude or ChatGPT plan."),
         ("Total $", "host + worker. Subagents bill the host's plan; agy is priced at Gemini list price but runs on agy's own quota."),
-        ("+ agy", "the prompt asks the host to use agy lead (/agy:lead), and lead picks which agy job to run."),
+        ("Worker effort", f"native: {worker_efforts}. agy: lead selects the job and effort."),
     ]
     if timeouts:
         limit = ", ".join(f"{h} {n}" for h, s, d, n in timeouts)
@@ -437,11 +436,6 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
                                     f"({limit}) and count as unsolved."))
     audited = any(a.get("rule_violations") or a.get("answer_key_contaminations") for a in aggs)
     notes.append(versions_note(version))
-    if audited:
-        notes.append(("Answer-key issues", "solid red: confirmed rule violation or answer-content contamination. A red center with an outline means it also timed out. Raw grades stay in the counts."))
-        if bench == "v1":
-            notes.append(("Claude Code + agy · 0118", "agy downloaded and cited the answer table. The host discarded the result and timed out re-checking sources."))
-    notes.extend(presentation.get("notes", []))
     note_rows, row_lines, notes_h = notes_layout(notes)
     dim_y = card_end + 32
     key_y = dim_y + 32
@@ -450,9 +444,8 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
 
     f = Fig(H, f"agy-staff Bench {bench}, a harness and orchestration bench: Claude Code and Codex, solo, with their own subagents, and with agy, on "
                f"{', '.join(DATASETS[d] for d in dss)}; resolved tasks, host cost, total cost and median time")
-    eyebrow = "HARNESS & ORCHESTRATION BENCH" + (" · PREVIEW" if presentation.get("preview") else "")
-    subtitle = presentation.get("subtitle", f"Claude Code and Codex on {len(dss)} benchmarks: solo, with their own subagents, and with agy.")
-    draw_head(f, H, eyebrow, f"agy-staff Bench {bench}", subtitle, version)
+    draw_head(f, H, "HARNESS & ORCHESTRATION BENCH", f"agy-staff Bench {bench}",
+              f"Claude Code and Codex on {len(dss)} benchmarks: solo, with their own subagents, and with agy.", version)
     draw_card(f, card_top, card_end)
     draw_columns(f, card_top, body_top, body_end, runs)
     # body
@@ -795,8 +788,8 @@ def main(argv):
   viz-svg.py bench/results/v1/data.json --out /tmp/v1    redraws the v1 table elsewhere
 
 for agents:
-  - A published version is never edited: do not write into bench/results/v1/ or another published
-    version's directory. The first run downloads the number font (pinned, about 1.2 MB).""",
+  - Change a published version only for an explicitly approved, documented erratum or supplement.
+    The first run downloads the number font (pinned, about 1.2 MB).""",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("data", type=Path, help="the version's data.json (viz-data.py)")
     ap.add_argument("--out", type=Path, help="output directory (default: the directory of data.json)")
@@ -816,7 +809,7 @@ for agents:
     trials = [t for t in doc["trials"] if t["agy_staff"] == version and t["host"] in HOSTS]
     figures = {"summary": summary_table} | (CHARTS if args.charts else {})
     for name, draw in figures.items():
-        kwargs = {"trials": trials, "presentation": doc.get("presentation")} if name == "summary" else {}
+        kwargs = {"trials": trials} if name == "summary" else {}
         (out / f"{name}.svg").write_text(draw(aggs, runs, version, bench, **kwargs))
     print(f"wrote {', '.join(f'{n}.svg' for n in figures)} to {out} (agy-staff Bench {bench}, agy-staff {version})", file=sys.stderr)
 

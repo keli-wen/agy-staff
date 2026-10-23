@@ -10,7 +10,7 @@ agy-staff Bench measures what delegating to agy costs a host agent and what it b
 > **Why a bench.** It runs the same tasks on different hosts, with and without agy, to answer three questions:
 > - **When to delegate.** Which tasks and which hosts gain from handing work to agy, and which are better left solo. The answers become best practices for using agy-staff.
 > - **What to fix in agy-staff.** Each run shows where delegation wastes time or tokens. Those findings go back into the plugin as fixes, and later bench versions check whether the fixes worked.
-> - **How harnesses differ.** Same prompt, same worker, different host. Gaps in the results trace back to design choices in each harness.
+> - **How harnesses behave.** Inspect the trajectories to see how each host delegates, waits and reviews. Worker models and effort levels differ, so the table alone cannot isolate orchestration effects across hosts.
 
 ## What v1 shows
 
@@ -37,15 +37,15 @@ The same results as the table, drawn three more ways.
 
 ## What it measures
 
-The three setups share one prompt. Only the last line, which says how to orchestrate, differs, so orchestration is the only variable.
+The three setups share task rules. The final instruction chooses the orchestration and worker. The table compares complete configurations; worker capability, token price and reasoning effort are not controlled across hosts.
 
 | setup | the host | worker |
 |---|---|---|
 | solo | works alone | none |
-| + subagents | delegates to its own subagents | Claude Code: Sonnet 5.5; Codex: GPT-6 Luna |
+| + subagents | delegates to its own subagents | Claude Code: Sonnet 5.5 xhigh; Codex: GPT-6 Luna high |
 | + agy | is told to use `lead` (`/agy:lead`, `$agy:lead`); lead picks which agy jobs to run | Gemini 3.8 Flash, agy CLI 1.3.0 |
 
-v1 ran "+ subagents" only on SWE-bench Verified.
+v1 originally ran "+ subagents" only on SWE-bench Verified. The 2026-10-23 supplement fills the Codex native QnA and DeepSearchQA cells in v1; Claude Code native remains unmeasured on those two benchmarks.
 
 Each benchmark stands for one way you might use a worker:
 
@@ -72,23 +72,36 @@ Tasks were drawn with a fixed seed; their IDs are in `data.json`.
   - Total $ adds the worker. Native subagents bill the host's plan. agy is priced at Gemini list price but runs on agy's own quota.
   - Only token costs count, for every host and worker: a tool's per-request fee is left out, and the tokens of the model calls a tool makes stay in.
   - Claude Code's cost is its own reported `costUSD`, checked against list price, less WebSearch's per-request fee. Codex's is computed from its token counts.
-- **Time.** Median wall clock per trial. Trials ran two or three at a time, so times were measured under that load.
+- **Time.** Median wall clock per trial. Baseline trials ran two or three at a time; the native supplement was a later batch. Timing comparisons include the different batch conditions.
 - **Time limits.** Each benchmark's own. DeepSearchQA stops the agent at 30 minutes and grades whatever answer file exists, so a run with no answer counts as unsolved.
 - **Reruns.** Infrastructure failures are rerun, never counted as unsolved.
   - In 12 trials, Claude Code froze or was stopped by the stall watchdog. In the container it ran as an x86 build under emulation, so those trials were rerun with the native arm64 build of the same version. `data.json` records the build per trial (`claude_binary`).
   - The first Claude Code "+ subagents" prompt led the host to write its own subagent definitions instead of delegating. The prompt was revised, all 8 of those trials were rerun, and the table uses the reruns.
-- **Answer exposure and a rule violation.** DeepSearchQA's answer tables are mirrored on the web. `answer_key_exposure` in `data.json` flags runs whose trajectory reached the answer table or its dataset page. v1 has two, both on task 0118:
+- **Answer exposure and a rule violation.** DeepSearchQA's answer tables are mirrored on the web. `answer_key_exposure` in `data.json` flags runs whose trajectory reached the answer table or its dataset page. Including the native supplement, v1 has three flagged trials, all on task 0118:
   - Codex solo (solved): one search result linked the dataset page, and its snippet showed the question only. The answer came from the original reports.
   - Claude Code + agy (unsolved): the host's brief to agy left out the rule against looking up the benchmark, and agy downloaded the answer table and cited it. The host saw this, discarded agy's result and was still re-checking the sources when the 30-minute limit hit. `rule_violation` in `data.json` records it. It is the only confirmed violation: every cheat-scan hit in v1 was reviewed by hand, and the rest were false positives.
-  - Both stay in the table as graded.
-  - The summary table uses solid red task squares for confirmed rule violations or answer-content contamination, and hollow red squares for timeouts. A red center inside a hollow square means both apply. Dataset-source encounters stay in the audit data without a visual mark; that flag alone does not establish cheating. Raw grades stay in the counts.
+  - Codex native (unsolved): ordinary searches returned the exact answer row into the Luna worker's context. This is recorded as `answer_key_contamination`, independently of `rule_violation`. Actual answer-content exposure is confirmed; intentional benchmark lookup is not established.
+  - All three stay in the table as graded. The native DeepSearchQA score is 5/6 with one contaminated unsuccessful trial, not a fully clean six-task result.
+  - The summary uses solid red task squares for confirmed rule violations or answer-content contamination, and hollow red squares for timeouts. Timeout takes visual precedence: a timed-out trial has only its hollow outline, with any overlapping review flags retained in the data. Dataset links alone receive no visual mark.
+
+## Codex native supplement (2026-10-23)
+
+The completed 12-job manifest fills the missing Codex native cells using GPT-6.1 Sol xhigh, GPT-6 Luna high and Codex CLI 0.160.1. The task IDs and prompts match v1. It ran later, with a different login and the refactored runner; it is not a controlled rerun of the whole matrix. Sonnet 5.5 and Luna are not matched by token price or established capability, and effort labels are not equivalent across providers.
+
+| Added native group | Solved | Host USD / trial | Total USD / trial | Median minutes |
+|---|---:|---:|---:|---:|
+| SWE-Atlas QnA | 5/6 | 0.5401 | 0.5900 | 7.85 |
+| DeepSearchQA | 5/6 | 0.2656 | 0.2946 | 2.75 |
+
+The added jobs are exactly those in `manifest-s61x-native-supplement-20261023-r1-rerun4.json`: the first valid QnA trial comes from rerun1 and the other 11 from rerun4. Superseded s6x jobs and failed infrastructure attempts are excluded. Their analysis records are appended to the local, git-ignored `results/trials.jsonl`; the published `data.json` retains each exact job name and `source_phase`. Its `runs` metadata records native worker model and effort, verified against the actual worker trajectories. The original 96 selected trials and their measured results are retained.
 
 ## Known limits
 
 - One run per task and setup, over 20 tasks.
-- "+ subagents" ran only on SWE-bench Verified.
+- Claude Code "+ subagents" ran only on SWE-bench Verified; Codex native covers all three benchmarks after the supplement.
+- Native workers differ in model, token price and effort, so cross-host results compare configurations rather than isolate harness effects.
 - Replacing the judge model departs from the official QnA and DeepSearchQA grading.
-- Times were measured with trials running concurrently.
+- Times were measured in separate batches and include different concurrency conditions.
 - Neither the prompt nor `lead` tells the host about DeepSearchQA's 30-minute limit. In the three timed-out runs, agy's first research job took about 21 minutes or more, two of the runs still had an agy job running at 30, and no host wrote a provisional answer first. The next version will add the time limit to every setup's prompt.
 
 ## Files
@@ -101,14 +114,14 @@ results/
     ├── cost.svg      cost per trial, host and worker  (and cost.png)
     ├── tokens.svg    tokens per trial, host and worker  (and tokens.png)
     ├── pareto.svg    tasks solved against host and total cost per trial  (and pareto.png)
-    └── data.json     the 96 trials behind the table and the charts, plus per-cell aggregates
+    └── data.json     the 108 trials behind the table and the charts, plus per-cell aggregates
 ```
 
-Each trial in `data.json` records the host, model, setup, benchmark and task; whether it was solved (and, for SWE-bench, `resolved_official`), its reward, `timed_out`, `answer_key_exposure` and `rule_violation`; host and worker cost and tokens; and wall-clock seconds.
+Each trial in `data.json` records the host, model, setup, benchmark and task; whether it was solved (and, for SWE-bench, `resolved_official`), its reward, `timed_out`, `answer_key_exposure`, `rule_violation` and `answer_key_contamination`; host and worker cost and tokens; and wall-clock seconds. The added trials also record `source_phase`; `runs` includes native worker model and reasoning effort.
 
 ## Versions
 
-Each published table gets its own directory under `results/`. A published version is never edited, except for the errata and additions listed below. A new run, prompt, setup or task set becomes a new version.
+Each published table gets its own directory under `results/`. A published version changes only for explicitly approved errata or dated supplements listed below. A supplement may fill missing setups without replacing existing trials; new models, prompts or task sets require a new version.
 
 | version | published | agy-staff | hosts | tasks | changes |
 |---|---|---|---|---|---|
@@ -126,7 +139,7 @@ Each published table gets its own directory under `results/`. A published versio
 
 The two cost corrections move Claude Code's DeepSearchQA + agy host spend from −50% to −39% against solo, and its total cost from +74% to +88%. `data.json`, the table and the three charts are redrawn. The other Claude Code trials match their transcripts and did not change.
 
-**Erratum, v1 (2026-10-23).** The summary SVG and PNG now use the table's red pixel squares to show the existing per-trial confirmed-violation flag alongside timeouts, with a note on Claude Code + agy 0118's downloaded answer table. Dataset-source encounters remain in the audit data without a visual mark. Trial data, scores, denominators, costs and times are unchanged; the later Codex native supplement is shown separately in a preview.
+**Supplement and presentation update, v1 (2026-10-24).** Added the 12 completed Codex native trials from 2026-10-23 directly to v1, bringing it to 108 selected trials and 16 groups, and redrew the summary and all three charts. The existing 96 trials keep their measured results. The summary retains six footer items, adds native worker effort to the existing worker note, and uses hollow timeout squares without combined symbols. Review flags and batch limitations are documented above and retained in the data.
 
 ## Harness
 

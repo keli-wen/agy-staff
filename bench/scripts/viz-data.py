@@ -28,9 +28,11 @@ OUT = ROOT / "results" / "viz-data.json"
 # The runs a bench version publishes: (host_model, job tag) -> label. A new version edits this list; a trial
 # belongs to a run when its host model matches and its job name carries the tag (e.g. -c55x-r1).
 RUNS = {
-    ("gpt-6.1-sol", "s61x"): {"host": "Codex", "model": "GPT-6.1 Sol", "effort": "xhigh", "cli": "Codex 0.160.1"},
+    ("gpt-6.1-sol", "s61x"): {"host": "Codex", "model": "GPT-6.1 Sol", "effort": "xhigh", "cli": "Codex 0.160.1",
+                               "native_worker_model": "gpt-6-luna", "native_worker_effort": "high"},
     ("claude-opus-5-5", "c55x"): {"host": "Claude Code", "model": "Claude Opus 5.5", "effort": "xhigh",
-                                  "cli": "Claude Code 2.1.296"},
+                                  "cli": "Claude Code 2.1.296", "native_worker_model": "claude-sonnet-5-5",
+                                  "native_worker_effort": "xhigh"},
 }
 TOKEN_KEYS = ("input", "cache_creation", "cache_read", "output")
 # analyze.py's cheat_flag is a heuristic, so every hit in a published run is reviewed by hand. The confirmed
@@ -39,6 +41,13 @@ RULE_VIOLATIONS = {
     "claude-agy-staff-deepsearchqa-0118-c55x-r1":
         "the agy worker downloaded the DeepSearchQA answer table (DSQA-full.csv) and cited it; the host's brief had "
         "left out the rule against looking up the benchmark. The host discarded the result and timed out re-checking.",
+}
+# Actual answer content in the model context is distinct from merely encountering a dataset link.
+# These entries are manually reviewed; they do not assert intentional answer-key lookup.
+ANSWER_KEY_CONTAMINATIONS = {
+    "codex-native-deepsearchqa-0118-s61x-native-supplement-20261023-r1-rerun4":
+        "The Luna worker received the exact answer row in ordinary search results. Actual answer-content "
+        "contamination is confirmed; intentional benchmark lookup is not established. The trial remains unsolved.",
 }
 
 
@@ -60,8 +69,8 @@ def main(argv):
                                                    that "source" names the input you passed
 
 for agents:
-  - It reads the records and writes --out: no model call, no credential. A published version is never
-    edited: do not write into bench/results/v1/ or another published version's directory.""",
+  - It reads the records and writes --out: no model call, no credential. Change a published version
+    only for an explicitly approved, documented erratum or supplement.""",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("records", nargs="?", type=Path, default=SRC,
                     help="analyze.py output (default: bench/results/trials.jsonl)")
@@ -86,10 +95,12 @@ for agents:
             "resolved_official": r.get("resolved_official"),
             "answer_key_exposure": bool(r.get("answer_key_exposure")),
             "rule_violation": RULE_VIOLATIONS.get(r["job"]),
+            "answer_key_contamination": ANSWER_KEY_CONTAMINATIONS.get(r["job"]),
             "host_cost": r["host_cost_usd"], "worker_cost": r["worker_cost_usd"],
             "host_tokens": {k: r["host_tokens"].get(k, 0) for k in TOKEN_KEYS},
             "worker_tokens": {k: r["worker_tokens"].get(k, 0) for k in TOKEN_KEYS},
             "wall_clock_s": r["wall_clock_s"], "claude_binary": r.get("claude_binary"),
+            **({"source_phase": r["source_phase"]} if r.get("source_phase") else {}),
         })
 
     groups = defaultdict(list)
@@ -113,6 +124,7 @@ for agents:
             "timeouts": sum(t["timed_out"] for t in ts),
             "exposure": sum(t["answer_key_exposure"] for t in ts),
             "rule_violations": sum(t["rule_violation"] is not None for t in ts),
+            "answer_key_contaminations": sum(t["answer_key_contamination"] is not None for t in ts),
         })
     doc = {
         "source": str(src.relative_to(ROOT.parent)) if src.is_relative_to(ROOT.parent) else str(src),

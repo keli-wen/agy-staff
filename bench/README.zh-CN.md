@@ -10,7 +10,7 @@ agy-staff Bench 衡量主 agent 把工作委派给 agy 要付出什么、能换�
 > **为什么做这个评测。** 同一批题目，换不同的 host，分别用和不用 agy 来做，回答三个问题：
 > - **什么时候该委派。** 哪些任务、哪个 host 交给 agy 更划算，哪些留给 host 自己做更好。结论会沉淀成 agy-staff 的最佳实践。
 > - **agy-staff 该改什么。** 每次评测都会暴露委派在哪里浪费了时间或 token。这些发现会回到插件里变成修复，之后的评测版本再验证修复是否有效。
-> - **不同 harness 的设计差异。** 同一份 prompt、同一个 worker，只换 host。结果上的差距能追溯到各家 harness 的设计取舍。
+> - **不同 harness 的运行行为。** 从轨迹看各个 host 怎样委派、等待和验收。worker 模型和 effort 不同，不能只凭表格把跨 host 的差异归因于编排。
 
 ## v1 的结论
 
@@ -37,15 +37,15 @@ agy-staff Bench 衡量主 agent 把工作委派给 agy 要付出什么、能换�
 
 ## 测的是什么
 
-三种编排方案用同一份 prompt，只有最后说明编排方式的那一行不同，所以编排方式是唯一的变量。
+三种方案共用任务规则，最后一行指定编排方式和 worker。表里比较的是整套配置；不同 host 的 worker 能力、token 单价和 reasoning effort 并没有控制一致。
 
 | 编排方案 | host 怎么做 | worker |
 |---|---|---|
 | solo | 自己做 | 无 |
-| + subagents | 委派给自家的 subagent | Claude Code：Sonnet 5.5；Codex：GPT-6 Luna |
+| + subagents | 委派给自家的 subagent | Claude Code：Sonnet 5.5 xhigh；Codex：GPT-6 Luna high |
 | + agy | prompt 要求它用 `lead`（`/agy:lead`、`$agy:lead`），由 lead 决定派哪些 agy 任务 | Gemini 3.8 Flash，agy CLI 1.3.0 |
 
-v1 只在 SWE-bench Verified 上跑了"+ subagents"。
+v1 最初只在 SWE-bench Verified 上跑了"+ subagents"。2026-10-23 的补充实验现已填入 v1 的 Codex native QnA 和 DeepSearchQA 两栏；Claude Code native 在这两组上仍未测量。
 
 每个 benchmark 对应一种使用 worker 的场景：
 
@@ -72,23 +72,36 @@ v1 只在 SWE-bench Verified 上跑了"+ subagents"。
   - 总成本再加上 worker。自家 subagent 和 host 用同一份订阅；agy 按 Gemini 标价折算，但用的是 agy 自己的额度。
   - 所有 host 和 worker 都只算 token 成本：工具按次收的费用不算，工具背后那次模型调用的 token 照算。
   - Claude Code 的成本取它自己报告的 `costUSD`（已经和标价核对过），再减去 WebSearch 按次收的费用；Codex 的成本按它的 token 数计算。
-- **耗时：** 每次 trial 的墙钟时间取中位数。trial 是两到三个同时跑的，耗时是在这种负载下测的。
+- **耗时：** 每次 trial 的墙钟时间取中位数。原始基线是两到三个 trial 同时跑，native 补充实验来自之后的批次；耗时对比也包含了批次条件差异。
 - **时限：** 按各 benchmark 自己的规定。DeepSearchQA 到 30 分钟就停止 agent，评当时答案文件里的内容，所以没写出答案的 trial 算没解出。
 - **重跑：** 基础设施故障一律重跑，不算作没解出。
   - 有 12 次 trial 里 Claude Code 卡死了，或者被卡死检测误停了。它在容器里跑的是 x86 版，经过转译运行，所以这些 trial 用同一版本的 arm64 原生版重跑。`data.json` 里每次 trial 用的是哪个版本记在 `claude_binary` 字段。
   - Claude Code"+ subagents"的第一版 prompt 让 host 去自己写 subagent 定义，而没有直接委派。prompt 改过之后，这 8 次 trial 全部重跑，表里用的是重跑的结果。
-- **答案暴露和一次违规：** DeepSearchQA 的答案表在网上有镜像。trajectory 里碰到过答案表或它所在数据集页面的 trial，在 `data.json` 里标了 `answer_key_exposure`。v1 里有 2 次，都是 0118 这道题：
+- **答案暴露和一次违规：** DeepSearchQA 的答案表在网上有镜像。trajectory 里碰到过答案表或它所在数据集页面的 trial，在 `data.json` 里标了 `answer_key_exposure`。包含 native 补充实验后，v1 有 3 次命中，都是 0118 这道题：
   - Codex solo（解出）：有一条搜索结果链到数据集页面，摘要里只有题面。答案来自原始报告。
   - Claude Code + agy（没解出）：host 写给 agy 的 brief 漏掉了“不要查这个 benchmark”的规则，agy 下载了答案表，还在报告里引用了它。host 发现后弃用了 agy 的结果，自己重新核对原始资料，30 分钟到了还没核完。`data.json` 里用 `rule_violation` 记下了这次违规。v1 的作弊扫描命中都经过人工复核，这是唯一确认的一次，其余都是误报。
-  - 两次都照常计入表中。
-  - 汇总图用红色实心小方块表示确认违规或实际答案内容污染，用红色空心小方块表示超时；空心红框中还有红色实心块，表示两者同时发生。接触到数据集来源的记录保留在审计数据中，图里不单独标记；仅凭这一点不能判为作弊。得分仍按原始评分计入。
+  - Codex native（没解出）：普通搜索把这道题的完整答案行返回到了 Luna worker 的上下文。实际答案内容污染已确认，单独用 `answer_key_contamination` 记录；不能据此确认有意查找 benchmark 答案。
+  - 三次都按原始评分计入。native DeepSearchQA 的 5/6 包含一次受污染但未通过的 trial，不能称为六题完全无污染的结果。
+  - 汇总图用红色实心小方块表示确认违规或实际答案内容污染，用红色空心小方块表示超时。超时优先显示：超时的 trial 只画空心红框，重叠的审计标记保留在数据里。仅碰到数据集链接的记录不单独标记。
+
+## Codex native 补充实验（2026-10-23）
+
+已完成的 12 题补齐了 Codex native 的空栏，配置为 GPT-6.1 Sol xhigh、GPT-6 Luna high、Codex CLI 0.160.1，题号和 prompt 与 v1 相同。实验来自之后的批次，登录账号和 runner 实现有变化，并非整张矩阵的受控重跑。Sonnet 5.5 和 Luna 没有按单价或能力匹配，不同厂商的 effort 标签也不等价。
+
+| 补充的 native 组 | 解出 | 每题 host 美元 | 每题总成本美元 | 耗时中位数（分钟） |
+|---|---:|---:|---:|---:|
+| SWE-Atlas QnA | 5/6 | 0.5401 | 0.5900 | 7.85 |
+| DeepSearchQA | 5/6 | 0.2656 | 0.2946 | 2.75 |
+
+新增 job 严格取自完成的 `manifest-s61x-native-supplement-20261023-r1-rerun4.json`：首个有效 QnA trial 来自 rerun1，其余 11 个来自 rerun4，已排除被替代的 s6x 批次和基础设施失败尝试。分析记录追加到本地被 git 忽略的 `results/trials.jsonl`；发布的 `data.json` 保留准确 job 名和 `source_phase`。`runs` 记录了经实际 worker 轨迹核实的 native worker 模型及 effort。原有 96 个入选 trial 及其测量结果均保留。
 
 ## 已知局限
 
 - 每种编排方案每道题只跑 1 次，一共 20 道题。
-- "+ subagents"只在 SWE-bench Verified 上跑了。
+- Claude Code 的"+ subagents"只在 SWE-bench Verified 上跑了；补充后 Codex native 覆盖三个 benchmark。
+- native worker 的模型、单价和 effort 不同，跨 host 的结果比较整套配置，不能单独归因于 harness。
 - 替换评委模型，偏离了 QnA 和 DeepSearchQA 的官方评分做法。
-- 耗时是在多个 trial 并发时测的。
+- 耗时来自不同批次，也包含并发条件差异。
 - prompt 和 `lead` 都没有告诉 host DeepSearchQA 有 30 分钟的时限。三次超时里，agy 的第一个调研 job 都用了约 21 分钟或更久，其中两次到 30 分钟时仍有 agy job 在跑，没有一个 host 先写下临时答案。下一版会在所有编排方案的 prompt 里写明时限。
 
 ## 文件
@@ -101,14 +114,14 @@ results/
     ├── cost.svg      每次 trial 的成本，分 host 和 worker（另有 cost.png）
     ├── tokens.svg    每次 trial 的 token 用量，分 host 和 worker（另有 tokens.png）
     ├── pareto.svg    解题比例对比每次 trial 的 host 成本和总成本（另有 pareto.png）
-    └── data.json     表和图背后的 96 次 trial，以及每个格子的汇总
+    └── data.json     表和图背后的 108 次 trial，以及每个格子的汇总
 ```
 
-`data.json` 里每次 trial 记录了 host、模型、编排方案、benchmark 和题目；是否解出（SWE-bench 另有 `resolved_official`）、reward、`timed_out`、`answer_key_exposure` 和 `rule_violation`；host 和 worker 各自的成本和 token；以及耗时（秒）。
+`data.json` 里每次 trial 记录了 host、模型、编排方案、benchmark 和题目；是否解出（SWE-bench 另有 `resolved_official`）、reward、`timed_out`、`answer_key_exposure`、`rule_violation` 和 `answer_key_contamination`；host 和 worker 各自的成本和 token；以及耗时（秒）。新增 trial 还有 `source_phase`；`runs` 包含 native worker 模型和 reasoning effort。
 
 ## 版本
 
-每发布一张表，就在 `results/` 下新建一个目录。已发布的版本不再修改，下面列出的勘误和补充除外。换一次运行、换 prompt、换编排方案或换题目，都算一个新版本。
+每发布一张表，就在 `results/` 下新建一个目录。已发布的版本只接受明确批准且在下方记录的勘误或带日期的补充。补充可以填上缺失的方案，不替换原有 trial；换模型、prompt 或题目集仍需新版本。
 
 | 版本 | 发布日期 | agy-staff | host | 题数 | 改动 |
 |---|---|---|---|---|---|
@@ -126,7 +139,7 @@ results/
 
 两处成本更正合起来，Claude Code 在 DeepSearchQA 上用 agy 的 host 成本，相对单独做从 −50% 改为 −39%，总成本从 +74% 改为 +88%。`data.json`、表格和三张图都已重画。其余 Claude Code trial 都和会话记录对得上，没有变化。
 
-**v1 勘误（2026-10-23）：** 汇总 SVG 和 PNG 沿用图中的红色像素方块，显示已有的逐题确认违规及超时标记，并在图下注释说明 Claude Code + agy 0118 下载答案表的情况。接触到数据集来源的记录保留在审计数据中，图里不单独标记。trial 数据、得分、分母、成本和耗时均未变化；之后补跑的 Codex native 实验另放在预览图中。
+**v1 补充及展示更新（2026-10-24）：** 将 2026-10-23 完成的 12 个 Codex native trial 直接并入 v1，共 108 个入选 trial、16 组，并重画汇总图和其余三张图。原有 96 个 trial 的测量结果保留。汇总图底部维持六项备注，worker effort 写入现有条目；超时只画空心红框，不再混合符号。审计记录和批次比较限制详见上文及数据。
 
 ## 评测框架
 
