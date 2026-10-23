@@ -1,0 +1,14 @@
+# Codex native supplement: the 12 v1 QnA and DeepSearchQA tasks.
+# Run separately from published v1; keep its worker and prompts, record the host via --model.
+native swe-atlas-qna/task-6905333b74f22949d97baa04 scaleapi
+native swe-atlas-qna/task-6905333b74f22949d97ba9bc scaleapi
+native swe-atlas-qna/task-6905333b74f22949d97ba9dd scaleapi
+native swe-atlas-qna/task-6905333b74f22949d97ba9a8 scaleapi
+native swe-atlas-qna/task-6905333b74f22949d97ba9ce scaleapi
+native swe-atlas-qna/task-6905333b74f22949d97baa15 scaleapi
+native deepsearchqa/deepsearchqa-0118 python
+native deepsearchqa/deepsearchqa-0554 python
+native deepsearchqa/deepsearchqa-0190 python
+native deepsearchqa/deepsearchqa-0797 python
+native deepsearchqa/deepsearchqa-0515 python
+native deepsearchqa/deepsearchqa-0793 python

@@ -81,6 +81,7 @@ v1 只在 SWE-bench Verified 上跑了"+ subagents"。
   - Codex solo（解出）：有一条搜索结果链到数据集页面，摘要里只有题面。答案来自原始报告。
   - Claude Code + agy（没解出）：host 写给 agy 的 brief 漏掉了“不要查这个 benchmark”的规则，agy 下载了答案表，还在报告里引用了它。host 发现后弃用了 agy 的结果，自己重新核对原始资料，30 分钟到了还没核完。`data.json` 里用 `rule_violation` 记下了这次违规。v1 的作弊扫描命中都经过人工复核，这是唯一确认的一次，其余都是误报。
   - 两次都照常计入表中。
+  - 汇总图用红色实心小方块表示确认违规或实际答案内容污染，用红色空心小方块表示超时；空心红框中还有红色实心块，表示两者同时发生。接触到数据集来源的记录保留在审计数据中，图里不单独标记；仅凭这一点不能判为作弊。得分仍按原始评分计入。
 
 ## 已知局限
 
@@ -124,6 +125,8 @@ results/
 - 答案暴露的说明，一处说轻了，一处说重了。`claude-agy-staff-deepsearchqa-0118` 里，agy 不是碰巧看到了答案表，而是主动下载了它，原因是 host 的 brief 漏掉了 benchmark 的规则。`data.json` 现在用 `rule_violation` 记下这一点；这次 trial 本来就没解出。`codex-solo-deepsearchqa-0118` 的 tool output 里只有数据集页面的链接和题面，没有答案表。
 
 两处成本更正合起来，Claude Code 在 DeepSearchQA 上用 agy 的 host 成本，相对单独做从 −50% 改为 −39%，总成本从 +74% 改为 +88%。`data.json`、表格和三张图都已重画。其余 Claude Code trial 都和会话记录对得上，没有变化。
+
+**v1 勘误（2026-10-23）：** 汇总 SVG 和 PNG 沿用图中的红色像素方块，显示已有的逐题确认违规及超时标记，并在图下注释说明 Claude Code + agy 0118 下载答案表的情况。接触到数据集来源的记录保留在审计数据中，图里不单独标记。trial 数据、得分、分母、成本和耗时均未变化；之后补跑的 Codex native 实验另放在预览图中。
 
 ## 评测框架
 

@@ -81,6 +81,7 @@ Tasks were drawn with a fixed seed; their IDs are in `data.json`.
   - Codex solo (solved): one search result linked the dataset page, and its snippet showed the question only. The answer came from the original reports.
   - Claude Code + agy (unsolved): the host's brief to agy left out the rule against looking up the benchmark, and agy downloaded the answer table and cited it. The host saw this, discarded agy's result and was still re-checking the sources when the 30-minute limit hit. `rule_violation` in `data.json` records it. It is the only confirmed violation: every cheat-scan hit in v1 was reviewed by hand, and the rest were false positives.
   - Both stay in the table as graded.
+  - The summary table uses solid red task squares for confirmed rule violations or answer-content contamination, and hollow red squares for timeouts. A red center inside a hollow square means both apply. Dataset-source encounters stay in the audit data without a visual mark; that flag alone does not establish cheating. Raw grades stay in the counts.
 
 ## Known limits
 
@@ -124,6 +125,8 @@ Each published table gets its own directory under `results/`. A published versio
 - The answer-exposure note understated one trial and overstated another. In `claude-agy-staff-deepsearchqa-0118`, agy did not just come across the answer table: it downloaded it, because the host's brief had left out the benchmark rule. `data.json` now records this as `rule_violation`; the trial was already unsolved. In `codex-solo-deepsearchqa-0118`, the tool output held a link to the dataset page and the question, not the answer table.
 
 The two cost corrections move Claude Code's DeepSearchQA + agy host spend from −50% to −39% against solo, and its total cost from +74% to +88%. `data.json`, the table and the three charts are redrawn. The other Claude Code trials match their transcripts and did not change.
+
+**Erratum, v1 (2026-10-23).** The summary SVG and PNG now use the table's red pixel squares to show the existing per-trial confirmed-violation flag alongside timeouts, with a note on Claude Code + agy 0118's downloaded answer table. Dataset-source encounters remain in the audit data without a visual mark. Trial data, scores, denominators, costs and times are unchanged; the later Codex native supplement is shown separately in a preview.
 
 ## Harness
 
