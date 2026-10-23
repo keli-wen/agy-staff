@@ -7,7 +7,7 @@
 # Auth: the bench's own Codex auth.json (--codex-auth). Harbor uploads it into the container and
 # CodexWriteback copies it back if Codex refreshed the token (agent/auth-writeback.txt). agy-staff also
 # gets the agy sign-in (--agy-auth-dir). Judge keys and Anthropic credentials never reach Harbor.
-# Exit codes: 2 usage or setup error, 3 leak scan hit, 4 egress check failed (with --expect-egress).
+# Exit codes: 2 usage/setup error, 3 leak hit, 4 egress failure, 5 environment failed before agent setup.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
@@ -102,6 +102,9 @@ echo "job: $DATA/jobs/$JOB"
 rc=0; leak_scan "$DATA/jobs/$JOB" || rc=$?
 # Egress after the run on the host, plus the container checks the agent recorded (oracle/nop run no agent).
 eg=0; ( egress_host "$EGRESS_URL" host-post ) || eg=4
-case "$SETUP" in oracle|nop) ;; *) egress_container "$DATA/jobs/$JOB" || eg=4 ;; esac
+case "$SETUP" in oracle|nop) ;; *)
+  container_rc=0; egress_container "$DATA/jobs/$JOB" || container_rc=$?
+  [ "$eg" -ne 0 ] || eg=$container_rc
+  ;; esac
 [ "$rc" -ne 0 ] && exit "$rc"
 exit "$eg"

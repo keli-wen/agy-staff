@@ -12,6 +12,7 @@ Every script answers `--help` with its arguments, defaults, examples, exit codes
 - The data directory, the container proxy and the expected-egress file are the user's own settings, and none of them is in the repository. Take them from the user's [defaults file](#defaults-file), or ask the user. Never guess, and never edit the file without being asked. Keep `--expect-egress` whenever the user uses it.
 - Credentials go in only as file paths through the options. Never print, copy or `cat` a credential file, and never print the environment.
 - On a leak-scan hit (exit 3) or a failed egress check (exit 4), stop and tell the user.
+- Exit 5 means the environment failed before agent setup and could not produce a container egress record. The batch stops and reports the environment failure; this does not establish a network or IP mismatch.
 - A published version (`results/vN/`) is never edited, and the task records in `tasks/` change only for a new version.
 
 | script | what it does | costs or touches |

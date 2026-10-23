@@ -10,7 +10,7 @@
 # agy-staff also gets the agy sign-in (--agy-auth-dir). Judge keys never reach Harbor.
 # Tasks come from datasets-baked-claude (bake-task.sh --claude), whose image already has Claude Code;
 # --ak version pins Harbor to the same version so it skips its own install.
-# Exit codes: 2 usage or setup error, 3 leak scan hit, 4 egress check failed (with --expect-egress).
+# Exit codes: 2 usage/setup error, 3 leak hit, 4 egress failure, 5 environment failed before agent setup.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
@@ -105,6 +105,7 @@ echo "job: $DATA/jobs/$JOB"
 # The leak scan also looks for the setup-token file's value.
 rc=0; leak_scan "$DATA/jobs/$JOB" || rc=$?
 eg=0; ( egress_host "$EGRESS_URL" host-post ) || eg=4
-egress_container "$DATA/jobs/$JOB" || eg=4
+container_rc=0; egress_container "$DATA/jobs/$JOB" || container_rc=$?
+[ "$eg" -ne 0 ] || eg=$container_rc
 [ "$rc" -ne 0 ] && exit "$rc"
 exit "$eg"

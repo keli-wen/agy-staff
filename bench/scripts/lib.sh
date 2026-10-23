@@ -109,7 +109,8 @@ TRIAL_EXIT_CODES='exit codes:
      (analyze.py), or let run-batch.py do it.
   2  usage error, or something missing: data directory, baked task, template, credential file
   3  the leak scan found a credential in the job directory
-  4  the egress check failed (only with --expect-egress)'
+  4  the egress check failed (only with --expect-egress)
+  5  the environment failed before agent setup; no container egress record (with --expect-egress)'
 
 TRIAL_AGENT_NOTES='for agents:
   - A trial spends the user'"'"'s subscription quota and takes 5 to 30 minutes. Run one only when the user
@@ -167,12 +168,37 @@ egress_host() {
   "$BENCH/scripts/egress-check.sh" "$EXPECT_EGRESS" "$1" "$2" || exit 4
 }
 
-# egress_container <job-dir>: print the container's records; return 4 unless every one is a match.
+# egress_container <job-dir>: return 4 on failed/missing checks, or 5 if the environment never started.
 egress_container() {
   [ -n "$EXPECT_EGRESS" ] || return 0
   local rec
   rec=$(find "$1" -path '*/agent/egress.txt' 2>/dev/null | head -1)
-  if [ -z "$rec" ]; then echo "egress container: no record" >&2; return 4; fi
+  if [ -z "$rec" ]; then
+    # An environment that never started cannot run an egress check. Keep this a failure,
+    # but preserve its cause instead of misreporting it as a network/egress failure.
+    local failure
+    failure=$(python3 - "$1" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+for path in sorted(Path(sys.argv[1]).glob("*/result.json")):
+    try:
+        result = json.loads(path.read_text())
+    except (OSError, ValueError):
+        continue
+    exception = (result.get("exception_info") or {}).get("exception_type")
+    if exception and result.get("environment_setup") and not result.get("agent_setup") and not result.get("agent_execution"):
+        print(exception)
+        break
+PY
+)
+    if [ -n "$failure" ]; then
+      echo "environment failed before agent setup: $failure; container egress unavailable" >&2
+      return 5
+    fi
+    echo "egress container: no record" >&2; return 4
+  fi
   sed 's/^/egress container /' "$rec"
   if grep -qv ': match ' "$rec"; then return 4; fi
 }
@@ -190,8 +216,9 @@ leak_scan() {
           [ -n "$v" ] && printf '%s\n' "$v"; done; true; } | count_fixed)
   local TOK="$AGY_AUTH_DIR/antigravity-oauth-token"
   [ -f "$TOK" ] && o=$(node -e 'const t=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const v=[t.token?.access_token,t.token?.refresh_token,t.id_token].filter(s=>typeof s==="string"&&s.length>20);if(v.length)process.stdout.write(v.join("\n")+"\n")' "$TOK" | count_fixed)
-  # The Codex auth.json Harbor uploads into Codex containers: its tokens and any API key in it.
-  [ -f "$CODEX_AUTH" ] && x=$(node -e 'const t=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const v=[...Object.values(t.tokens||{}),t.OPENAI_API_KEY].filter(s=>typeof s==="string"&&s.length>20);if(v.length)process.stdout.write(v.join("\n")+"\n")' "$CODEX_AUTH" | count_fixed)
+  # Credential fields only: tokens.account_id is account metadata (creator_account_id),
+  # not an authentication token. Scanning every tokens value falsely flags normal Codex rollouts.
+  [ -f "$CODEX_AUTH" ] && x=$(node -e 'const t=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));const v=[t.tokens?.access_token,t.tokens?.refresh_token,t.tokens?.id_token,t.OPENAI_API_KEY].filter(s=>typeof s==="string"&&s.length>0);if(v.length)process.stdout.write(v.join("\n")+"\n")' "$CODEX_AUTH" | count_fixed)
   # Shape scan; base64 image data (data:image/...;base64,...) and Claude thinking-block signatures
   # ("signature":"<base64>", an opaque blob from the API) are skipped first, because random base64 can
   # contain a "1//" + 30 chars run (a viewed matplotlib PNG did, and so did a signature). The exact-value

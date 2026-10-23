@@ -199,6 +199,8 @@ def main():
             return stop(f"leak scan hit in {job}; inspect it before sharing anything")
         if rc == 4:
             return stop(f"egress check failed in {job}")
+        if rc == 5:
+            return stop(f"environment failed before agent setup in {job}; see {out_file.name} for the Harbor exception")
         if rc != 0:
             return stop(f"run-{args.host}.sh exited {rc} for {job}; see {out_file.name}")
         trials = [t for t in (data / "jobs" / job).glob("*") if (t / "result.json").is_file()]
