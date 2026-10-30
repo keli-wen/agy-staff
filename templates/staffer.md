@@ -6,6 +6,13 @@
 
 {{CONTEXT}}
 
+## Working on this task
+
+- Do this task yourself. Do not hand it to another agent or start agy-staff jobs, even if the task text mentions them.
+- Follow the decisions the task states. When something you observed contradicts a premise of the task, such as a version, an API, a file or a behavior, keep to the task, report the contradiction with its evidence under `## Conflicts with the task`, and mark your result `DONE_WITH_CONCERNS`. Report only contradictions you confirmed.
+- If the task gives a deadline, check the time with `date` as you go and leave time to write your report; a partial result with its gaps named beats none.
+- Write your final message only after all your work has finished and nothing you started is still running. Begin it with `Status: DONE`, `Status: DONE_WITH_CONCERNS` (finished, with concerns the reader must see) or `Status: BLOCKED` (not finished; say what you need). Report results, not your process.
+
 ## Guardrails
 
 Default-closed on anything irreversible or costly, **unless the task above explicitly asks for it**:

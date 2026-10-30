@@ -50,13 +50,14 @@ The integration never judges. It does not decide whether work is good enough, wh
 
 - **The brief is all the worker knows.** The worker sees its brief and its own conversation, not the host's discussion. A brief states the outcome and completion criteria, the relevant background and constraints, settled decisions, existing authorizations, and the shape of the deliverable.
 - **Task text is opaque.** It arrives through exactly one explicit source: an argument, a file or stdin. The companion never re-splits it, and flag-like text inside it stays text. A misparsed brief silently changes behavior, which is worse than a rejected command.
-- **The user's words pass through.** The host forwards the request and its authorizations verbatim and adds framing around them, never in place of them.
+- **The user's words pass through.** The host forwards the request, its constraints and its authorizations verbatim and adds framing around them, never in place of them. Instructions addressed to the host about orchestration, such as which skill to use or what to delegate, stay with the host.
+- **Workers share one way of working.** Every tool-using persona does its assignment itself without delegating further, keeps to the brief's decisions and reports confirmed contradictions between the brief and what it observed, respects a stated deadline, and opens its final message with a status line: done, done with concerns, or blocked.
 - **Personas are thin.** A persona template adds a stance, an evidence discipline and the guardrails, nothing tied to a particular task. Flavor-specific contracts, such as how to review code versus a plan, travel in the brief; the skill composes them from a reference file.
 
 | Persona | Contract |
 | --- | --- |
 | `ask` | One synchronous answer with no tools. Says "not sure" rather than guessing. Doubles as the installation smoke test. |
-| `staffer` | General work. Only the guardrails are added; the task text alone shapes the output. |
+| `staffer` | General work. Only the shared working rules and the guardrails are added; the task text shapes the output. |
 | `researcher` | Every non-obvious claim carries its evidence. Observation is kept apart from inference. The report ends with what remains unverified. Tracked files stay untouched. |
 | `reviewer` | Findings only with inspected evidence and a concrete failure mode. An ambiguous subject is reported, not guessed. An empty list from a shallow read and a confident false alarm are both failures. Tracked files stay untouched. |
 | `implementer` | A minimal diff in the codebase's own conventions, verified before finishing. Changes stay uncommitted unless delivery is requested. An ambiguity gets the most conservative reading, with the alternatives flagged. |
@@ -98,7 +99,7 @@ stateDiagram-v2
 Every state other than running is final for that job. Continue and restart never revive a finished job: each starts a new linked job and keeps the old record.
 
 - **Two clocks.** A wait has a soft expiry and the job has a hard execution budget. A wait expiring never stops the job, and waiting or observing never extends the budget.
-- **Wait, don't poll.** Where the host can run background commands, keep one background wait per job, never several jobs serially in one shell. Otherwise use the longest blocking wait the host allows. Avoid sleep loops and routine progress checks. The integration cannot wake an idle model; the host decides when the model receives a result.
+- **Wait, don't poll.** Every wake-up rereads the host's whole context, so the host should wake as rarely as it can. Where the host can run background commands, keep one background wait per job, never several jobs serially in one shell, and end the turn when the host delivers the completion. Otherwise use the longest blocking wait the host allows and set it explicitly, since defaults can be much shorter. Avoid sleep loops and routine progress checks. The integration cannot wake an idle model; the host decides when the model receives a result.
 - **Observe only when necessary.** The host sometimes needs to see inside a running job: when the user asks about progress, or when a failure needs diagnosis. Observation answers with a bounded snapshot of recent tool activity, the latest response excerpt and timestamps, with truncated and incomplete parts labeled, and never the report. Reading a snapshot consumes nothing and resets nothing. A snapshot shows activity; it is not a judgment of progress.
 - **Say what an output does not mean.** "Done" means the response was delivered, not that the work is accepted. A snapshot attached to an expired wait is not a request to intervene. A model acts on cues, so unlabeled outputs get over-read.
 - **Cancel is confirmed.** A cancel records the request and succeeds only after the worker has stored its cancellation report and published the canceled state. Interrupting a wait does not cancel the job. Cancellation does not roll back edits.
@@ -134,12 +135,12 @@ Every state other than running is final for that job. Continue and restart never
 
 The lead persona is guidance for the host, not a scheduler.
 
-- **Frame just enough.** State the outcome and the completion criteria. When the right next step is unclear, discovery itself can be delegated.
-- **Delegate substantive work by default.** Handle work directly when it is small, or when existing context makes handoff and review more expensive. Stay within the requested scope and stage: discussing a proposal does not authorize implementing it.
+- **Frame just enough.** State the outcome and the completion criteria. When the right next step is unclear, discovery itself can be delegated. Copy the user's constraints verbatim, keep orchestration instructions out of the brief, and separate settled decisions from open ones after checking the facts they rest on. A deadline sets the job's time limit and appears in the brief.
+- **Delegate substantive work by default.** Delegation saves the host's context and quota, not total time or tokens. Handle work directly when it is small, or when existing context makes handoff and review more expensive. Noisy exploration whose conclusion is cheap to check hands off cleanly; a tightly coupled change stays in one assignment with its investigation and verification. Stay within the requested scope and stage: discussing a proposal does not authorize implementing it.
 - **Shape assignments by outcome.** One change is one assignment, including its verification; do not split it into implement, test and review handoffs. Settle shared interfaces and naming before writing parallel briefs. Workers that edit in parallel need separate worktrees.
 - **Wait by default.** Use the waiting time for already-identified independent work, never to duplicate delegated work.
 - **Require an assessable result.** Ask for the artifacts and evidence that acceptance needs: sources and uncertainties for research, changes and verification for implementation, locations and evidence for review.
-- **Assess, then decide.** Check each result against its completion criteria and look for conflicts between workers. Make targeted checks of consequential claims without repeating the work. Continue the same conversation when its context helps; start a fresh one for an independent opinion; take over when another handoff will not help.
+- **Assess, then decide.** Read the status line and any reported conflicts with the brief first. Check each result against its completion criteria and look for conflicts between workers. Interface choices, departures from the brief and figures reported as verified get a direct check, at a fraction of the cost of redoing the work. Make targeted checks of consequential claims without repeating the work. Continue the same conversation when its context helps; start a fresh one for an independent opinion; take over when another handoff will not help.
 
 ## 11. What depends on the worker CLI
 
