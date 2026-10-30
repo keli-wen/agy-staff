@@ -4,6 +4,8 @@
 
 agy-staff Bench measures what delegating to agy costs a host agent and what it buys. Every task runs three ways: the host alone, the host with its own subagents, and the host with agy through `lead`. The table reports tasks solved, host spend, total spend and wall time.
 
+[Tech Report](https://lastwhisper.dev/en/zen-of-harness-engineering/agy-staff-bench-v1/) · [中文报告](https://lastwhisper.dev/zen-of-harness-engineering/agy-staff-bench-v1/)
+
 [![agy-staff Bench v1: Claude Code and Codex on SWE-bench Verified, SWE-Atlas QnA and DeepSearchQA, solo, with their own subagents and with agy](results/v1/summary.png)](results/v1/summary.svg)
 
 > [!NOTE]

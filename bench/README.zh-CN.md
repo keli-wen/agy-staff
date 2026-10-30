@@ -4,6 +4,8 @@
 
 agy-staff Bench 衡量主 agent 把工作委派给 agy 要付出什么、能换来什么。每道题用三种编排方案各跑一次：主 agent 自己做；主 agent 用自家的 subagent；主 agent 通过 `lead` 用 agy。表里给出解出的题数、host 成本、总成本和耗时。
 
+[Tech Report](https://lastwhisper.dev/en/zen-of-harness-engineering/agy-staff-bench-v1/) · [中文报告](https://lastwhisper.dev/zen-of-harness-engineering/agy-staff-bench-v1/)
+
 [![agy-staff Bench v1：Claude Code 和 Codex 在 SWE-bench Verified、SWE-Atlas QnA、DeepSearchQA 上，分别单独做、用自家 subagent、用 agy 的结果](results/v1/summary.png)](results/v1/summary.svg)
 
 > [!NOTE]

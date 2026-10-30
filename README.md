@@ -24,6 +24,8 @@ If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode o
 
 agy-staff Bench v1 runs Claude Code and Codex on three benchmarks, each task three ways: alone, with their own subagents, and with agy through `lead`.
 
+[Tech Report](https://lastwhisper.dev/en/zen-of-harness-engineering/agy-staff-bench-v1/) · [中文报告](https://lastwhisper.dev/zen-of-harness-engineering/agy-staff-bench-v1/)
+
 [![agy-staff Bench v1: Claude Code and Codex on SWE-bench Verified, SWE-Atlas QnA and DeepSearchQA, solo, with their own subagents and with agy](bench/results/v1/summary.png)](bench/README.md)
 
 > [!NOTE]
