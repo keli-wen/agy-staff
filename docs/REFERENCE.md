@@ -189,6 +189,25 @@ After warning-free success, results and metadata become durable before the raw s
 
 Automatic since 0.4: when the companion creates `.agy-staff/` for the first time in a repo, it appends `.agy-staff/` to `.git/info/exclude` (repo-local, untracked) unless the path is already ignored. It never touches the tracked `.gitignore` — the state directory is local scratch, and adding it to a shared, committed file would change the repo for everyone else.
 
+## Speed probe (`speed`)
+
+agy's speed depends on how busy Google's servers are: with spare capacity it is fast, and when many users are on at once some are slowed (users report hundreds of tokens per second at best and under 50 at worst). `speed` measures the current state before you commit to a large assignment, so a slow period shows up in seconds rather than after a long job has started.
+
+```bash
+node "<skill-dir>/../../companion/agy-companion.mjs" speed [--model <id>] [--effort low|medium|high] [--timeout <dur>]
+```
+
+It makes one tool-free streaming call on the `ask` model (`gemini-3.8-flash-low` by default) with a fixed prompt, takes about 10 seconds (most of it agy's own start-up), and prints one line of facts on stdout:
+
+```
+[agy-staff speed] model=gemini-3.8-flash-low samples=1 tokens_per_second=97 ttft=3.4s startup=6.5s stream=1.4s output_tokens=140 total=11.3s
+```
+
+- `tokens_per_second` is output tokens over the time the answer text took to stream. It is `n/a` when the answer has fewer than 50 output tokens or streamed in under 0.5 seconds, because a rate from a short or batched answer is noise.
+- `ttft` runs from agy's `init` event to the first answer text; `startup` runs from process launch to `init` and is a fixed cost of every agy call.
+- The call is restricted, sends no conversation, and writes no job, conversation or `.agy-staff/` state. It takes no task text. `--timeout` defaults to 90s (at most 10m); no result in time exits 1 with the facts measured so far.
+- The companion reports and does not judge. The `lead` and `jobs` skills treat `tokens_per_second` below 50 or `ttft` above 15s as too slow for large work, tell the user the numbers and let the user choose; see `skills/jobs/references/speed.md`. Those limits come from a small sample on one machine (tokens per second 91 to 240, `ttft` 2.6 to 4.9s, `startup` 5 to 16s) and are calibrated for the default model.
+
 ## Troubleshooting
 
 - **"agy reported an error (status ERROR)"** — the companion relays agy's own error verbatim, and appends a cause hint only when the error text actually matches one (invalid model id → run `agy models`; expired auth → run `agy` interactively once to re-login; exhausted quota). If agy reported an error but still returned response text, the companion delivers the response anyway — exit 0, response on stdout, warning on stderr (`done_with_warnings`); a deadline with no response but a known conversation instead signals attention (exit 5).

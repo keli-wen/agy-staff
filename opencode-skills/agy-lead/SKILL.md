@@ -20,6 +20,8 @@ Task orchestration with AGY. You are the lead in the current harness. With an ar
 
 ## Dispatch and follow through
 
+Before dispatching a large assignment (several jobs, or one expected to run about ten minutes or more), check agy's current speed once with `speed` and follow `../agy-jobs/references/speed.md` (start it in the background while you compose the brief); skip the check for small assignments. If agy is too slow, report the numbers and let the user choose between proceeding and doing the work yourself.
+
 Read `../agy-jobs/SKILL.md` for result collection, cancellation, continuation, and recovery. This skill lives at `<plugin-root>/opencode-skills/agy-lead/SKILL.md`. Write the brief to a temporary file and call the shared companion:
 
 ```bash

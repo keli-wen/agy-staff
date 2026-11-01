@@ -1,6 +1,6 @@
 ---
 name: agy-jobs
-description: Manage agy staffer background jobs - collect results, check status, cancel, follow-up conversation, and setup. Use when an agy job needs collecting, when the user asks "is the agy job done", "show agy's result", "cancel the agy job", "continue the agy conversation", or "set up agy". This is the orchestrator's skill; the persona skills (staffer/researcher/reviewer/implementer) point here.
+description: Manage agy staffer background jobs - collect results, check status, cancel, follow-up conversation, and setup. Use when an agy job needs collecting, when the user asks "is the agy job done", "show agy's result", "cancel the agy job", "continue the agy conversation", "is agy fast right now", or "set up agy". This is the orchestrator's skill; the persona skills (staffer/researcher/reviewer/implementer) point here.
 ---
 
 <!-- Generated from skills/jobs/SKILL.md; run npm run generate:pi. Do not edit here. -->
@@ -54,6 +54,7 @@ Follow through to a result unless the user asked only to launch. If the host can
 | `continue --job <id> --prompt "..."` | Resume the job's conversation with its original mode/model/profile; create a linked new job. |
 | `continue --prompt "..."` | Continue the latest conversation; `--conversation <id>` selects a known older one. |
 | `restart <id>` | Start the original task/configuration again without its conversation; create a linked new job. |
+| `speed` | One tool-free probe of agy's current speed (tokens per second, time to first text); facts only, no state written. Before large work or when asked whether agy is fast; read `references/speed.md` first. |
 | `setup [--apply] [--restrict <modes\|none>]` | Optional permission setup; read `references/setup.md` first. |
 
 Wait/observe default to the latest job. Observe uses the same status exit codes, but exit 0 means **finished, not full result delivered**. Collect the existing wait session, or use `result <id>` if none is pending; do not start another wait or expect observe to consume the pending session. Failed/canceled/attention observations provide bounded recovery metadata; wait/result deliver the full report. A continued ask remains synchronous. `result` also returns exit 5 for attention (its legacy exit behavior for other terminal states is unchanged).

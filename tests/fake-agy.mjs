@@ -21,6 +21,10 @@
  *   FAKE_AGY_STDERR          text written to stderr alongside the payload
  *                            (or before dying under FAKE_AGY_NO_JSON)
  *   FAKE_AGY_ERROR           payload `error` field (default: absent)
+ *   FAKE_AGY_DELTAS          JSON {count, interval_ms, first_delay_ms}: stream-json
+ *                            runs emit that many timed answer-text deltas after
+ *                            init (what the speed probe measures)
+ *   FAKE_AGY_OUTPUT_TOKENS   usage.output_tokens in the payload   (default 1)
  *   FAKE_AGY_NO_JSON         die before printing any payload (default exit 1),
  *                            with FAKE_AGY_STDERR on stderr — simulates agy
  *                            being killed by a harness sandbox pre-JSON
@@ -86,6 +90,16 @@ if (streaming && !process.env.FAKE_AGY_NO_JSON) {
   if (process.env.FAKE_AGY_EVENTS) {
     for (const event of JSON.parse(process.env.FAKE_AGY_EVENTS)) process.stdout.write(JSON.stringify(event) + '\n');
   }
+  if (process.env.FAKE_AGY_DELTAS) {
+    const { count, interval_ms: interval = 0, first_delay_ms: firstDelay = 0 } = JSON.parse(process.env.FAKE_AGY_DELTAS);
+    const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await pause(firstDelay);
+    for (let i = 0; i < count; i++) {
+      if (i) await pause(interval);
+      const step_update = { conversation_id: 'conv-1', step_index: 1, state: i === count - 1 ? 'DONE' : 'ACTIVE', step_type: 'agent_response', text_delta: `word${i} ` };
+      process.stdout.write(JSON.stringify({ event: 'step_update', step_update }) + '\n');
+    }
+  }
 }
 
 if (process.env.FAKE_AGY_CHILD_PID_FILE) {
@@ -122,7 +136,7 @@ const payload = {
   conversation_id: process.env.FAKE_AGY_CONVERSATION_ID ?? 'conv-1',
   duration_seconds: 1,
   num_turns: 1,
-  usage: { input_tokens: 1, output_tokens: 1 },
+  usage: { input_tokens: 1, output_tokens: Number(process.env.FAKE_AGY_OUTPUT_TOKENS ?? 1) },
 };
 if (process.env.FAKE_AGY_ERROR) payload.error = process.env.FAKE_AGY_ERROR;
 
