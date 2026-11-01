@@ -24,6 +24,8 @@ agy-staff 提供五种角色（persona）。`staffer` 适合通用任务；`rese
 
 agy-staff Bench v1 让 Claude Code 和 Codex 在三个 benchmark 上做题，每道题用三种编排方案各跑一次：自己做、用自家 subagent、通过 `lead` 用 agy。
 
+[Tech Report](https://lastwhisper.dev/en/zen-of-harness-engineering/agy-staff-bench-v1/) · [中文报告](https://lastwhisper.dev/zen-of-harness-engineering/agy-staff-bench-v1/)
+
 [![agy-staff Bench v1：Claude Code 和 Codex 在 SWE-bench Verified、SWE-Atlas QnA、DeepSearchQA 上，分别单独做、用自家 subagent、用 agy 的结果](bench/results/v1/summary.png)](bench/README.zh-CN.md)
 
 > [!NOTE]
