@@ -39,4 +39,7 @@ class CodexAgyStaff(CodexWriteback):
             raise RuntimeError("could not resolve the container user's HOME")
 
         await agy_auth.upload(self, environment, remote_home)
-        await super().run(instruction, environment, context)
+        try:
+            await super().run(instruction, environment, context)
+        finally:
+            await agy_auth.scrub(self, environment, remote_home)

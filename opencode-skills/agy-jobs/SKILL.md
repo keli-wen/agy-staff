@@ -7,7 +7,7 @@ description: Manage agy staffer background jobs - collect results, check status,
 
 # agy jobs
 
-Manage background staffer/research/review/implement jobs. State is per repository in `.agy-staff/`. Only ask runs synchronously.
+Manage background staffer/research/review/implement jobs. State is per repository in `.agy-staff/` (git-excluded via `.git/info/exclude`). Always invoke the companion from the target repository so AGY attaches that repository as its workspace; `.agy-staff/` is companion state rather than a repository source modification, so do not relocate companion calls to `/tmp` or delete `.agy-staff/`. Only ask runs synchronously.
 
 This file lives at `<plugin-root>/opencode-skills/agy-jobs/SKILL.md`:
 
@@ -19,7 +19,7 @@ node "<skill-dir>/../../companion/agy-companion.mjs" <command> [args]
 
 Default flow: prepare the prompt → dispatch → wait for the final result → validate as needed. While a job is running, do not proactively call `observe`/`status`, read logs or inspect intermediate artifacts. Do not query progress for routine updates or create sleep/observe loops. Observe only when the user explicitly asks for progress; diagnose after receiving a failure or a result requiring intervention.
 
-1. Keep the returned job id. Start `wait <id> --timeout 10m` in the background, using the same unsandboxed context as launch. Use a separate wait for each job; never wait for several jobs serially in one shell.
+1. Keep the returned job id. Run `wait <id> --timeout 10m` using the same unsandboxed context as launch (in the background when the host supports background sessions or completion delivery, or directly in the foreground when the host only provides a synchronous shell tool). Use a separate wait for each job; never wait for several jobs serially in one shell.
 2. For **wait**, branch on the exit code:
 
 | Code | Meaning | Next action |
@@ -35,7 +35,7 @@ Default flow: prepare the prompt → dispatch → wait for the final result → 
 
 When the user explicitly asks for progress, use `observe <id>` and answer from that snapshot, keeping any pending wait open. An already returned snapshot may answer the question; do not duplicate it or turn one question into recurring observation.
 
-Collecting a pending wait command is necessary result collection, not active observation. Host collectors (for example, Codex `write_stdin`) return that command's output; an outer `functions.wait` resumes a yielded `functions.exec` call. They do not independently read AGY progress. Every wake-up rereads your whole context, so wake as rarely as the host allows. If the host delivers a background command's completion to you, launch the wait and end your turn; do not sleep, poll or schedule your own wake-up. If it does not, collect the pending wait with the longest block your collection tool supports and set that duration explicitly, since defaults are often about 30 seconds; about four minutes per call stays under a typical prompt-cache expiry. For example, Claude Code delivers background completion; in Codex, pass `yield_time_ms: 240000` to `write_stdin`, or start a code-mode cell with `// @exec: {"yield_time_ms": 240000}`. Keep the same pending command until it returns; only restart `wait` for the same job after exit 2.
+Collecting a pending wait command is necessary result collection, not active observation. Host collectors (for example, Codex `write_stdin`) return that command's output; an outer `functions.wait` resumes a yielded `functions.exec` call. They do not independently read AGY progress. Every wake-up rereads your whole context, so wake as rarely as the host allows. Only when you know the host automatically wakes you in a new turn on background command completion (for example, Claude Code `Bash` with `run_in_background: true`), launch the wait in the background and end your turn; do not sleep, poll or schedule your own wake-up. Otherwise — or if you are unsure — stay in your turn and block for the longest window your tool supports (240000–300000 ms / 4–5 minutes per call, overriding any generic 60-second interactive wait guideline when no user question is pending): in Codex, pass `yield_time_ms: 300000` to both `// @exec: {"yield_time_ms": 300000}` and `write_stdin` (or call `functions.wait` with `yield_time_ms: 300000` directly on a yielded `exec` cell, never a 1-second `@exec` wrapper around `write_stdin`); in harnesses with only a synchronous shell tool (such as Pi or OpenCode), run `wait <id> --timeout 10m` directly in the foreground with a matching tool timeout. Keep the same pending command until it returns; only restart `wait` for the same job after exit 2.
 
 A wait expires without stopping the worker. Cancel only when the task calls for stopping; silence or soft expiry alone is not a reason. For a user-requested progress answer or diagnosis after failure/required intervention, read a bounded `details` excerpt only if the returned information leaves a specific question unanswered. Never inspect logs or intermediate artifacts for routine reassurance.
 

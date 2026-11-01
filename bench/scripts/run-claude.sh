@@ -97,9 +97,12 @@ EGRESS_URL=https://api.anthropic.com/cdn-cgi/trace
 egress_host "$EGRESS_URL" host-pre
 
 CLAUDE_CODE_OAUTH_TOKEN=$(tr -d '[:space:]' < "$CLAUDE_TOKEN"); export CLAUDE_CODE_OAUTH_TOKEN
+if [ "$SETUP" = agy-staff ] && [ ! -f "$AGY_AUTH_DIR/antigravity-oauth-token" ] && [ -n "${GEMINI_API_KEY:-}" ]; then
+  AGY_BENCH_GEMINI_API_KEY="$GEMINI_API_KEY"; export AGY_BENCH_GEMINI_API_KEY
+fi
 cd "$DATA"
 "${ENV[@]}" "${HARBOR[@]}" 2>&1 | harbor_filter || true
-unset CLAUDE_CODE_OAUTH_TOKEN
+unset CLAUDE_CODE_OAUTH_TOKEN AGY_BENCH_GEMINI_API_KEY
 echo "job: $DATA/jobs/$JOB"
 
 # The leak scan also looks for the setup-token file's value.

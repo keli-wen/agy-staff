@@ -4,6 +4,8 @@
 
 agy-staff Bench measures what delegating to agy costs a host agent and what it buys. Every task runs three ways: the host alone, the host with its own subagents, and the host with agy through `lead`. The table reports tasks solved, host spend, total spend and wall time.
 
+[Tech Report](https://lastwhisper.dev/en/zen-of-harness-engineering/agy-staff-bench-v1/) · [中文报告](https://lastwhisper.dev/zen-of-harness-engineering/agy-staff-bench-v1/)
+
 [![agy-staff Bench v1: Claude Code and Codex on SWE-bench Verified, SWE-Atlas QnA and DeepSearchQA, solo, with their own subagents and with agy](results/v1/summary.png)](results/v1/summary.svg)
 
 > [!NOTE]
@@ -95,6 +97,25 @@ The completed 12-job manifest fills the missing Codex native cells using GPT-6.1
 
 The added jobs are exactly those in `manifest-s61x-native-supplement-20261023-r1-rerun4.json`: the first valid QnA trial comes from rerun1 and the other 11 from rerun4. Superseded s6x jobs and failed infrastructure attempts are excluded. Their analysis records are appended to the local, git-ignored `results/trials.jsonl`; the published `data.json` retains each exact job name and `source_phase`. Its `runs` metadata records native worker model and effort, verified against the actual worker trajectories. The original 96 selected trials and their measured results are retained.
 
+## v2: agy-staff 0.8.0 on Codex (2026-11-02)
+
+v1 showed that Codex `+ agy` spent 872 collection calls over 20 trials (most waking after the default ~30-second yield and rereading the full host context), making host spend 22% higher than solo on SWE-Atlas QnA and 86% higher on SWE-bench Verified. [agy-staff 0.8.0](../docs/releases/v0.8.0.md) moves v1's trajectory findings into the `jobs`, `lead` and worker instructions: explicit 300-second blocking waits (`yield_time_ms: 300000` on both `// @exec` and `write_stdin` / `functions.wait`), verbatim constraint pass-through without forwarding orchestration instructions, and thin shared worker rules (`## Conflicts with the task` and a `Status:` header).
+
+`results/v2/` reruns all 20 Codex `+ agy` trials on `0.8.0` (`s61x-v080-r1`, GPT-6.1 Sol xhigh, Codex CLI 0.160.1) and carries the `solo`, `native` and `Claude Code` cells forward from v1 (`source_phase: "v1-carried"` in `results/v2/data.json`, since Claude Code already uses background completion delivery).
+
+| Benchmark | Tasks | Solved (`v1 → v2` / solo / native) | Wait calls (`v1 → v2`) | Host turns (`v1 → v2`) | Host USD / trial (`v1 → v2` / vs solo) | Worker USD / trial (`v1 → v2`) | Total USD / trial (`v1 → v2`) | Median minutes (`v1 → v2`) |
+| --- | ---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| SWE-Atlas QnA | 6 | 5/6 → **5/6** (6/6 / 5/6) | 169 → **53 (−68.6%)** | 283 → **149 (−47.3%)** | 0.6256 → **0.4052 (−35.2% / −21.2% vs solo)** | 0.9369 → **0.9132 (−2.5%)** | 1.5626 → **1.3183 (−15.6%)** | 22.57 → **18.35 (−18.7%)** |
+| DeepSearchQA | 6 | 5/6 → **6/6** (5/6 / 5/6) | 225 → **63 (−72.0%)** | 289 → **142 (−50.9%)** | 0.3694 → **0.2841 (−23.1% / −35.3% vs solo)** | 1.2891 → **1.0415 (−19.2%)** | 1.6585 → **1.3255 (−20.1%)** | 20.69 → **19.81 (−4.3%)** |
+| SWE-bench Verified | 8 | 4/8 → **4/8** (5/8 / 4/8) | 448 → **157 (−65.0%)** | 546 → **252 (−53.8%)** | 0.4621 → **0.3038 (−34.3% / +22.2% vs solo)** | 1.7854 → **1.5686 (−12.1%)** | 2.2475 → **1.8724 (−16.7%)** | 25.47 → **23.29 (−8.5%)** |
+| **All 20 tasks** | **20** | **14/20 → 15/20** (16/20 / 14/20) | **842 → 273 (−67.6%)** | **1,118 → 543 (−51.4%)** | **0.4833 → 0.3283 (−32.1% / −14.8% vs solo)** | **1.3820 → 1.2138 (−12.2%)** | **1.8653 → 1.5421 (−17.3%)** | **22.56 → 19.32 (−14.3%)** |
+
+[![agy-staff Bench v2: Claude Code and Codex on SWE-bench Verified, SWE-Atlas QnA and DeepSearchQA, with Codex + agy on agy-staff 0.8.0](results/v2/summary.png)](results/v2/summary.svg)
+
+- **Host waiting and spend.** Across the 20 Codex `+ agy` trials, wait-collection calls fell 67.6% (842 → 273), host turns fell 51.4% (1,118 → 543), and mean host cache reads fell 47.3% (1.89M → 1.00M tokens). Mean Codex host spend fell 32.1% ($0.4833 → $0.3283), reversing v1's +25.4% host-cost premium over Codex solo ($0.3854) into a 14.8% saving vs solo (and 8.7% below Codex native at $0.3595).
+- **Solve rate and worker steps.** Overall solve rate rose from 14/20 to 15/20, with DeepSearchQA reaching 6/6 (`f1 = 1.0, fully_correct = 1.0` across all 3 runs on both judges, recovering `deepsearchqa-0118`). Total AGY planner steps fell 8.4% (2,309 → 2,114; −13.6% on SWE-bench Verified from 1,145 → 989) and raw median wall time dropped across all three suites. The v2 batch ran against the `GEMINI_API_KEY` endpoint (`modelProvider: gemini`), which averaged 8.46s/step across 2,088 measurable generation intervals versus 7.70s/step on v1's OAuth route (71 steps exceeded 30s vs 55 in v1); individual tasks that hit clusters of >30s API responses (such as `sympy__sympy-14248`, where planner steps fell 31% from 269 to 185 but 13 steps exceeded 30s) therefore show longer raw wall times despite fewer steps. All figures report raw unadjusted `wall_clock_s`.
+- **v2 charts and data:** [summary.svg](results/v2/summary.svg) · [cost.svg](results/v2/cost.svg) · [tokens.svg](results/v2/tokens.svg) · [pareto.svg](results/v2/pareto.svg) · [data.json](results/v2/data.json)
+
 ## Known limits
 
 - One run per task and setup, over 20 tasks.
@@ -108,7 +129,13 @@ The added jobs are exactly those in `manifest-s61x-native-supplement-20261023-r1
 
 ```
 results/
-└── v1/
+├── v1/
+│   ├── summary.svg   the v1 table (and summary.png)
+│   ├── cost.svg      cost per trial, host and worker  (and cost.png)
+│   ├── tokens.svg    tokens per trial, host and worker  (and tokens.png)
+│   ├── pareto.svg    tasks solved against host and total cost per trial  (and pareto.png)
+│   └── data.json     the 108 v1 trials and per-cell aggregates
+└── v2/
     ├── summary.svg   the table
     ├── summary.png   the same table rendered for the READMEs (headless Chrome at 3x; rsvg-convert drops the embedded number font)
     ├── cost.svg      cost per trial, host and worker  (and cost.png)
@@ -126,6 +153,7 @@ Each published table gets its own directory under `results/`. A published versio
 | version | published | agy-staff | hosts | tasks | changes |
 |---|---|---|---|---|---|
 | [v1](results/v1/) | 2026-10-19 | 0.7.3 (`f00d149`) | Claude Code 2.1.296 (Opus 5.5 xhigh); Codex 0.160.1 (GPT-6.1 Sol xhigh) | 20 | first baseline |
+| [v2](results/v2/) | 2026-11-02 | 0.8.0 (`90596bc`) | Claude Code 2.1.296 (Opus 5.5 xhigh, carried from v1); Codex 0.160.1 (GPT-6.1 Sol xhigh) | 20 | 0.8.0 Codex + agy validation (explicit 300s blocking waits, verbatim constraints, thin shared worker rules); solo, native and Claude Code cells carried from v1 |
 
 **Addition, v1 (2026-10-20).** Three charts drawn from the same `data.json`: cost per trial, tokens per trial, and solved vs cost. No file published before changed.
 
