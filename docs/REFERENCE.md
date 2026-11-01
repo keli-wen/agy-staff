@@ -189,6 +189,24 @@ After warning-free success, results and metadata become durable before the raw s
 
 Automatic since 0.4: when the companion creates `.agy-staff/` for the first time in a repo, it appends `.agy-staff/` to `.git/info/exclude` (repo-local, untracked) unless the path is already ignored. It never touches the tracked `.gitignore` — the state directory is local scratch, and adding it to a shared, committed file would change the repo for everyone else.
 
+## Account relay (`relay`, `pool`)
+
+agy runs under one login at a time and each account has its own quota. With relay on, a background job picks its starting account by expected size and continues on the next account when its own account runs out of quota. It needs the `agy-switch` CLI with two or more saved accounts and `switch --target agy`.
+
+```bash
+node "<skill-dir>/../../companion/agy-companion.mjs" relay on [--need small|medium|large]
+node "<skill-dir>/../../companion/agy-companion.mjs" relay off | show [--json]
+node "<skill-dir>/../../companion/agy-companion.mjs" pool [--refresh] [--json] [--model <id>]
+```
+
+- **Setting.** `~/.agy-staff/config.json` (`AGY_STAFF_HOME` overrides the directory), applies to every repository. Per job: `--relay`, `--no-relay`, `--need small|medium|large`. Defaults: `need` medium, `max_hops` 4, `exhausted_below` 5%, `wait_other_agy_seconds` 300.
+- **Starting account.** Quota is the lower of the family's 5-hour and weekly buckets (`gemini-*` models use the Gemini buckets, `claude-*` and `gpt-*` the third-party buckets). `need` asks for at least 10%, 30% or 60% left. The current account is kept when it qualifies, otherwise the fullest one is used; cached quota older than 10 minutes is refreshed first. Unknown quota is never treated as available.
+- **Handoff.** After a failed run the companion runs `agy-switch refresh` and only treats the failure as quota exhaustion when the account that ran the job is at or below `exhausted_below`. agy's error wording is not evidence. It then switches to the account with the most quota (at least 10%, never one already tried) and continues the same conversation with `templates/relay-handoff.md`; with no conversation yet it reruns the original task. The result gains a `[agy-staff relay]` note and `job.relay.hops` records each move. Cancellation interrupts every wait.
+- **Shared login, no restarts.** agy and the Antigravity App read the same system credential, so there is one account at a time. The relay switches it with `agy-switch switch --target agy`, which writes the credential and agy's session file and never closes, starts or restarts the App, the IDE or any other process. New agy runs use the new account at once; a running App keeps its loaded account until it restarts.
+- **Refusals.** It does not switch while other `agy` runs are in progress (they keep their old login and may write it back; it waits up to `wait_other_agy_seconds`; the App's `agy --hub` server is not counted) or when the process list cannot be read. A failed switch is reported, never retried silently; lock contention (exit 5) is retried. An agy-switch without `--target agy` is reported and never replaced by a switch that restarts the App. All reasons are appended to the job error as `Relay: ...`.
+- **Design note.** DESIGN.md lists automatic continuation as a non-goal. Relay is the one opt-in exception, limited to verified quota exhaustion and switched on by the user, not by the host.
+- **Verification limits.** The wording of agy's exhaustion error has not been observed, and the account switch is shared machine-wide state. Tests use a fake `agy-switch` (`AGY_SWITCH_BIN`, `AGY_STAFF_PROCESS_LIST`, `AGY_STAFF_RELAY_POLL_MS`).
+
 ## Troubleshooting
 
 - **"agy reported an error (status ERROR)"** — the companion relays agy's own error verbatim, and appends a cause hint only when the error text actually matches one (invalid model id → run `agy models`; expired auth → run `agy` interactively once to re-login; exhausted quota). If agy reported an error but still returned response text, the companion delivers the response anyway — exit 0, response on stdout, warning on stderr (`done_with_warnings`); a deadline with no response but a known conversation instead signals attention (exit 5).

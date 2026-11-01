@@ -240,6 +240,24 @@ review --prompt "Review the patch at /tmp/change.patch"
 
 从 0.4 起，companion 首次在仓库中创建 `.agy-staff/` 时，会检查该目录是否已被忽略。如果没有，就将它加入本地的 `.git/info/exclude`。这样既能避免误提交任务记录，也不会改动团队共享的 `.gitignore`。
 
+## 多账号接力（`relay`、`pool`）
+
+agy 同一时间只使用一个登录账号，每个账号有各自的额度。开启接力后，后台任务会按预估规模选择起始账号，并在当前账号额度耗尽时换到下一个账号继续。需要 `agy-switch` 命令行，保存了两个以上账号，并且支持 `switch --target agy`。
+
+```bash
+node "<skill-dir>/../../companion/agy-companion.mjs" relay on [--need small|medium|large]
+node "<skill-dir>/../../companion/agy-companion.mjs" relay off | show [--json]
+node "<skill-dir>/../../companion/agy-companion.mjs" pool [--refresh] [--json] [--model <id>]
+```
+
+- **设置。** 保存在 `~/.agy-staff/config.json`（可用 `AGY_STAFF_HOME` 改目录），对所有仓库生效。单次任务可用 `--relay`、`--no-relay`、`--need small|medium|large`。默认值：`need` 为 medium，`max_hops` 为 4，`exhausted_below` 为 5%，`wait_other_agy_seconds` 为 300。
+- **起始账号。** 额度取对应系列 5 小时桶和每周桶中较低的一个（`gemini-*` 模型用 Gemini 桶，`claude-*`、`gpt-*` 用第三方桶）。`need` 分别要求至少剩余 10%、30%、60%。当前账号满足要求就继续用，否则选剩余最多的账号；缓存超过 10 分钟会先刷新。额度未知的账号不会被当作可用。
+- **换号续跑。** 任务失败后，companion 先执行 `agy-switch refresh`，只有运行任务的账号额度不高于 `exhausted_below` 时，才把失败视为额度耗尽；agy 的报错措辞不作为依据。随后切到剩余额度最多（至少 10%，且本任务没用过）的账号，用 `templates/relay-handoff.md` 在同一会话里继续；如果还没有会话，则重新执行原任务。结果末尾会加 `[agy-staff relay]` 说明，`job.relay.hops` 记录每次切换。取消操作会打断所有等待。
+- **共用登录，不重启。** agy 和 Antigravity App 读取同一份系统凭据，所以同一时间只有一个账号。接力用 `agy-switch switch --target agy` 换号：写入这份凭据和 agy 的会话文件，不关闭、不启动、不重启 App、IDE 或任何其他进程。之后新的 agy 运行立即使用新账号；正在运行的 App 继续使用已加载的账号，直到它下次重启。
+- **拒绝切换的情况。** 还有其他 `agy` 任务在运行时不切（它们保留旧登录，还可能写回；最多等待 `wait_other_agy_seconds`；App 自带的 `agy --hub` 后台服务不计入）；读不到进程列表时也不切。切换失败会如实报告，不会悄悄重试；锁冲突（退出码 5）会重试。agy-switch 不支持 `--target agy` 时只报告原因，绝不改用会重启 App 的切换方式。所有原因都会以 `Relay: ...` 附在任务错误信息里。
+- **设计说明。** DESIGN.md 把自动继续列为非目标。接力是唯一的例外：仅限已验证的额度耗尽，并且由用户而不是主 agent 开启。
+- **验证范围。** agy 额度耗尽时的报错措辞尚未观察到，账号切换是整台机器共享的状态。测试使用假的 `agy-switch`（`AGY_SWITCH_BIN`、`AGY_STAFF_PROCESS_LIST`、`AGY_STAFF_RELAY_POLL_MS`）。
+
 ## 疑难排查
 
 ### agy 报错，但可能已经返回了回答

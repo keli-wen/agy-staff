@@ -51,6 +51,8 @@ CLI behavior is exercised through subprocesses, because the companion calls `mai
   `FAKE_AGY_EXIT`, and `FAKE_AGY_TOUCH_FILE`, which writes a file mid-"run" to
   simulate agy dirtying the working tree).
 
+`relay.test.mjs` covers the multi-account relay with `tests/fake-agy-switch.mjs` (synthetic accounts and quota, scripted refreshes and switch exits) and a fake `agy` whose runs belong to the fake current account. Test hooks: `AGY_SWITCH_BIN` (the agy-switch binary), `AGY_STAFF_PROCESS_LIST` (a file standing in for `ps`), `AGY_STAFF_RELAY_POLL_MS` (shorter waits), `AGY_STAFF_HOME` (the user-level config directory; the sandbox HOME already isolates it).
+
 Coverage: removed 0.1 flags and their migration messages, deprecated
 `--strict`/`--loose` aliases, profile mutual exclusion, per-mode execution style,
 and permission-profile wiring asserted on the argv the fake `agy` received —

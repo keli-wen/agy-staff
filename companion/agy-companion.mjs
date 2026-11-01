@@ -12,6 +12,11 @@
  *                                   the general-purpose mode: a minimal prompt
  *                                   with no role or output-format framing)
  *   ask --prompt <question>         cheap zero-tool one-shot Q&A (foreground)
+ *   pool [--refresh] [--json]       remaining quota of every agy-switch account
+ *                                   (read-only; the pool the relay draws from)
+ *   relay [on|off|show]             user-level switch for multi-account relay:
+ *                                   a job picks the best account up front and
+ *                                   moves to the next when quota runs out
  *   continue --prompt <text>        continue the most recent conversation (any mode)
  *   observe [job-id]                immediate bounded snapshot in every job state
  *   restart <job-id>                explicitly relaunch the stored task
@@ -92,8 +97,10 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { boundSnapshot, excerpt } from './observation.mjs';
-import { atomicJSON, runStreaming, processIdentity } from './stream-worker.mjs';
+import { boundSnapshot, excerpt, createParser } from './observation.mjs';
+import { atomicJSON, runStreaming, processIdentity, signalGroup } from './stream-worker.mjs';
+import { NEED_MIN, DEFAULT_RELAY, loadRelayConfig, saveRelayConfig, snapshot as poolSnapshot, formatPool, familyOf } from './pool.mjs';
+import { preflight as relayPreflight, afterFailure as relayAfterFailure, liveAccount } from './relay.mjs';
 import { withStateLock, replaceFile, readTextRetry } from './state-lock.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
@@ -414,8 +421,8 @@ function pidAlive(pid) {
   }
 }
 
-const VALUE_FLAGS = new Set(['job', 'conversation', 'model', 'effort', 'timeout', 'restrict', 'prompt', 'prompt-file']);
-const BOOL_FLAGS = new Set(['continue', 'restricted', 'unrestricted', 'json', 'apply', 'dry-run', 'stdin']);
+const VALUE_FLAGS = new Set(['job', 'conversation', 'model', 'effort', 'timeout', 'restrict', 'prompt', 'prompt-file', 'need']);
+const BOOL_FLAGS = new Set(['continue', 'restricted', 'unrestricted', 'json', 'apply', 'dry-run', 'stdin', 'relay', 'no-relay', 'refresh']);
 
 // Flags dropped in 0.2. They get their own error instead of falling through to
 // "unknown flag", so a 0.1 caller learns what replaced them.
@@ -1118,7 +1125,7 @@ function treeDeltaReport(mode, before, after) {
 }
 
 async function executeRun(resolved, prompt, opts, execution = null) {
-  const workspaceBefore = resolved.mode === 'ask' ? null : porcelainSnapshot();
+  const workspaceBefore = resolved.mode === 'ask' ? null : (opts.workspaceBefore ?? porcelainSnapshot());
   const implementBefore = implementGuardApplies(resolved) ? workspaceBefore : null;
   const treeBefore = treeReportApplies(resolved) ? workspaceBefore : null;
 
@@ -1153,6 +1160,7 @@ async function executeRun(resolved, prompt, opts, execution = null) {
     throw error;
   }
   const payload = result.payload;
+  opts.agyStatus = payload.status || null;
   const treeAfter = treeBefore ? porcelainSnapshot() : null;
   opts.warnings = !!(result.stderr || result.observationWarnings?.length || result.exit !== 0 || (payload.status && payload.status.toUpperCase() !== 'SUCCESS'));
 
@@ -1196,6 +1204,7 @@ async function dispatch(resolved, prompt, opts) {
   }
 
   if (implementGuardApplies(resolved)) implementDispatchWarning();
+  const relay = resolveRelay(opts, mode);
 
   // background: write a job spec, spawn ourselves detached as _worker
   const jobId = `${mode}-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
@@ -1216,12 +1225,13 @@ async function dispatch(resolved, prompt, opts) {
     spec_file: specFile,
     events_file: path.join(jobsDir, `${jobId}.events.jsonl`),
     progress_file: path.join(jobsDir, `${jobId}.progress.json`),
+    ...(relay ? { relay: { need: relay.need, hops: [] } } : {}),
   };
   updateState((state) => {
     // Two callers can both resolve an idle conversation. Recheck under the
     // registration lock before accepting either the job or its prompt file.
     refuseRunningFollowUp(state, resolved.conversation);
-    fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
+    fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, relay, cwd: process.cwd() }, null, 2));
     state.jobs ||= [];
     state.jobs.push(record);
   });
@@ -1252,11 +1262,85 @@ async function dispatch(resolved, prompt, opts) {
     `Started background ${mode} job.\n` +
       `job id: ${jobId} (pid ${child.pid})\n` +
       `model: ${resolved.model}  profile: ${resolved.profile}  timeout: ${resolved.timeout}\n` +
+      (relay ? `relay: on (need ${relay.need}); the job moves to another account if this one runs out of quota\n` : '') +
       `result file (written when the job finishes): ${resultFile}\n` +
       `Collect: run \`wait ${jobId} --timeout 10m\` as a background command ` +
       `(one background wait per job; exit 0 = result printed, 2 = still running — wait again for the same job, without extra progress checks).\n` +
       `Progress only if the user asks: \`observe ${jobId}\`   Stop: \`cancel ${jobId}\`\n`
   );
+}
+
+/** Relay settings for one dispatch: flags win over the user-level config. */
+function resolveRelay(opts, mode) {
+  if (mode === 'ask') return null;
+  if (opts.relay && opts['no-relay']) die('--relay and --no-relay are mutually exclusive');
+  if (opts.need && !NEED_MIN[opts.need]) die('--need must be small|medium|large');
+  const config = loadRelayConfig();
+  const enabled = opts.relay ? true : opts['no-relay'] ? false : config.enabled;
+  if (!enabled) return null;
+  return { ...config, enabled: true, need: opts.need || config.need };
+}
+
+const RELAY_HANDOFF = () => fs.readFileSync(path.join(TEMPLATES_DIR, 'relay-handoff.md'), 'utf8').trim();
+const NO_RELAY_REASONS = new Set(['canceled', 'hard_timeout', 'stream_error', 'launch_error']);
+
+/** Run the job, moving to another account when the current one runs out of quota. */
+async function runWithRelay({ spec, opts, jobId, runner, controller, started }) {
+  const relay = spec.relay || null;
+  const log = (message) => process.stderr.write(`[agy-staff] ${message}\n`);
+  let resolved = spec.resolved, prompt = spec.prompt;
+  const hops = [], tried = new Set();
+  const recordRelay = () => updateJob(jobId, { relay: { need: relay.need, hops } });
+  const budgetLeft = () => durationToMs(spec.resolved.timeout) - (Date.now() - started);
+
+  if (relay) {
+    const pre = await relayPreflight({ model: resolved.model, relay, log, signal: controller.signal });
+    log(`relay: ${pre.note}`);
+    if (pre.action === 'switched') hops.push({ at: new Date().toISOString(), kind: 'start', from: pre.from, to: pre.note });
+    if (hops.length) recordRelay();
+  }
+
+  for (;;) {
+    const live = relay ? liveAccount(resolved.model) : null;
+    const attemptId = live?.current?.id ?? null;
+    let failure = null, output = null;
+    try {
+      output = await executeRun(resolved, prompt, opts, runner);
+    } catch (error) {
+      if (!relay || controller.signal.aborted || NO_RELAY_REASONS.has(error.reason)) throw error;
+      failure = error;
+    }
+    const status = String(opts.agyStatus || 'SUCCESS').toUpperCase();
+    // A response can arrive together with an error status; only then is it worth checking the quota.
+    if (!failure && (!relay || status === 'SUCCESS')) return withRelayNote(output, hops);
+    if (!relay || !attemptId || hops.filter((h) => h.kind !== 'start').length >= relay.max_hops || budgetLeft() < 60_000) {
+      const why = !relay ? null : !attemptId ? `the account running this job is unknown (${live?.error || 'agy-switch records no current account'})`
+        : budgetLeft() < 60_000 ? 'not enough time left in the job budget' : `already moved ${relay.max_hops} time(s)`;
+      if (failure) { if (why) failure.message += `\nRelay: ${why}`; throw failure; }
+      return withRelayNote(output, hops);
+    }
+    const step = await relayAfterFailure({ model: resolved.model, relay, attemptId, tried, log, signal: controller.signal });
+    if (step.action !== 'continue') {
+      log(`relay: staying put: ${step.reason}`);
+      if (failure) { failure.message += `\nRelay: ${step.reason}`; throw failure; }
+      return withRelayNote(output, hops) + `\n\n[agy-staff relay] ${step.reason}`;
+    }
+    hops.push({ at: new Date().toISOString(), kind: 'quota', from: step.from, to: step.to });
+    recordRelay();
+    log(`relay: ${step.from} ran out of quota; continuing on ${step.to} (${Math.round(step.remaining.fraction * 100)}% left)${step.switched ? '' : ' (already active)'}`);
+    const conversation = loadState().jobs?.find((j) => j.id === jobId)?.conversation_id || null;
+    resolved = { ...resolved, conversation };
+    prompt = conversation ? RELAY_HANDOFF() : spec.prompt;
+    opts.warnings = true;
+  }
+}
+
+function withRelayNote(output, hops) {
+  const moves = hops.filter((h) => h.kind === 'quota');
+  if (!moves.length) return output;
+  const path = [moves[0].from, ...moves.map((h) => h.to)].join(' -> ');
+  return `${output}\n\n[agy-staff relay] This job ran across ${moves.length + 1} accounts (${path}) because the earlier ones ran out of quota. ` +
+    'Edits made before a handoff remain in the working tree.';
 }
 
 async function workerMain(jobId) {
@@ -1279,7 +1363,8 @@ async function workerMain(jobId) {
     if (controller.signal.aborted) throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled' });
     const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
     const opts = { ...spec.opts, jobId };
-    const output = await executeRun(spec.resolved, spec.prompt, opts, (invoke) => {
+    opts.workspaceBefore = spec.resolved.mode === 'ask' ? null : porcelainSnapshot();
+    const runner = (invoke) => {
       const agy = agyCommand(agyArgs(invoke, 'stream-json'));
       return runStreaming({ binary: agy.cmd, args: agy.args, job,
         budget: durationToMs(spec.resolved.timeout) - (Date.now() - started), signal: controller.signal,
@@ -1291,7 +1376,8 @@ async function workerMain(jobId) {
         }
         throw error;
       });
-    });
+    };
+    const output = await runWithRelay({ spec, opts, jobId, runner, controller, started });
     if (controller.signal.aborted) throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled' });
     // Result and conversation metadata are durable before completion is visible.
     job = finishJob(jobId, output + '\n', { status: 'done', warnings: opts.warnings });
@@ -1859,6 +1945,41 @@ function printSetupNotes() {
 }
 
 // ---------------------------------------------------------------------------
+// pool / relay
+// ---------------------------------------------------------------------------
+
+/** Show every account's remaining quota for a model family (read-only; --refresh asks Google first). */
+function cmdPool(opts) {
+  const extra = Object.keys(opts).filter((key) => !['_', 'model', 'refresh', 'json'].includes(key));
+  if (extra.length || opts._.length) die('pool takes only --model, --refresh and --json');
+  const model = opts.model ? normalizeModel(opts.model, opts.effort) : DEFAULTS.model.staffer;
+  const snap = poolSnapshot({ family: familyOf(model), refresh: !!opts.refresh });
+  if (snap.error) die(`agy-switch is unavailable: ${snap.error}`);
+  process.stdout.write((opts.json ? JSON.stringify(snap, null, 2) : formatPool(snap)) + '\n');
+}
+
+/** Manage the user-level relay setting (~/.agy-staff/config.json). */
+function cmdRelay(opts) {
+  const action = opts._[0] || 'show';
+  if (!['on', 'off', 'show'].includes(action) || opts._.length > 1) die('usage: relay [on|off|show]');
+  const extra = Object.keys(opts).filter((key) => !['_', 'need', 'json'].includes(key));
+  if (extra.length) die(`relay does not take --${extra[0]}`);
+  if (opts.need && !NEED_MIN[opts.need]) die('--need must be small|medium|large');
+  let config = loadRelayConfig();
+  if (action === 'on' || action === 'off') {
+    config = saveRelayConfig({
+      enabled: action === 'on',
+      ...(opts.need ? { need: opts.need } : {}),
+    });
+  }
+  if (opts.json) { process.stdout.write(JSON.stringify(config, null, 2) + '\n'); return; }
+  process.stdout.write(
+    `[agy-staff relay] ${config.enabled ? 'on' : 'off'} need=${config.need} max_hops=${config.max_hops} ` +
+    `exhausted_below=${Math.round(config.exhausted_below * 100)}%\n`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -1866,7 +1987,7 @@ function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd) {
     die(
-      'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|restart|observe|status|wait|result|cancel|setup> [flags]\n' +
+      'usage: agy-companion.mjs <staffer|research|review|implement|ask|pool|relay|continue|restart|observe|status|wait|result|cancel|setup> [flags]\n' +
         'flags: --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
         '--prompt <text> --prompt-file <path> --stdin --conversation <id> --continue --json (review) ' +
         '--apply --restrict <modes|none> (setup)\n' +
@@ -1897,6 +2018,10 @@ function main() {
       return cmdCancel(opts);
     case 'setup':
       return cmdSetup(opts);
+    case 'pool':
+      return cmdPool(opts);
+    case 'relay':
+      return cmdRelay(opts);
     case '_worker':
       return workerMain(rest[0]);
     default:

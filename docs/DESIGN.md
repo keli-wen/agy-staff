@@ -168,7 +168,7 @@ Probe the real CLI rather than trusting its documentation. Read its help, then m
 ## 13. Non-goals
 
 - No daemon, queue or scheduler. The host's own background execution is enough.
-- No automatic retry, continuation or restart.
+- No automatic retry, continuation or restart. The one exception is the opt-in account relay (REFERENCE.md, "Account relay"): when the user has switched it on, a job whose account is verifiably out of quota continues on another account. The user enables it, never the host, and any other failure stays a failure for the host to assess.
 - No acceptance decisions. The host judges results.
 - No security boundary. Isolation comes from the permission profile, the checkout or the machine.
 - No routing between models or CLIs. Choosing a worker is the host's and the user's decision.
