@@ -31,7 +31,9 @@ private_file() {
           $allowed = @($user, "S-1-5-18", "S-1-5-32-544")
           $owner = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
           if ($owner -notin $allowed) { exit 1 }
-          foreach ($rule in $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])) {
+          $rules = $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])
+          if ($rules.Count -eq 0) { exit 1 } # A null DACL grants everyone full access.
+          foreach ($rule in $rules) {
             if ($rule.AccessControlType -eq "Allow" -and $rule.IdentityReference.Value -notin $allowed) { exit 1 }
           }
           exit 0

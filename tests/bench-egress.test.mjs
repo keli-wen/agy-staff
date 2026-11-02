@@ -75,7 +75,7 @@ harbor_filter() { cat; }
   const token = join(dir, 'fixture-claude-token');
   const expected = join(dir, 'fixture-egress');
   writeFileSync(auth, '{}');
-  writeFileSync(token, 'fixture-not-a-real-token', { mode: privateToken ? 0o600 : 0o644 });
+  writeFileSync(token, 'fixture-not-a-real-token', { mode: privateToken === true ? 0o600 : 0o644 });
   if (process.platform === 'win32') {
     // Create real ACLs for the dummy token: no permission-check stub in lib.sh.
     const acl = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
@@ -88,6 +88,9 @@ $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($us
 if ($env:FIXTURE_PRIVATE_TOKEN -eq 'false') {
   $everyone = [System.Security.Principal.SecurityIdentifier]::new('S-1-1-0')
   $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($everyone, 'Read', 'Allow'))
+}
+if ($env:FIXTURE_PRIVATE_TOKEN -eq 'null') {
+  $acl.SetSecurityDescriptorSddlForm("O:$($user.Value)D:NO_ACCESS_CONTROL")
 }
 Set-Acl -LiteralPath $env:FIXTURE_TOKEN -AclObject $acl
 `], { encoding: 'utf8', env: { ...process.env, FIXTURE_TOKEN: token, FIXTURE_PRIVATE_TOKEN: String(privateToken) } });
@@ -168,11 +171,13 @@ sys.exit(batch.main())
 }
 
 test('claude runner rejects a token readable by other users before starting Harbor', (t) => {
-  const fixture = runnerFixture(t, 'claude', { privateToken: false });
-  const result = spawnSync('bash', [fixture.runner, ...fixture.options, 'native', 'fixture-one', 'test-r1'], {
-    encoding: 'utf8', env: fixture.env,
-  });
-  assert.equal(result.status, 2, result.stderr + result.stdout);
-  assert.match(result.stderr, /private permissions/);
-  assert.equal(existsSync(fixture.calls), false);
+  for (const privateToken of [false, 'null']) {
+    const fixture = runnerFixture(t, 'claude', { privateToken });
+    const result = spawnSync('bash', [fixture.runner, ...fixture.options, 'native', 'fixture-one', 'test-r1'], {
+      encoding: 'utf8', env: fixture.env,
+    });
+    assert.equal(result.status, 2, result.stderr + result.stdout);
+    assert.match(result.stderr, /private permissions/);
+    assert.equal(existsSync(fixture.calls), false);
+  }
 });
