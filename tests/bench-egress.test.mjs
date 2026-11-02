@@ -92,7 +92,7 @@ if ($env:FIXTURE_PRIVATE_TOKEN -eq 'false') {
 if ($env:FIXTURE_PRIVATE_TOKEN -eq 'null') {
   $acl.SetSecurityDescriptorSddlForm("O:$($user.Value)D:NO_ACCESS_CONTROL")
 }
-Set-Acl -LiteralPath $env:FIXTURE_TOKEN -AclObject $acl
+[System.IO.File]::SetAccessControl($env:FIXTURE_TOKEN, $acl)
 `], { encoding: 'utf8', env: { ...process.env, FIXTURE_TOKEN: token, FIXTURE_PRIVATE_TOKEN: String(privateToken) } });
     assert.equal(acl.status, 0, acl.stderr + acl.stdout);
   }

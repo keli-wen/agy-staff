@@ -26,7 +26,7 @@ private_file() {
       AGY_BENCH_PRIVATE_FILE="$(cygpath -w -- "$1")" powershell.exe -NoProfile -NonInteractive -Command '
         $ErrorActionPreference = "Stop"
         try {
-          $acl = Get-Acl -LiteralPath $env:AGY_BENCH_PRIVATE_FILE
+          $acl = [System.IO.File]::GetAccessControl($env:AGY_BENCH_PRIVATE_FILE)
           $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
           $allowed = @($user, "S-1-5-18", "S-1-5-32-544")
           $owner = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
