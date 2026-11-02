@@ -26,6 +26,7 @@ one-line summary to <data>/batch-<suffix>.log, and the run script's output to <d
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -177,7 +178,9 @@ def main():
         name = task.split("/")[-1]
         job = f"{args.host}-{setup}-{name}-{args.suffix}"
         # Native Windows cannot execute a .sh file through its shebang.
-        cmd = ["bash", str(script), *passthrough, setup, task, args.suffix]
+        # Resolve PATH explicitly: Windows CreateProcess otherwise searches
+        # System32 before PATH and can launch the WSL bash.exe instead of Git Bash.
+        cmd = [shutil.which("bash") or "bash", script.as_posix(), *passthrough, setup, task, args.suffix]
         if prev_task and task != prev_task and not args.no_prune and not args.dry_run:
             prune(prev_group)
         prev_task, prev_group = task, group

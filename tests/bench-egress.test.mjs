@@ -162,8 +162,9 @@ sys.exit(batch.main())
       const result = run();
       assert.equal(result.status, 2, result.stderr + result.stdout);
       const reason = readFileSync(join(fixture.data, 'batch-test-r1.STOP'), 'utf8');
-      assert.match(reason, hostPost ? /egress check failed/ : /environment failed before agent setup/);
-      assert.match(readFileSync(join(fixture.data, 'batch-test-r1.main.out'), 'utf8'), /EnvironmentStartTimeoutError/);
+      const output = readFileSync(join(fixture.data, 'batch-test-r1.main.out'), 'utf8');
+      assert.match(reason, hostPost ? /egress check failed/ : /environment failed before agent setup/, output);
+      assert.match(output, /EnvironmentStartTimeoutError/);
       assert.equal(run().status, 2, 'the existing STOP must keep the batch stopped');
       assert.equal(readFileSync(fixture.calls, 'utf8').trim().split('\n').length, 1, 'no second trial or retry');
     }
