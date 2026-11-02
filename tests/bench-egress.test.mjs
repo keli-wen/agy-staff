@@ -9,7 +9,11 @@ import { spawnSync } from 'node:child_process';
 const lib = fileURLToPath(new URL('../bench/scripts/lib.sh', import.meta.url));
 const scripts = fileURLToPath(new URL('../bench/scripts/', import.meta.url));
 
-test('environment startup failure is distinct from failed or missing egress checks', (t) => {
+// The reproduction harness needs POSIX paths, permissions and executable scripts.
+// Keep these regressions on Ubuntu/macOS rather than exercising Git Bash interop.
+const posixOnly = { skip: process.platform === 'win32' && 'benchmark harness requires POSIX paths, permissions and executable scripts' };
+
+test('environment startup failure is distinct from failed or missing egress checks', posixOnly, (t) => {
   const job = mkdtempSync(join(tmpdir(), 'bench-egress-'));
   t.after(() => rmSync(job, { recursive: true, force: true }));
   const trial = join(job, 'trial');
@@ -109,7 +113,7 @@ process.exit(1);
 }
 
 for (const host of ['codex', 'claude']) {
-  test(`${host} runner preserves startup failure, host-egress priority and leak priority`, (t) => {
+  test(`${host} runner preserves startup failure, host-egress priority and leak priority`, posixOnly, (t) => {
     for (const [settings, expected] of [[{}, 5], [{ hostPost: 4 }, 4], [{ leak: 3 }, 3]]) {
       const fixture = runnerFixture(t, host, settings);
       const result = spawnSync('bash', [fixture.runner, ...fixture.options, 'native', 'fixture-one', 'test-r1'], {
@@ -121,7 +125,7 @@ for (const host of ['codex', 'claude']) {
     }
   });
 
-  test(`${host} batch stops with the correct cause and never retries a startup failure`, (t) => {
+  test(`${host} batch stops with the correct cause and never retries a startup failure`, posixOnly, (t) => {
     for (const hostPost of [0, 4]) {
       const fixture = runnerFixture(t, host, { hostPost });
       const code = `

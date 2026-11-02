@@ -8,7 +8,9 @@ import { spawnSync } from 'node:child_process';
 
 const scanner = fileURLToPath(new URL('../bench/scripts/leak-scan.sh', import.meta.url));
 
-test('bench leak scan distinguishes account metadata from Codex credentials', (t) => {
+test('bench leak scan distinguishes account metadata from Codex credentials', {
+  skip: process.platform === 'win32' && 'benchmark leak scanner requires POSIX paths and shell tools',
+}, (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-leak-scan-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const job = join(dir, 'jobs', 'fixture');
