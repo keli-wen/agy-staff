@@ -130,6 +130,7 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 | 审查方案 | `/agy:reviewer 检查 docs/plan.md 中的迁移方案，指出可能遗漏的问题` |
 | 调研代码 | `/agy:researcher 这个仓库的鉴权是怎么做的` |
 | 实现修复 | `/agy:implementer 修复那个不稳定的重试测试` |
+| 让长任务跨多个 agy-switch 账号运行 | 先执行 `agy-companion relay on`，之后照常派任务；额度耗尽时会自动换到下一个账号（[详情](docs/REFERENCE.zh-CN.md#多账号接力relaypool)） |
 | 查看或继续任务 | 直接说“agy 的任务进展如何”或“继续刚才的任务，再检查一下错误路径” |
 
 使用 `reviewer` 时，直接说明审查对象即可。agy 会自行调用 `gh pr view`、`git diff` 等命令收集材料，也可以读取指定文件。代码审查会按严重程度列出问题；方案和决策审查则会检查假设、取舍和可能遗漏的情况。

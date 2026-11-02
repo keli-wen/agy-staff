@@ -145,6 +145,7 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, in Pi `/sk
 | Review a plan or decision | `/agy:reviewer Challenge the migration plan in docs/plan.md` |
 | Survey a topic | `/agy:researcher how does auth work in this repo` |
 | Implement a scoped fix | `/agy:implementer fix the flaky retry test` |
+| Run a long job across several agy-switch accounts | `agy-companion relay on`, then dispatch as usual; the job moves to the next account when quota runs out ([details](docs/REFERENCE.md#account-relay-relay-pool)) |
 | Job ops (wait/status/cancel/continue) | natural language: "is the agy job done?", "continue: also check the error path" |
 
 `reviewer` is fully prompt-based: you describe the subject and agy gathers the evidence itself (`gh pr view`, `git diff`, reading the file) — there is no flag for handing it a diff. It has two flavors, routed by subject: code review (severity-ranked findings) and general review (a multi-angle challenge of a plan, design, or decision).

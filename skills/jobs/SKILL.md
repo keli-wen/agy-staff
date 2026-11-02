@@ -1,6 +1,6 @@
 ---
 name: jobs
-description: Manage agy staffer background jobs - collect results, check status, cancel, follow-up conversation, and setup. Use when an agy job needs collecting, when the user asks "is the agy job done", "show agy's result", "cancel the agy job", "continue the agy conversation", or "set up agy". This is the orchestrator's skill; the persona skills (staffer/researcher/reviewer/implementer) point here.
+description: Manage agy staffer background jobs - collect results, check status, cancel, follow-up conversation, and setup. Use when an agy job needs collecting, when the user asks "is the agy job done", "show agy's result", "cancel the agy job", "continue the agy conversation", "which agy account has quota", or "set up agy". This is the orchestrator's skill; the persona skills (staffer/researcher/reviewer/implementer) point here.
 user-invocable: false
 allowed-tools: Bash(node:*), AskUserQuestion
 ---
@@ -54,6 +54,8 @@ Follow through to a result unless the user asked only to launch. If the host can
 | `continue --job <id> --prompt "..."` | Resume the job's conversation with its original mode/model/profile; create a linked new job. |
 | `continue --prompt "..."` | Continue the latest conversation; `--conversation <id>` selects a known older one. |
 | `restart <id>` | Start the original task/configuration again without its conversation; create a linked new job. |
+| `pool [--refresh]` | Remaining Gemini quota of every agy-switch account, by label. Read `references/relay.md` first. |
+| `relay [on\|off\|show]` | User-level switch for multi-account relay: jobs pick their starting account and move to the next when quota runs out. Read `references/relay.md` first. |
 | `setup [--apply] [--restrict <modes\|none>]` | Optional permission setup; read `references/setup.md` first. |
 
 Wait/observe default to the latest job. Observe uses the same status exit codes, but exit 0 means **finished, not full result delivered**. Collect the existing wait session, or use `result <id>` if none is pending; do not start another wait or expect observe to consume the pending session. Failed/canceled/attention observations provide bounded recovery metadata; wait/result deliver the full report. A continued ask remains synchronous. `result` also returns exit 5 for attention (its legacy exit behavior for other terminal states is unchanged).
@@ -61,6 +63,10 @@ Wait/observe default to the latest job. Observe uses the same status exit codes,
 Continuation and restart may be invoked from the root or any subdirectory of the same worktree; execution returns to the original cwd. Generic `continue` fails for an unrecorded conversation ID. It does not search other worktrees or infer configuration from an unrelated conversation. For continuation, explicit model/profile flags override the inherited values.
 
 Cancel records a request first and returns success only after the worker has stored the cancellation report and published `canceled`. A crashed job keeps its crash diagnostics. A cancellation error requires inspection; it does not mean execution has stopped.
+
+## Account relay
+
+When relay is on (`relay show`), a job may run across several agy-switch accounts and the result may end with a `[agy-staff relay]` note. Dispatch and collect exactly as usual; read `references/relay.md` for sizing a job with `--need`, what the note means and why a handoff can be refused.
 
 ## Follow-up instructions
 

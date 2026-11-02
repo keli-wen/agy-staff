@@ -20,6 +20,8 @@ Task orchestration with AGY. You are the lead in the current harness. With an ar
 
 ## Dispatch and follow through
 
+When relay is on, size each assignment with `--need small|medium|large` as described in `../agy-jobs/references/relay.md`, and mention a relay note in the result to the user briefly.
+
 Read `../agy-jobs/SKILL.md` for result collection, cancellation, continuation, and recovery. This skill lives at `<plugin-root>/opencode-skills/agy-lead/SKILL.md`. Write the brief to a temporary file and call the shared companion:
 
 ```bash

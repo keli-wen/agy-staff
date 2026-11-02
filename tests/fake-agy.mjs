@@ -21,6 +21,13 @@
  *   FAKE_AGY_STDERR          text written to stderr alongside the payload
  *                            (or before dying under FAKE_AGY_NO_JSON)
  *   FAKE_AGY_ERROR           payload `error` field (default: absent)
+ *   FAKE_AGY_ACCOUNT_STATE   path of the fake agy-switch state file; the run then
+ *                            "belongs" to its current account (relay tests)
+ *   FAKE_AGY_EXHAUSTED_IDS   comma-separated account ids whose runs fail with a
+ *                            quota error and no response
+ *   FAKE_AGY_PARTIAL         with an exhausted account: return this partial
+ *                            response together with the error status
+ *   FAKE_AGY_ACCOUNT_LOG     file that receives the account id of every run
  *   FAKE_AGY_NO_JSON         die before printing any payload (default exit 1),
  *                            with FAKE_AGY_STDERR on stderr — simulates agy
  *                            being killed by a harness sandbox pre-JSON
@@ -80,6 +87,13 @@ if (touch) {
   fs.writeFileSync(target, 'written by fake agy\n');
 }
 
+// The run belongs to the account that was live when agy started (relay tests).
+let account = null;
+if (process.env.FAKE_AGY_ACCOUNT_STATE) {
+  try { account = JSON.parse(fs.readFileSync(process.env.FAKE_AGY_ACCOUNT_STATE, 'utf8')).current; } catch { /* no account context */ }
+}
+if (account && process.env.FAKE_AGY_ACCOUNT_LOG) fs.appendFileSync(process.env.FAKE_AGY_ACCOUNT_LOG, `${account}\n`);
+
 const streaming = argv[argv.indexOf('--output-format') + 1] === 'stream-json';
 if (streaming && !process.env.FAKE_AGY_NO_JSON) {
   process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: process.env.FAKE_AGY_CONVERSATION_ID ?? 'conv-1' } }) + '\n');
@@ -116,18 +130,21 @@ if (process.env.FAKE_AGY_NO_JSON) {
   process.exit(Number(process.env.FAKE_AGY_EXIT || 1));
 }
 
+const exhausted = !!account && (process.env.FAKE_AGY_EXHAUSTED_IDS || '').split(',').includes(account);
+
 const payload = {
-  status: process.env.FAKE_AGY_STATUS || 'SUCCESS',
-  response: process.env.FAKE_AGY_RESPONSE ?? 'fake answer',
+  status: exhausted ? 'ERROR' : process.env.FAKE_AGY_STATUS || 'SUCCESS',
+  response: exhausted ? (process.env.FAKE_AGY_PARTIAL ?? '') : process.env.FAKE_AGY_RESPONSE ?? `fake answer${account ? ` from ${account}` : ''}`,
   conversation_id: process.env.FAKE_AGY_CONVERSATION_ID ?? 'conv-1',
   duration_seconds: 1,
   num_turns: 1,
   usage: { input_tokens: 1, output_tokens: 1 },
 };
 if (process.env.FAKE_AGY_ERROR) payload.error = process.env.FAKE_AGY_ERROR;
+if (exhausted) payload.error = 'RESOURCE_EXHAUSTED: quota exceeded';
 
 if (process.env.FAKE_AGY_STDERR) process.stderr.write(process.env.FAKE_AGY_STDERR + '\n');
 await new Promise((resolve) => process.stdout.write(JSON.stringify(streaming ? { event: 'result', result: payload } : payload) + '\n', resolve));
 if (process.env.FAKE_AGY_RESULT_FILE) fs.writeFileSync(process.env.FAKE_AGY_RESULT_FILE, 'result sent');
 if (process.env.FAKE_AGY_AFTER_RESULT_MS) await new Promise(resolve => setTimeout(resolve, Number(process.env.FAKE_AGY_AFTER_RESULT_MS)));
-process.exit(Number(process.env.FAKE_AGY_EXIT || 0));
+process.exit(exhausted ? 1 : Number(process.env.FAKE_AGY_EXIT || 0));
