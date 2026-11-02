@@ -52,7 +52,7 @@ With the original local analysis records, `python3 bench/scripts/viz-data.py --o
 
   | for | what | where |
   |---|---|---|
-  | Claude Code host | `claude setup-token` output, mode 600 | `--claude-token FILE` (default `~/.agy-bench/claude-oauth-token`) |
+  | Claude Code host | `claude setup-token` output; mode 600 on POSIX, or a Windows ACL allowing only the current user, SYSTEM and Administrators | `--claude-token FILE` (default `~/.agy-bench/claude-oauth-token`) |
   | Codex host | an `auth.json` that only the bench uses: Codex refreshes it during trials and the bench writes it back | `--codex-auth FILE` (default `~/.agy-bench/codex-home/auth.json`) |
   | agy | your agy sign-in: `antigravity-oauth-token` and `installation_id`, written when you sign in to `agy` | `--agy-auth-dir DIR` (default `~/.gemini/antigravity-cli`) |
   | judges | Gemini and DeepSeek API keys, used on the host only | `GEMINI_API_KEY`, `DEEPSEEK_API_KEY` (and optionally `DEEPSEEK_BASE_URL`) |

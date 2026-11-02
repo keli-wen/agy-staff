@@ -18,8 +18,39 @@ die() { echo "$*" >&2; exit 2; }
 # GNU stat first: BSD stat rejects -c without printing, while GNU stat reads -f as --file-system.
 file_mode() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
 
+# Windows uses ACLs rather than POSIX mode bits. Accept only the current user,
+# SYSTEM and Administrators; fail closed if the ACL cannot be inspected.
+private_file() {
+  case "${OSTYPE:-}" in
+    msys*|cygwin*)
+      AGY_BENCH_PRIVATE_FILE="$(cygpath -w -- "$1")" powershell.exe -NoProfile -NonInteractive -Command '
+        $ErrorActionPreference = "Stop"
+        try {
+          $acl = [System.IO.File]::GetAccessControl($env:AGY_BENCH_PRIVATE_FILE)
+          $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+          $allowed = @($user, "S-1-5-18", "S-1-5-32-544")
+          $owner = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+          if ($owner -notin $allowed) { exit 1 }
+          $rules = $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])
+          if ($rules.Count -eq 0) { exit 1 } # A null DACL grants everyone full access.
+          foreach ($rule in $rules) {
+            if ($rule.AccessControlType -eq "Allow" -and $rule.IdentityReference.Value -notin $allowed) { exit 1 }
+          }
+          exit 0
+        } catch { exit 1 }
+      '
+      ;;
+    *) [ "$(file_mode "$1")" = 600 ] ;;
+  esac
+}
+
 # abspath <path>: the run scripts cd into the data directory before Harbor starts, so paths become absolute.
-abspath() { case "$1" in /*) printf '%s' "$1" ;; *) printf '%s' "$PWD/$1" ;; esac; }
+abspath() {
+  case "${OSTYPE:-}" in
+    msys*|cygwin*) cygpath -au -- "$1" ;;
+    *) case "$1" in /*) printf '%s' "$1" ;; *) printf '%s' "$PWD/$1" ;; esac ;;
+  esac
+}
 
 # resolve_ref <ref>: the 7-character commit a ref names in this repository (empty if it names none).
 resolve_ref() { git -C "$REPO" rev-parse --verify --quiet "$1^{commit}" | cut -c1-7; }
@@ -37,7 +68,7 @@ DRY_RUN=0
 common_opt() {
   OPT_SHIFT=2
   case "$1" in
-    --data)          DATA="${2:?--data needs a directory}" ;;
+    --data)          DATA="$(abspath "${2:?--data needs a directory}")" ;;
     --proxy)         PROXY="${2:?--proxy needs a URL}" ;;
     --expect-egress) EXPECT_EGRESS="$(abspath "${2:?--expect-egress needs a file}")" ;;
     --agy-auth-dir)  AGY_AUTH_DIR="$(abspath "${2:?--agy-auth-dir needs a directory}")" ;;
@@ -69,7 +100,7 @@ load_config() {
     [ -n "$val" ] || die "$f:$n: $opt needs a value"
     # shellcheck disable=SC2088  # matching a literal ~ written in the file, to expand it here
     case "$val" in "~") val="$HOME" ;; "~/"*) val="$HOME/${val#"~/"}" ;; esac
-    case "$opt" in --proxy) ;; *) case "$val" in /*) ;; *) val="$dir/$val" ;; esac ;; esac
+    case "$opt" in --proxy) ;; *) val="$(cd "$dir" && abspath "$val")" ;; esac
     if [ "$opt" = --data ]; then [ -n "${AGY_BENCH_DATA:-}" ] || DATA="$val"; else common_opt "$opt" "$val"; fi
     CONFIG_USED="$CONFIG_USED $opt"
   done < "$f"
@@ -86,7 +117,9 @@ COMMON_USAGE='  --data DIR            bench data directory: datasets, baked task
                         matches, and exits 4 unless the container matched too, before setup and after
                         the run.
   --agy-auth-dir DIR    agy sign-in copied into agy-staff containers (default: ~/.gemini/antigravity-cli)
-  --claude-token FILE   Claude setup-token, mode 600 (default: ~/.agy-bench/claude-oauth-token);
+  --claude-token FILE   Claude setup-token, private permissions (mode 600 on POSIX;
+                        current-user/SYSTEM/Administrators ACL on Windows)
+                        (default: ~/.agy-bench/claude-oauth-token);
                         run-claude.sh sends it to Harbor, and every leak scan looks for its value
   --codex-auth FILE     Codex auth.json for the bench (default: ~/.agy-bench/codex-home/auth.json);
                         run-codex.sh uploads it and writes it back after a refresh, and every leak scan
@@ -131,6 +164,7 @@ load_config
 
 require_data() {
   [ -n "$DATA" ] || die "no data directory: pass --data DIR, set AGY_BENCH_DATA, or put --data in ${CONFIG_FILE:-the defaults file}"
+  DATA="$(abspath "$DATA")"
   [ -d "$DATA" ] || die "data directory not found: $DATA"
   DATA="$(cd "$DATA" && pwd)"
 }

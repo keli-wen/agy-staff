@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 const scanner = fileURLToPath(new URL('../bench/scripts/leak-scan.sh', import.meta.url));
 
 test('bench leak scan distinguishes account metadata from Codex credentials', (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'bench-leak-scan-'));
+  const dir = mkdtempSync(join(tmpdir(), 'bench leak scan-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const job = join(dir, 'jobs', 'fixture');
   mkdirSync(job, { recursive: true });

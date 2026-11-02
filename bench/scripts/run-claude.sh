@@ -91,8 +91,8 @@ ENV=(env -u all_proxy -u ALL_PROXY -u GEMINI_API_KEY -u DEEPSEEK_API_KEY -u DEEP
 [ -n "$EXPECT_EGRESS" ] && ENV+=(AGY_BENCH_EXPECTED_EGRESS="$EXPECT_EGRESS")
 if [ "$DRY_RUN" = 1 ]; then echo "(cd $DATA; CLAUDE_CODE_OAUTH_TOKEN from $CLAUDE_TOKEN)"; show_command "${ENV[@]}" "${HARBOR[@]}"; exit 0; fi
 
-{ [ -s "$CLAUDE_TOKEN" ] && [ "$(file_mode "$CLAUDE_TOKEN")" = 600 ]; } \
-  || die "need $CLAUDE_TOKEN (mode 600) from claude setup-token"
+{ [ -s "$CLAUDE_TOKEN" ] && private_file "$CLAUDE_TOKEN"; } \
+  || die "need $CLAUDE_TOKEN with private permissions (mode 600 on POSIX; current-user/SYSTEM/Administrators ACL on Windows) from claude setup-token"
 EGRESS_URL=https://api.anthropic.com/cdn-cgi/trace
 egress_host "$EGRESS_URL" host-pre
 
