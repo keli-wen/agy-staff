@@ -103,12 +103,12 @@ On `0.7.3`, Codex `+ agy` made 842 wait-collection calls over 20 trials (most wa
 
 The 20 Codex `+ agy` trials were rerun on `0.8.0` (`s61x-v080-r1`, GPT-6.1 Sol xhigh, Codex CLI 0.160.1) and added to `results/v1/data.json` alongside the original `0.7.3` baseline (`v0.7.3 (prev)` shaded on the left, `v0.8.0` on the right; Claude Code already uses background completion delivery, so its 3 columns are unchanged).
 
-| Benchmark | Tasks | Solved (`0.7.3 → 0.8.0` / solo / native) | Wait calls (`0.7.3 → 0.8.0`) | Host turns (`0.7.3 → 0.8.0`) | Host USD / trial (`0.7.3 → 0.8.0` / vs solo) | Worker USD / trial (`0.7.3 → 0.8.0`) | Total USD / trial (`0.7.3 → 0.8.0`) | Median minutes (`0.7.3 → 0.8.0`) |
-| --- | ---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| SWE-Atlas QnA | 6 | 5/6 → **5/6** (6/6 / 5/6) | 169 → **53 (−68.6%)** | 283 → **149 (−47.3%)** | 0.6256 → **0.4052 (−35.2% / −21.2% vs solo)** | 0.9369 → **0.9132 (−2.5%)** | 1.5626 → **1.3183 (−15.6%)** | 22.57 → **18.35 (−18.7%)** |
-| DeepSearchQA | 6 | 5/6 → **6/6** (5/6 / 5/6) | 225 → **63 (−72.0%)** | 289 → **142 (−50.9%)** | 0.3694 → **0.2841 (−23.1% / −35.3% vs solo)** | 1.2891 → **1.0415 (−19.2%)** | 1.6585 → **1.3255 (−20.1%)** | 20.69 → **19.81 (−4.3%)** |
-| SWE-bench Verified | 8 | 4/8 → **4/8** (5/8 / 4/8) | 448 → **157 (−65.0%)** | 546 → **252 (−53.8%)** | 0.4621 → **0.3038 (−34.3% / +22.2% vs solo)** | 1.7854 → **1.5686 (−12.1%)** | 2.2475 → **1.8724 (−16.7%)** | 25.47 → **23.29 (−8.5%)** |
-| **All 20 tasks** | **20** | **14/20 → 15/20** (16/20 / 14/20) | **842 → 273 (−67.6%)** | **1,118 → 543 (−51.4%)** | **0.4833 → 0.3283 (−32.1% / −14.8% vs solo)** | **1.3820 → 1.2138 (−12.2%)** | **1.8653 → 1.5421 (−17.3%)** | **22.56 → 19.32 (−14.3%)** |
+| Benchmark | Solved | Wait calls | Host $ / trial | Total $ / trial | Median time |
+| --- | :---: | :---: | :---: | :---: | :---: |
+| SWE-Atlas QnA (6) | 5/6 → **5/6** | 169 → **53** (−69%) | $0.63 → **$0.41** (−35%) | $1.56 → **$1.32** (−16%) | 22.6 → **18.4m** |
+| DeepSearchQA (6) | 5/6 → **6/6** | 225 → **63** (−72%) | $0.37 → **$0.28** (−23%) | $1.66 → **$1.33** (−20%) | 20.7 → **19.8m** |
+| SWE-bench Verified (8) | 4/8 → **4/8** | 448 → **157** (−65%) | $0.46 → **$0.30** (−34%) | $2.25 → **$1.87** (−17%) | 25.5 → **23.3m** |
+| **All 20 tasks** | **14/20 → 15/20** | **842 → 273 (−68%)** | **$0.48 → $0.33 (−32%)** | **$1.87 → $1.54 (−17%)** | **22.6 → 19.3m** |
 
 - **Host waiting and spend.** Across the 20 Codex `+ agy` trials, wait-collection calls fell 67.6% (842 → 273), host turns fell 51.4% (1,118 → 543), and mean host cache reads fell 47.3% (1.89M → 1.00M tokens). Mean Codex host spend fell 32.1% ($0.4833 → $0.3283), reversing v1's +25.4% host-cost premium over Codex solo ($0.3854) into a 14.8% saving vs solo (and 8.7% below Codex native at $0.3595).
 - **Solve rate and worker steps.** Overall solve rate rose from 14/20 to 15/20, with DeepSearchQA reaching 6/6 (`f1 = 1.0, fully_correct = 1.0` across all 3 runs on both judges, recovering `deepsearchqa-0118`). Total AGY planner steps fell 8.4% (2,309 → 2,114; −13.6% on SWE-bench Verified from 1,145 → 989) and raw median wall time dropped across all three suites. The `0.8.0` batch ran against the `GEMINI_API_KEY` endpoint (`modelProvider: gemini`), which averaged 8.46s/step across 2,088 measurable generation intervals versus 7.70s/step on `0.7.3`'s OAuth route (71 steps exceeded 30s vs 55 in `0.7.3`); individual tasks that hit clusters of >30s API responses (such as `sympy__sympy-14248`, where planner steps fell 31% from 269 to 185 but 13 steps exceeded 30s) therefore show longer raw wall times despite fewer steps. All figures report raw unadjusted `wall_clock_s`.
