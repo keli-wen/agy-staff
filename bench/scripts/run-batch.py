@@ -176,7 +176,8 @@ def main():
     for setup, task, group in plan:
         name = task.split("/")[-1]
         job = f"{args.host}-{setup}-{name}-{args.suffix}"
-        cmd = [str(script), *passthrough, setup, task, args.suffix]
+        # Native Windows cannot execute a .sh file through its shebang.
+        cmd = ["bash", str(script), *passthrough, setup, task, args.suffix]
         if prev_task and task != prev_task and not args.no_prune and not args.dry_run:
             prune(prev_group)
         prev_task, prev_group = task, group

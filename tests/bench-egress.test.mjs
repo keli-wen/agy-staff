@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,11 +9,7 @@ import { spawnSync } from 'node:child_process';
 const lib = fileURLToPath(new URL('../bench/scripts/lib.sh', import.meta.url));
 const scripts = fileURLToPath(new URL('../bench/scripts/', import.meta.url));
 
-// The reproduction harness needs POSIX paths, permissions and executable scripts.
-// Keep these regressions on Ubuntu/macOS rather than exercising Git Bash interop.
-const posixOnly = { skip: process.platform === 'win32' && 'benchmark harness requires POSIX paths, permissions and executable scripts' };
-
-test('environment startup failure is distinct from failed or missing egress checks', posixOnly, (t) => {
+test('environment startup failure is distinct from failed or missing egress checks', (t) => {
   const job = mkdtempSync(join(tmpdir(), 'bench-egress-'));
   t.after(() => rmSync(job, { recursive: true, force: true }));
   const trial = join(job, 'trial');
@@ -45,8 +41,8 @@ test('environment startup failure is distinct from failed or missing egress chec
 // Exercise the real runner and batch control flow. Only external services and
 // side-effecting checks are stubbed: Harbor writes a startup-failure fixture,
 // host egress never contacts a service, and no model, Docker or credential is used.
-function runnerFixture(t, host, { hostPost = 0, leak = 0 } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), 'bench-runner-startup-'));
+function runnerFixture(t, host, { hostPost = 0, leak = 0, privateToken = true } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'bench runner startup-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const bench = join(dir, 'bench');
   const fixtureScripts = join(bench, 'scripts');
@@ -79,10 +75,29 @@ harbor_filter() { cat; }
   const token = join(dir, 'fixture-claude-token');
   const expected = join(dir, 'fixture-egress');
   writeFileSync(auth, '{}');
-  writeFileSync(token, 'fixture-not-a-real-token', { mode: 0o600 });
+  writeFileSync(token, 'fixture-not-a-real-token', { mode: privateToken ? 0o600 : 0o644 });
+  if (process.platform === 'win32') {
+    // Create real ACLs for the dummy token: no permission-check stub in lib.sh.
+    const acl = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
+$ErrorActionPreference = 'Stop'
+$user = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$acl = New-Object System.Security.AccessControl.FileSecurity
+$acl.SetOwner($user)
+$acl.SetAccessRuleProtection($true, $false)
+$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($user, 'FullControl', 'Allow'))
+if ($env:FIXTURE_PRIVATE_TOKEN -eq 'false') {
+  $everyone = [System.Security.Principal.SecurityIdentifier]::new('S-1-1-0')
+  $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($everyone, 'Read', 'Allow'))
+}
+Set-Acl -LiteralPath $env:FIXTURE_TOKEN -AclObject $acl
+`], { encoding: 'utf8', env: { ...process.env, FIXTURE_TOKEN: token, FIXTURE_PRIVATE_TOKEN: String(privateToken) } });
+    assert.equal(acl.status, 0, acl.stderr + acl.stdout);
+  }
   writeFileSync(expected, '192.0.2.1');
   const calls = join(dir, 'harbor-calls');
-  writeFileSync(join(bin, 'harbor'), `#!/usr/bin/env node
+  // Enter Node explicitly through Bash so Git Bash converts the host-path args.
+  writeFileSync(join(bin, 'harbor'), '#!/usr/bin/env bash\nexec node "$(dirname "$0")/harbor.cjs" "$@"\n', { mode: 0o755 });
+  writeFileSync(join(bin, 'harbor.cjs'), `
 const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);
@@ -113,7 +128,7 @@ process.exit(1);
 }
 
 for (const host of ['codex', 'claude']) {
-  test(`${host} runner preserves startup failure, host-egress priority and leak priority`, posixOnly, (t) => {
+  test(`${host} runner preserves startup failure, host-egress priority and leak priority`, (t) => {
     for (const [settings, expected] of [[{}, 5], [{ hostPost: 4 }, 4], [{ leak: 3 }, 3]]) {
       const fixture = runnerFixture(t, host, settings);
       const result = spawnSync('bash', [fixture.runner, ...fixture.options, 'native', 'fixture-one', 'test-r1'], {
@@ -125,7 +140,7 @@ for (const host of ['codex', 'claude']) {
     }
   });
 
-  test(`${host} batch stops with the correct cause and never retries a startup failure`, posixOnly, (t) => {
+  test(`${host} batch stops with the correct cause and never retries a startup failure`, (t) => {
     for (const hostPost of [0, 4]) {
       const fixture = runnerFixture(t, host, { hostPost });
       const code = `
@@ -151,3 +166,13 @@ sys.exit(batch.main())
     }
   });
 }
+
+test('claude runner rejects a token readable by other users before starting Harbor', (t) => {
+  const fixture = runnerFixture(t, 'claude', { privateToken: false });
+  const result = spawnSync('bash', [fixture.runner, ...fixture.options, 'native', 'fixture-one', 'test-r1'], {
+    encoding: 'utf8', env: fixture.env,
+  });
+  assert.equal(result.status, 2, result.stderr + result.stdout);
+  assert.match(result.stderr, /private permissions/);
+  assert.equal(existsSync(fixture.calls), false);
+});
