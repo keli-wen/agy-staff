@@ -17,7 +17,7 @@ agy-staff Bench 衡量主 agent 把工作委派给 agy 要付出什么、能换�
 ## v1 的结论
 
 - **Claude Code 当 host：** 用 agy 之后，三个 benchmark 的 host 成本都下降了：SWE-bench Verified −16%，SWE-Atlas QnA −36%，DeepSearchQA −39%。host 成本就是从你的 Claude 订阅里扣的那部分。SWE-bench 上三种编排方案的结果完全相同，都是 6/8。代价是时间（耗时中位 13–19 分钟，单独做是 2–8 分钟），以及 agy 自己额度上的 worker 成本。
-- **Codex 当 host：** 只有 DeepSearchQA 的 host 成本下降了（−16%）。SWE-bench（+86%）和 QnA（+22%）都更贵。Codex 等 agy 时会反复轮询，每次被唤醒都要带上完整的上下文；Claude Code 在后台等，任务完成后才被唤醒。
+- **Codex 当 host（`v0.7.3` → `v0.8.0`）：** 在 `v0.7.3`（阴影列）中，Codex 等待 agy 时每约 30 秒轮询唤醒一次（20 题共 842 次收集调用），每次唤醒都重读完整上下文，导致 SWE-bench（+86%）和 QnA（+22%）的 host 成本比 solo 更贵。在 `v0.8.0`（最右列）中，显式 300 秒阻塞等待将收集调用减少 68%（842 → 273）、host 轮数减少 51%（1,118 → 543），整体 host 成本下降 32%，在 QnA（−21%）和 DeepSearchQA（−35%，6/6 满分）上均比 solo 更省，SWE-bench 溢价也从 +86% 收窄到 +22%。
 - **agy 输在哪：** Claude Code 这一侧，有 3 道题单独做解出了、用 agy 没解出。其中 2 道是 DeepSearchQA 跑到 30 分钟上限，还没写出答案；1 道是 QnA 的评委分歧：Gemini 3 次都判通过，DeepSeek 只判通过 1 次。另外有 1 道 DeepSearchQA，Claude Code 单独做没解出，用 agy 解出了；两份答案给出的州相同，差别只是一个评委对一句提到 Puerto Rico 的话判法不同。
 - **每种编排方案每道题只跑 1 次，一共 20 道题。** 差 1 道题在噪声范围内。v1 只是第一版基线，不是定论。
 
@@ -97,24 +97,21 @@ v1 最初只在 SWE-bench Verified 上跑了"+ subagents"。2026-10-23 的补充
 
 新增 job 严格取自完成的 `manifest-s61x-native-supplement-20261023-r1-rerun4.json`：首个有效 QnA trial 来自 rerun1，其余 11 个来自 rerun4，已排除被替代的 s6x 批次和基础设施失败尝试。分析记录追加到本地被 git 忽略的 `results/trials.jsonl`；发布的 `data.json` 保留准确 job 名和 `source_phase`。`runs` 记录了经实际 worker 轨迹核实的 native worker 模型及 effort。原有 96 个入选 trial 及其测量结果均保留。
 
-## v2：Codex 上的 agy-staff 0.8.0 验证（2026-11-02）
+## Codex 上的 agy-staff 0.8.0 验证（2026-11-02）
 
-v1 暴露出 Codex `+ agy` 在 20 次 trial 中发起了 872 次收集等待调用（多数按默认约 30 秒返回并重读完整主会话上下文），导致 SWE-Atlas QnA 的 host 成本比 solo 贵 22%、SWE-bench Verified 贵 86%。[agy-staff 0.8.0](../docs/releases/v0.8.0.md) 将 v1 的轨迹发现写回 `jobs`、`lead` 和 worker 指令：显式 300 秒阻塞等待（在 `// @exec` 与 `write_stdin` / `functions.wait` 中同时传入 `yield_time_ms: 300000`）、原样透传用户约束且不向 worker 转发编排指令，以及精简的共享 worker 规则（`## Conflicts with the task` 与 `Status:` 首行）。
+在 `0.7.3` 上，Codex `+ agy` 在 20 次 trial 中发起了 842 次收集等待调用（多数按默认约 30 秒返回并重读完整主会话上下文），导致 SWE-Atlas QnA 的 host 成本比 solo 贵 22%、SWE-bench Verified 贵 86%。[agy-staff 0.8.0](../docs/releases/v0.8.0.md) 将这些轨迹发现写回 `jobs`、`lead` 和 worker 指令：显式 300 秒阻塞等待（在 `// @exec` 与 `write_stdin` / `functions.wait` 中同时传入 `yield_time_ms: 300000`）、原样透传用户约束且不向 worker 转发编排指令，以及精简的共享 worker 规则（`## Conflicts with the task` 与 `Status:` 首行）。
 
-`results/v2/` 在 `0.8.0` 上重跑了全部 20 个 Codex `+ agy` trial（`s61x-v080-r1`，GPT-6.1 Sol xhigh，Codex CLI 0.160.1），并将 `solo`、`native` 和 `Claude Code` 各栏从 v1 沿用过来（在 `results/v2/data.json` 中标记为 `source_phase: "v1-carried"`，因为 Claude Code 在 v1 中本来就使用后台完成通知）。
+全部 20 个 Codex `+ agy` trial 在 `0.8.0` 上完成重跑（`s61x-v080-r1`，GPT-6.1 Sol xhigh，Codex CLI 0.160.1），并并入 `results/v1/data.json` 与原 `0.7.3` 基线并列展示（左侧阴影列为 `v0.7.3 (prev)`，最右列为 `v0.8.0`；Claude Code 本身使用后台完成通知，保持三列不变）。
 
-| benchmark | 题数 | 解出 (`v1 → v2` / solo / native) | Wait 收集次数 (`v1 → v2`) | Host 轮数 (`v1 → v2`) | 每题 host 美元 (`v1 → v2` / 对比 solo) | 每题 worker 美元 (`v1 → v2`) | 每题总成本美元 (`v1 → v2`) | 耗时中位数·分钟 (`v1 → v2`) |
+| benchmark | 题数 | 解出 (`0.7.3 → 0.8.0` / solo / native) | Wait 收集次数 (`0.7.3 → 0.8.0`) | Host 轮数 (`0.7.3 → 0.8.0`) | 每题 host 美元 (`0.7.3 → 0.8.0` / 对比 solo) | 每题 worker 美元 (`0.7.3 → 0.8.0`) | 每题总成本美元 (`0.7.3 → 0.8.0`) | 耗时中位数·分钟 (`0.7.3 → 0.8.0`) |
 | --- | ---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | SWE-Atlas QnA | 6 | 5/6 → **5/6** (6/6 / 5/6) | 169 → **53 (−68.6%)** | 283 → **149 (−47.3%)** | 0.6256 → **0.4052 (−35.2% / 比 solo 省 21.2%)** | 0.9369 → **0.9132 (−2.5%)** | 1.5626 → **1.3183 (−15.6%)** | 22.57 → **18.35 (−18.7%)** |
 | DeepSearchQA | 6 | 5/6 → **6/6** (5/6 / 5/6) | 225 → **63 (−72.0%)** | 289 → **142 (−50.9%)** | 0.3694 → **0.2841 (−23.1% / 比 solo 省 35.3%)** | 1.2891 → **1.0415 (−19.2%)** | 1.6585 → **1.3255 (−20.1%)** | 20.69 → **19.81 (−4.3%)** |
 | SWE-bench Verified | 8 | 4/8 → **4/8** (5/8 / 4/8) | 448 → **157 (−65.0%)** | 546 → **252 (−53.8%)** | 0.4621 → **0.3038 (−34.3% / 比 solo 贵 22.2%)** | 1.7854 → **1.5686 (−12.1%)** | 2.2475 → **1.8724 (−16.7%)** | 25.47 → **23.29 (−8.5%)** |
 | **全部 20 题** | **20** | **14/20 → 15/20** (16/20 / 14/20) | **842 → 273 (−67.6%)** | **1,118 → 543 (−51.4%)** | **0.4833 → 0.3283 (−32.1% / 比 solo 省 14.8%)** | **1.3820 → 1.2138 (−12.2%)** | **1.8653 → 1.5421 (−17.3%)** | **22.56 → 19.32 (−14.3%)** |
 
-[![agy-staff Bench v2：Claude Code 和 Codex 在 SWE-bench Verified、SWE-Atlas QnA、DeepSearchQA 上的结果，其中 Codex + agy 运行 agy-staff 0.8.0](results/v2/summary.png)](results/v2/summary.svg)
-
 - **Host 等待与成本：** 20 个 Codex `+ agy` trial 的收集等待调用下降 67.6%（842 → 273），host 轮数下降 51.4%（1,118 → 543），平均 host 缓存读取下降 47.3%（1.89M → 1.00M token）。Codex 平均每题 host 成本下降 32.1%（$0.4833 → $0.3283），从 v1 比 Codex solo（$0.3854）贵 25.4% 逆转为比 solo 省 14.8%（同时比 Codex native 的 $0.3595 省 8.7%）。
-- **解题率与 worker 步数：** 总解出数从 14/20 提升到 15/20，其中 DeepSearchQA 达到 6/6 满分（两个评委模型各 3 次评分全部 `f1 = 1.0, fully_correct = 1.0`，修复了 v1 超时的 `deepsearchqa-0118`）。AGY planner 总步数下降 8.4%（2,309 → 2,114；SWE-bench Verified 从 1,145 降至 989，−13.6%），三个套件的原始耗时中位数均下降。v2 批次通过 `GEMINI_API_KEY` 端点（`modelProvider: gemini`）运行，在 2,088 个可测量生成间隔上的平均单步耗时为 8.46s/步，略慢于 v1 OAuth 通道的 7.70s/步（超过 30 秒的单步响应为 71 次，v1 为 55 次）；因此个别遇到多次 >30s 长尾响应的题目（如 `sympy__sympy-14248` 步数从 269 降至 185、减少 31%，但遇到 13 次 >30s 响应）在步数减少的情况下原始墙钟时间仍偏长。表与图中所有耗时均保留未经裁剪的原始 `wall_clock_s`。
-- **v2 图表与数据：** [summary.svg](results/v2/summary.svg) · [cost.svg](results/v2/cost.svg) · [tokens.svg](results/v2/tokens.svg) · [pareto.svg](results/v2/pareto.svg) · [data.json](results/v2/data.json)
+- **解题率与 worker 步数：** 总解出数从 14/20 提升到 15/20，其中 DeepSearchQA 达到 6/6 满分（两个评委模型各 3 次评分全部 `f1 = 1.0, fully_correct = 1.0`，修复了 `0.7.3` 超时的 `deepsearchqa-0118`）。AGY planner 总步数下降 8.4%（2,309 → 2,114；SWE-bench Verified 从 1,145 降至 989，−13.6%），三个套件的原始耗时中位数均下降。`0.8.0` 批次通过 `GEMINI_API_KEY` 端点（`modelProvider: gemini`）运行，在 2,088 个可测量生成间隔上的平均单步耗时为 8.46s/步，略慢于 `0.7.3` OAuth 通道的 7.70s/步（超过 30 秒的单步响应为 71 次，`0.7.3` 为 55 次）；因此个别遇到多次 >30s 长尾响应的题目（如 `sympy__sympy-14248` 步数从 269 降至 185、减少 31%，但遇到 13 次 >30s 响应）在步数减少的情况下原始墙钟时间仍偏长。表与图中所有耗时均保留未经裁剪的原始 `wall_clock_s`。
 
 ## 已知局限
 
@@ -129,19 +126,13 @@ v1 暴露出 Codex `+ agy` 在 20 次 trial 中发起了 872 次收集等待调�
 
 ```
 results/
-├── v1/
-│   ├── summary.svg   v1 汇总表（另有 summary.png）
-│   ├── cost.svg      每次 trial 的成本，分 host 和 worker（另有 cost.png）
-│   ├── tokens.svg    每次 trial 的 token 用量，分 host 和 worker（另有 tokens.png）
-│   ├── pareto.svg    解题比例对比每次 trial 的 host 成本和总成本（另有 pareto.png）
-│   └── data.json     v1 的 108 次 trial 及每个格子的汇总
-└── v2/
+└── v1/
     ├── summary.svg   这张表
     ├── summary.png   同一张表，渲染后放进 README（headless Chrome 3 倍渲染；rsvg-convert 会丢掉内嵌的数字字体）
     ├── cost.svg      每次 trial 的成本，分 host 和 worker（另有 cost.png）
     ├── tokens.svg    每次 trial 的 token 用量，分 host 和 worker（另有 tokens.png）
     ├── pareto.svg    解题比例对比每次 trial 的 host 成本和总成本（另有 pareto.png）
-    └── data.json     表和图背后的 108 次 trial，以及每个格子的汇总
+    └── data.json     表和图背后的 128 次 trial（0.7.3 的 108 次 + Codex 0.8.0 的 20 次），以及每个格子的汇总
 ```
 
 `data.json` 里每次 trial 记录了 host、模型、编排方案、benchmark 和题目；是否解出（SWE-bench 另有 `resolved_official`）、reward、`timed_out`、`answer_key_exposure`、`rule_violation` 和 `answer_key_contamination`；host 和 worker 各自的成本和 token；以及耗时（秒）。新增 trial 还有 `source_phase`；`runs` 包含 native worker 模型和 reasoning effort。
@@ -152,8 +143,7 @@ results/
 
 | 版本 | 发布日期 | agy-staff | host | 题数 | 改动 |
 |---|---|---|---|---|---|
-| [v1](results/v1/) | 2026-10-19 | 0.7.3（`f00d149`） | Claude Code 2.1.296（Opus 5.5 xhigh）；Codex 0.160.1（GPT-6.1 Sol xhigh） | 20 | 第一版基线 |
-| [v2](results/v2/) | 2026-11-02 | 0.8.0（`90596bc`） | Claude Code 2.1.296（Opus 5.5 xhigh，沿用 v1）；Codex 0.160.1（GPT-6.1 Sol xhigh） | 20 | 0.8.0 Codex + agy 验证（显式 300 秒阻塞等待、原样透传约束、精简共享 worker 规则）；solo、native 与 Claude Code 各栏沿用 v1 |
+| [v1](results/v1/) | 2026-10-19 | 0.7.3（`f00d149`） / 0.8.0（`90596bc`） | Claude Code 2.1.296（Opus 5.5 xhigh）；Codex 0.160.1（GPT-6.1 Sol xhigh） | 20 | 第一版基线 + 0.8.0 Codex 跟进验证 |
 
 **v1 补充（2026-10-20）：** 新增三张图，都由同一份 `data.json` 画出：每次 trial 的成本、token 用量，以及解题数与成本。之前发布的文件都没有改动。
 
@@ -168,6 +158,8 @@ results/
 两处成本更正合起来，Claude Code 在 DeepSearchQA 上用 agy 的 host 成本，相对单独做从 −50% 改为 −39%，总成本从 +74% 改为 +88%。`data.json`、表格和三张图都已重画。其余 Claude Code trial 都和会话记录对得上，没有变化。
 
 **v1 补充及展示更新（2026-10-24）：** 将 2026-10-23 完成的 12 个 Codex native trial 直接并入 v1，共 108 个入选 trial、16 组，并重画汇总图和其余三张图。原有 96 个 trial 的测量结果保留。汇总图底部维持六项备注，worker effort 写入现有条目；超时只画空心红框，不再混合符号。审计记录和批次比较限制详见上文及数据。
+
+**v1 补充（2026-11-02）：** 将 agy-staff 0.8.0 上的 20 个 Codex `+ agy` trial（`s61x-v080-r1`，`source_phase: "v080-codex-validation-20261101"`）并入 `data.json`（共 128 个 trial、19 组），并在 Codex 侧将 `v0.7.3 (prev)` 以阴影旧版本列与 `v0.8.0` 并列重画汇总表和三张图。原有 108 个 trial 不变。
 
 ## 评测框架
 
