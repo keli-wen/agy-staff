@@ -1,13 +1,13 @@
 ---
 name: agy-staffer
-description: Delegate a general-purpose task to Google's Antigravity CLI (agy staffer, fast Gemini) with a minimal, unopinionated prompt. Use when the user says /skill:agy-staffer, "have agy do/handle X", "have agy generate an image", or the task fits none of the specialist personas (researcher / reviewer / implementer / ask) — the template adds no role, rules, or output format, so the task text alone shapes the output. Also the route to agy-native tools no specialist covers, notably image generation (generate_image).
+description: Delegate a general-purpose task to Google's Antigravity CLI (agy staffer, fast Gemini) with a minimal, unopinionated prompt. Use when the user says /skill:agy-staffer, "have agy do/handle X", "have agy generate an image", or the task fits none of the specialist personas (researcher / reviewer / implementer / ask) — the template adds no role or output format, only the shared working rules and guardrails, so the task text shapes the output. Also the route to agy-native tools no specialist covers, notably image generation (generate_image).
 ---
 
 <!-- Generated from skills/staffer/SKILL.md; run npm run generate:pi. Do not edit here. -->
 
 # agy staffer
 
-The general-purpose persona: a clean entry point for tasks that none of the specialists fit. Its prompt template is deliberately minimal — the task text, the environment (cwd, branch, date), and the safety guardrails, nothing else. No role framing, no rules, no output format: the task defines its own output, and no unrelated template context can pull the run off course.
+The general-purpose persona: a clean entry point for tasks that none of the specialists fit. Its prompt template is deliberately minimal — the task text, the environment (cwd, branch, date), the shared working rules, and the safety guardrails, nothing else. No role framing or fixed body format: the task defines its own deliverable, and no domain-specific template context can pull the run off course.
 
 Prefer a specialist when one fits: `researcher` for surveys and deep dives, `reviewer` for second opinions on code or plans, `implementer` for edits to the working tree, `ask` for a cheap one-shot question.
 

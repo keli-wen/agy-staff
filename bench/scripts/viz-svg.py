@@ -172,9 +172,33 @@ MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
 TW, PX = 920, 40
 BLUE, AGYBG, GREEN, RED, PAPER, FAINT = "#1A73E8", "#F5F8FF", "#188038", "#D93025", "#F8F9FA", "#9AA0A6"
 AGY = "#4285F4"
-COLS = [(h, s) for h in HOSTS for s in SETUPS]
+COLS = [(h, s, None, False) for h in HOSTS for s in SETUPS]
 CARD_X, CARD_W, LW = PX, TW - 2 * PX, 190
 CW = (CARD_W - 24 - LW) / len(COLS)
+MULTI_VERSION = False
+
+
+def configure_columns(aggs, versions):
+    """Build the column list from the aggregates present in data.json. When a host has multiple agy-staff versions,
+    earlier versions appear as shaded previous-version columns to the left of the latest version."""
+    global TW, CARD_W, LW, CW, COLS, MULTI_VERSION
+    cols = []
+    for h in HOSTS:
+        for s in SETUPS:
+            vers = [v for v in versions if any(a["host"] == h and a["setup"] == s and a["agy_staff"] == v for a in aggs)]
+            if not vers:
+                cols.append((h, s, versions[0], False))
+            elif s != "agy-staff":
+                cols.append((h, s, vers[-1], False))
+            else:
+                for i, v in enumerate(vers):
+                    cols.append((h, s, v, i < len(vers) - 1))
+    COLS = cols
+    MULTI_VERSION = len(versions) > 1
+    TW = 1004 if len(COLS) > 6 else 920
+    CARD_W = TW - 2 * PX
+    LW = 186 if len(COLS) > 6 else 190
+    CW = (CARD_W - 24 - LW) / len(COLS)
 
 
 def col_x(j):
@@ -240,18 +264,26 @@ def draw_columns(f, card_top, body_top, body_end, runs):
     group per host, and a head per setup."""
     f.line(CARD_X + 12, body_top - 8, CARD_X + CARD_W - 12, body_top - 8, C["ink"])
     # + agy columns: agy's staff badge, a blue frame with a clip on top
-    for j, (h, s) in enumerate(COLS):
+    for j, (h, s, v, is_prev) in enumerate(COLS):
         if s != "agy-staff":
             continue
         bx, by = col_x(j) + 5, card_top + 76
-        f.add(f'<rect x="{bx:.1f}" y="{by}" width="{CW - 10:.1f}" height="{body_end - by + 6:.1f}" rx="9" fill="{AGYBG}" '
-              f'stroke="#4285F4" stroke-width="1.5"/>')
-        f.add(f'<rect x="{cx(j) - 10:.1f}" y="{by - 6}" width="20" height="10" rx="2" fill="{C["ink"]}"/>'
-              f'<rect x="{cx(j) - 5:.1f}" y="{by - 3}" width="10" height="3" fill="#E8EAED"/>')
+        if is_prev:
+            f.add(f'<rect x="{bx:.1f}" y="{by}" width="{CW - 10:.1f}" height="{body_end - by + 6:.1f}" rx="9" fill="#F1F3F4" '
+                  f'stroke="#BDC1C6" stroke-width="1.2" stroke-dasharray="4 3"/>')
+            f.add(f'<rect x="{bx:.1f}" y="{by}" width="{CW - 10:.1f}" height="{body_end - by + 6:.1f}" rx="9" fill="url(#prev-hatch)"/>')
+            f.add(f'<rect x="{cx(j) - 10:.1f}" y="{by - 6}" width="20" height="10" rx="2" fill="#9AA0A6"/>'
+                  f'<rect x="{cx(j) - 5:.1f}" y="{by - 3}" width="10" height="3" fill="#F1F3F4"/>')
+        else:
+            f.add(f'<rect x="{bx:.1f}" y="{by}" width="{CW - 10:.1f}" height="{body_end - by + 6:.1f}" rx="9" fill="{AGYBG}" '
+                  f'stroke="#4285F4" stroke-width="1.5"/>')
+            f.add(f'<rect x="{cx(j) - 10:.1f}" y="{by - 6}" width="20" height="10" rx="2" fill="{C["ink"]}"/>'
+                  f'<rect x="{cx(j) - 5:.1f}" y="{by - 3}" width="10" height="3" fill="#E8EAED"/>')
     # host groups
     for gi, h in enumerate(HOSTS):
         run = next(r for r in runs if r["host"] == h)
-        g0, g1 = col_x(3 * gi), col_x(3 * gi + 3)
+        h_cols = [j for j, c in enumerate(COLS) if c[0] == h]
+        g0, g1 = col_x(h_cols[0]), col_x(h_cols[-1] + 1)
         mid = (g0 + g1) / 2
         nw = 28 + tw(h, 16, True)
         f.logo(HOSTS[h]["logo"], mid - nw / 2, card_top + 18, 22)
@@ -261,18 +293,29 @@ def draw_columns(f, card_top, body_top, body_end, runs):
         f.add(f'<rect x="{g0 + 10:.1f}" y="{card_top + 63}" width="{g1 - g0 - 20:.1f}" height="3" rx="1.5" fill="{HOSTS[h]["color"]}"/>')
     # column heads: plain words; the agy mark appears only on the + agy columns, the point of the table
     iy = card_top + 98
-    for j, (h, s) in enumerate(COLS):
+    for j, (h, s, v, is_prev) in enumerate(COLS):
         if s == "agy-staff":
-            f.text(cx(j) - 13, iy, "+", 15, BLUE, 700, "middle")
+            if is_prev:
+                f.add('<g opacity="0.58">')
+            col_ink = C["muted"] if is_prev else BLUE
+            tag_bg = "#E8EAED" if is_prev else "#E8F0FE"
+            f.text(cx(j) - 13, iy, "+", 15, col_ink, 700, "middle")
             f.logo("agy", cx(j) - 4, iy - 16, 20)
-            f.text(cx(j), iy + 18, "Gemini 3.8 Flash", 10.5, BLUE, 600, "middle")
+            f.text(cx(j), iy + 18, "Gemini 3.8 Flash", 10.5, col_ink, 600, "middle")
             # the /agy:lead tag from assets/design.svg: how the host is told to reach agy
             tag_w = 8 + 10 + 5 + len("/agy:lead") * 10.5 * 0.6 + 8
             tx = cx(j) - tag_w / 2
-            f.add(f'<rect x="{tx:.1f}" y="{iy + 27}" width="{tag_w:.1f}" height="18" rx="4" fill="#E8F0FE"/>')
+            f.add(f'<rect x="{tx:.1f}" y="{iy + 27}" width="{tag_w:.1f}" height="18" rx="4" fill="{tag_bg}"/>')
             f.logo("lead-flag", tx + 8, iy + 31, 10)
             f.add(f'<text x="{tx + 23:.1f}" y="{iy + 40}" font-size="10.5" font-family="{MONO}" font-weight="700" '
-                  f'fill="{BLUE}">/agy:lead</text>')
+                  f'fill="{col_ink}">/agy:lead</text>')
+            if MULTI_VERSION and v:
+                vshort = "v" + v.split()[0] + (" (prev)" if is_prev else "")
+                f.add(f'<text x="{cx(j):.1f}" y="{iy + 56}" font-size="10" font-family="{MONO}" '
+                      f'font-weight="{"600" if is_prev else "700"}" fill="{C["muted"] if is_prev else col_ink}" '
+                      f'text-anchor="middle">{escape(vshort)}</text>')
+            if is_prev:
+                f.add('</g>')
         else:
             f.text(cx(j), iy, "solo" if s == "solo" else "+ subagents", 13, C["ink"], 600, "middle")
             if s == "native":
@@ -343,6 +386,9 @@ def render(f, H, num_font):
         f.defs.add(font_face(num_font))
     f.defs.add('<pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse">'
                '<rect x="8" y="8" width="1.4" height="1.4" fill="#E3E5E8"/></pattern>')
+    if MULTI_VERSION:
+        f.defs.add('<pattern id="prev-hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">'
+                   '<line x1="0" y1="0" x2="0" y2="8" stroke="#DADCE0" stroke-width="1.5" opacity="0.55"/></pattern>')
     body = "\n".join(f.parts)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{TW}" height="{H}" viewBox="0 0 {TW} {H}" role="img" '
             f'aria-label="{escape(f.label)}" font-family="{FONT}">\n<defs>{"".join(sorted(f.defs))}</defs>\n{body}\n</svg>\n')
@@ -389,12 +435,13 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
     the + agy columns framed as agy's staff badge, and
     both cost rows compared with the same host's solo (the baseline) as green / red arrows.
     """
-    get = {(a["dataset"], a["host"], a["setup"]): a for a in aggs}
+    get = {(a["dataset"], a["host"], a["setup"], a["agy_staff"]): a for a in aggs}
+    solo_ver = {h: next(c[2] for c in COLS if c[0] == h and c[1] == "solo") for h in HOSTS}
     worker_efforts = "; ".join(f'{HOSTS[h]["subagent"]} {next(r for r in runs if r["host"] == h).get("native_worker_effort", "not recorded")}'
                                for h in HOSTS)
     trial_groups = {}
     for t in trials:
-        trial_groups.setdefault((t["dataset"], t["host"], t["setup"]), []).append(t)
+        trial_groups.setdefault((t["dataset"], t["host"], t["setup"], t["agy_staff"]), []).append(t)
     # Audit marks must be attached to the actual trial, including a trial that also timed out.
     # Refuse inconsistent inputs rather than rendering the marks against aggregate placeholders.
     for key, a in get.items():
@@ -419,10 +466,11 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
 
     sec_h, ROWS = 40, (46, 44, 44, 32)
     card_top = 126
-    body_top = card_top + 160
+    body_top = card_top + (170 if MULTI_VERSION else 160)
     body_end = body_top + len(dss) * (sec_h + sum(ROWS))
     card_end = body_end + 16
-    timeouts = [(a["host"], a["setup"], a["dataset"], a["timeouts"]) for a in aggs if a["timeouts"]]
+    timeouts = [(f'{a["host"]} v{a["agy_staff"].split()[0]}' if MULTI_VERSION and a["host"] == "Codex" else a["host"],
+                 a["setup"], a["dataset"], a["timeouts"]) for a in aggs if a["timeouts"]]
     notes = [
         ("Resolved", "SWE-bench by its tests. QnA and DeepSearchQA only when both judges pass (Gemini 3.8 Flash, DeepSeek V4 Pro)."),
         ("Host $", "what the host model itself uses, at API list price: the part that comes out of your Claude or ChatGPT plan."),
@@ -465,18 +513,20 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
             f.add(f'<text x="{CARD_X + 28}" y="{base}" font-size="12.5" font-family="{MONO}" fill="{C["ink"]}">{label}</text>')
             if sub:
                 f.text(CARD_X + 28, base + 16, sub, 11, FAINT)
-            for j, (h, s) in enumerate(COLS):
-                a = get.get((ds, h, s))
+            for j, (h, s, v, is_prev) in enumerate(COLS):
+                a = get.get((ds, h, s, v))
                 if not a:
                     f.text(cx(j), base, "—", 14, "#BDC1C6", 400, "middle")
                     continue
-                solo = get.get((ds, h, "solo"))
+                solo = get.get((ds, h, "solo", solo_ver[h]))
+                if is_prev:
+                    f.add('<g opacity="0.54">')
                 if ri == 0:
                     f.add(f'<text x="{cx(j):.1f}" y="{base}" font-size="15" font-weight="700" fill="{C["ink"]}" '
                           f'text-anchor="middle" {num}>{a["resolved"]}/{a["trials"]}</text>')
                     sq, gap = 6, 2
                     sx = cx(j) - (a["trials"] * (sq + gap) - gap) / 2
-                    for q, t in enumerate(trial_groups[ds, h, s]):
+                    for q, t in enumerate(trial_groups[ds, h, s, v]):
                         qx, qy = sx + q * (sq + gap), y + 28
                         violated = bool(t.get("rule_violation"))
                         contaminated = bool(t.get("answer_key_contamination"))
@@ -487,17 +537,21 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
                             statuses.append("confirmed rule violation: " + t["rule_violation"])
                         if contaminated:
                             statuses.append("confirmed answer-content contamination: " + t["answer_key_contamination"])
-                        title = f'{h} / {s} / {t["task"]} / run {t["rep"]}: ' + "; ".join(statuses)
+                        title = f'{h} / {s} ({v}) / {t["task"]} / run {t["rep"]}: ' + "; ".join(statuses)
                         f.add(f'<g class="trial" data-job={quoteattr(t["job"])} data-resolved="{str(bool(t["resolved"])).lower()}" '
                               f'data-timeout="{str(bool(t["timed_out"])).lower()}" '
                               f'data-rule-violation="{str(violated).lower()}" data-contamination="{str(contaminated).lower()}">'
                               f'<title>{escape(title)}</title>')
                         task_square(f, qx, qy, HOSTS[h]["color"], t["resolved"], t["timed_out"], violated or contaminated)
                         f.add('</g>')
+                    if is_prev:
+                        f.add('</g>')
                     continue
                 if ri == 3:
                     f.add(f'<text x="{cx(j):.1f}" y="{base}" font-size="14" fill="{C["ink"]}" text-anchor="middle" {num}>'
                           f'{a["median_minutes"]:.1f} min</text>')
+                    if is_prev:
+                        f.add('</g>')
                     continue
                 key = "host_cost_per_trial" if ri == 1 else "total_cost_per_trial"
                 f.add(f'<text x="{cx(j):.1f}" y="{base}" font-size="14" fill="{C["ink"]}" text-anchor="middle" {num}>${a[key]:.2f}</text>')
@@ -506,6 +560,8 @@ def summary_table(aggs, runs, version, bench, num_font="source-serif", *, trials
                 elif solo:
                     f.add(f'<text x="{cx(j):.1f}" y="{base + 16}" font-size="11" font-weight="700" text-anchor="middle" {num}>'
                           f'{delta(a[key], solo[key], s == "agy-staff")}</text>')
+                if is_prev:
+                    f.add('</g>')
             y += ROWS[ri]
 
     def square(color):
@@ -580,7 +636,7 @@ def bars_chart(aggs, runs, version, bench, kind, num_font=CHART_FONT):
     """Cost or tokens per trial: the table's grid, with a stacked bar in each cell. The host's share sits on the
     baseline in its brand color; the worker's share is stacked on top, 2 px apart: the host's lighter step for its
     own subagents, agy blue for agy. One scale for every benchmark, so the rows compare."""
-    get = {(a["dataset"], a["host"], a["setup"]): a for a in aggs}
+    get = {(a["dataset"], a["host"], a["setup"], a["agy_staff"]): a for a in aggs}
     dss = [d for d in DATASETS if any(a["dataset"] == d for a in aggs)]
     num = num_attr(num_font)
     fmt = money if kind == "cost" else mtok
@@ -589,7 +645,7 @@ def bars_chart(aggs, runs, version, bench, kind, num_font=CHART_FONT):
     top_v = vmax * 1.16  # room for the value over the tallest bar
     PT, PH, PB = 16, 124, 22
     card_top = 126
-    body_top = card_top + 160
+    body_top = card_top + (170 if MULTI_VERSION else 160)
     body_end = body_top + len(dss) * (PT + PH + PB)
     card_end = body_end + 16
     if kind == "cost":
@@ -638,11 +694,13 @@ def bars_chart(aggs, runs, version, bench, kind, num_font=CHART_FONT):
             f.add(f'<text x="{col_x(0) - 8:.1f}" y="{ty + 4:.1f}" font-size="10.5" font-family="{MONO}" fill="{FAINT}" '
                   f'text-anchor="end">{"$0" if kind == "cost" and not t else ("0" if not t else (f"${t:g}" if kind == "cost" else f"{t / 1e6:g}M"))}</text>')
         f.line(col_x(0) + 4, base, col_x(len(COLS)) - 4, base, "#BDC1C6")
-        for j, (h, s) in enumerate(COLS):
-            a = get.get((ds, h, s))
+        for j, (h, s, v, is_prev) in enumerate(COLS):
+            a = get.get((ds, h, s, v))
             if not a:
                 f.text(cx(j), base - 8, "—", 14, "#BDC1C6", 400, "middle")
                 continue
+            if is_prev:
+                f.add('<g opacity="0.50">')
             hv, wv = per_trial(a, kind)
             x = cx(j) - BW / 2
             hh, wh = scale(hv), scale(wv)
@@ -655,6 +713,8 @@ def bars_chart(aggs, runs, version, bench, kind, num_font=CHART_FONT):
                 top = wtop
             f.add(f'<text x="{cx(j):.1f}" y="{top - 7:.1f}" font-size="12.5" font-weight="700" fill="{C["ink"]}" '
                   f'text-anchor="middle" {num}>{fmt(hv + wv)}</text>')
+            if is_prev:
+                f.add('</g>')
         y += PT + PH + PB
 
     def glyph(colors):
@@ -715,6 +775,7 @@ def pareto_chart(aggs, runs, version, bench, num_font=CHART_FONT):
     def sx(v, x0):
         return x0 + (math.log(v) - math.log(lo)) / (math.log(hi) - math.log(lo)) * pw
 
+    prev_keys = {(h, s, v) for h, s, v, is_prev in COLS if is_prev}
     y = body_top
     for k, ds in enumerate(dss):
         if k:
@@ -739,17 +800,23 @@ def pareto_chart(aggs, runs, version, bench, num_font=CHART_FONT):
                 f.add(f'<text x="{tx:.1f}" y="{bot + 16:.1f}" font-size="10.5" font-family="{MONO}" fill="{FAINT}" '
                       f'text-anchor="middle">${t:g}</text>')
             pts = [(a[field], a["resolved"] / a["trials"], a) for a in group]
-            front = sorted((p for p in pts if not any(q is not p and q[0] <= p[0] and q[1] >= p[1] and (q[0] < p[0] or q[1] > p[1])
-                                                      for q in pts)), key=lambda p: p[0])
+            active_pts = [p for p in pts if (p[2]["host"], p[2]["setup"], p[2]["agy_staff"]) not in prev_keys]
+            front = sorted((p for p in active_pts if not any(q is not p and q[0] <= p[0] and q[1] >= p[1] and (q[0] < p[0] or q[1] > p[1])
+                                                             for q in active_pts)), key=lambda p: p[0])
             if len(front) > 1:
                 d = " ".join(f'{"M" if i == 0 else "L"}{sx(c, x0):.1f},{sy(r):.1f}' for i, (c, r, _) in enumerate(front))
                 f.add(f'<path d="{d}" fill="none" stroke="{FAINT}" stroke-width="1.5" stroke-dasharray="4 3"/>')
             # + agy first (its ring is the largest), then the smaller marks on top
-            for c, r, a in sorted(pts, key=lambda p: SETUPS.index(p[2]["setup"]), reverse=True):
+            for c, r, a in sorted(pts, key=lambda p: (SETUPS.index(p[2]["setup"]), (p[2]["host"], p[2]["setup"], p[2]["agy_staff"]) in prev_keys), reverse=True):
+                is_prev = (a["host"], a["setup"], a["agy_staff"]) in prev_keys
                 mx, my, col = sx(c, x0), sy(r), HOSTS[a["host"]]["color"]
                 if a["setup"] == "agy-staff":
-                    f.add(f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="10" fill="#FFFFFF" stroke="{AGY}" stroke-width="3"/>'
-                          f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="5.5" fill="{col}"/>')
+                    if is_prev:
+                        f.add(f'<g opacity="0.42"><circle cx="{mx:.1f}" cy="{my:.1f}" r="10" fill="#FFFFFF" stroke="{AGY}" stroke-width="2.5" stroke-dasharray="3 2"/>'
+                              f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="5" fill="{col}"/></g>')
+                    else:
+                        f.add(f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="10" fill="#FFFFFF" stroke="{AGY}" stroke-width="3"/>'
+                              f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="5.5" fill="{col}"/>')
                 elif a["setup"] == "native":
                     f.add(f'<circle cx="{mx:.1f}" cy="{my:.1f}" r="6" fill="{tint(a["host"])}" stroke="{col}" stroke-width="2"/>')
                 else:
@@ -802,11 +869,13 @@ for agents:
         ap.error(f"cannot tell the bench version from {args.data}; pass --bench vN")
     out = args.out or args.data.resolve().parent
     doc = json.loads(args.data.read_text())
-    version = args.version or doc["agy_staff_versions"][-1]
+    versions = [args.version] if args.version else doc["agy_staff_versions"]
+    version = " / ".join(versions)
     runs = sorted((r for r in doc["runs"] if r["host"] in HOSTS), key=lambda r: list(HOSTS).index(r["host"]))
     out.mkdir(parents=True, exist_ok=True)
-    aggs = [a for a in doc["aggregates"] if a["agy_staff"] == version and a["host"] in HOSTS]
-    trials = [t for t in doc["trials"] if t["agy_staff"] == version and t["host"] in HOSTS]
+    aggs = [a for a in doc["aggregates"] if a["agy_staff"] in versions and a["host"] in HOSTS]
+    trials = [t for t in doc["trials"] if t["agy_staff"] in versions and t["host"] in HOSTS]
+    configure_columns(aggs, versions)
     figures = {"summary": summary_table} | (CHARTS if args.charts else {})
     for name, draw in figures.items():
         kwargs = {"trials": trials} if name == "summary" else {}

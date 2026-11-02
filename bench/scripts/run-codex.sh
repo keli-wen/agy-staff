@@ -95,8 +95,12 @@ if [ "$DRY_RUN" = 1 ]; then echo "(cd $DATA)"; show_command "${ENV[@]}" "${HARBO
 case "$SETUP" in oracle|nop) ;; *) [ -f "$CODEX_AUTH" ] || die "missing Codex auth.json: $CODEX_AUTH" ;; esac
 EGRESS_URL=https://chatgpt.com/cdn-cgi/trace
 egress_host "$EGRESS_URL" host-pre
+if [ "$SETUP" = agy-staff ] && [ ! -f "$AGY_AUTH_DIR/antigravity-oauth-token" ] && [ -n "${GEMINI_API_KEY:-}" ]; then
+  AGY_BENCH_GEMINI_API_KEY="$GEMINI_API_KEY"; export AGY_BENCH_GEMINI_API_KEY
+fi
 cd "$DATA"
 "${ENV[@]}" "${HARBOR[@]}" 2>&1 | harbor_filter || true
+unset AGY_BENCH_GEMINI_API_KEY
 echo "job: $DATA/jobs/$JOB"
 
 rc=0; leak_scan "$DATA/jobs/$JOB" || rc=$?
