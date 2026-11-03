@@ -240,6 +240,25 @@ review --prompt "Review the patch at /tmp/change.patch"
 
 从 0.4 起，companion 首次在仓库中创建 `.agy-staff/` 时，会检查该目录是否已被忽略。如果没有，就将它加入本地的 `.git/info/exclude`。这样既能避免误提交任务记录，也不会改动团队共享的 `.gitignore`。
 
+## 速度探测（`speed`）
+
+agy 的速度取决于 Google 服务器当时的繁忙程度：算力空闲时很快，很多用户同时使用时，部分用户会被拖慢（用户反馈最快每秒数百个 token，最慢低于 50）。`speed` 用于在派出大任务之前先测一次当前状态，让慢的时段在几秒内暴露，而不是等长任务启动之后才发现。
+
+```bash
+node "<skill-dir>/../../companion/agy-companion.mjs" speed [--model <id>] [--effort low|medium|high] [--timeout <dur>]
+```
+
+它用 `ask` 的模型（默认 `gemini-3.8-flash-low`）和固定提示词发起一次不使用工具的流式调用，耗时约 10 秒（大部分是 agy 自身的启动），并在标准输出打印一行实测数据：
+
+```
+[agy-staff speed] model=gemini-3.8-flash-low samples=1 tokens_per_second=97 ttft=3.4s startup=6.5s stream=1.4s output_tokens=140 total=11.3s
+```
+
+- `tokens_per_second`：输出 token 数除以回答文本流式输出所用的时间。回答不足 50 个输出 token，或流式输出不足 0.5 秒时显示 `n/a`，因为过短或一次性返回的回答算出的速率没有意义。
+- `ttft`：从 agy 的 `init` 事件到第一段回答文本的时间；`startup`：从进程启动到 `init` 的时间，是每次调用 agy 都要付出的固定开销。
+- 该调用使用受限权限，不带会话，也不会写入任务、会话或 `.agy-staff/` 状态。不接受任务正文。`--timeout` 默认 90 秒（最长 10 分钟）；超时没有结果时以退出码 1 结束，并附上已测到的数据。
+- companion 只报告，不下判断。`lead` 和 `jobs` 技能把 `tokens_per_second` 低于 50 或 `ttft` 高于 15 秒视为不适合大任务，会把数据告诉用户，由用户决定。详见 `skills/jobs/references/speed.md`。这些界限来自单机的少量样本（每秒 91 至 240 个 token，`ttft` 2.6 至 4.9 秒，`startup` 5 至 16 秒），针对默认模型校准。
+
 ## 疑难排查
 
 ### agy 报错，但可能已经返回了回答

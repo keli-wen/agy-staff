@@ -12,6 +12,9 @@
  *                                   the general-purpose mode: a minimal prompt
  *                                   with no role or output-format framing)
  *   ask --prompt <question>         cheap zero-tool one-shot Q&A (foreground)
+ *   speed                           one tool-free probe that measures agy's
+ *                                   current speed (tokens/s, time to first
+ *                                   text, start-up); facts only, no verdict
  *   continue --prompt <text>        continue the most recent conversation (any mode)
  *   observe [job-id]                immediate bounded snapshot in every job state
  *   restart <job-id>                explicitly relaunch the stored task
@@ -92,8 +95,9 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { boundSnapshot, excerpt } from './observation.mjs';
-import { atomicJSON, runStreaming, processIdentity } from './stream-worker.mjs';
+import { boundSnapshot, excerpt, createParser } from './observation.mjs';
+import { atomicJSON, runStreaming, processIdentity, signalGroup } from './stream-worker.mjs';
+import { SPEED_PROMPT, createSpeedMeter, formatSpeed } from './speed.mjs';
 import { withStateLock, replaceFile, readTextRetry } from './state-lock.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
@@ -1859,6 +1863,63 @@ function printSetupNotes() {
 }
 
 // ---------------------------------------------------------------------------
+// speed
+// ---------------------------------------------------------------------------
+
+const SPEED_FLAGS = new Set(['_', 'model', 'effort', 'timeout']);
+
+/** Measure how fast agy is right now with one tool-free streaming call.
+ *  Reports facts only (see speed.mjs); judging them is the host's job. It
+ *  writes no job or conversation state, so it never affects `--continue`. */
+async function cmdSpeed(opts) {
+  const extra = Object.keys(opts).filter((key) => !SPEED_FLAGS.has(key));
+  if (extra.length || opts._.length) die('speed takes only --model, --effort and --timeout; it always sends its own fixed probe prompt');
+  if (opts.effort && !['low', 'medium', 'high'].includes(opts.effort)) die('--effort must be low|medium|high');
+  const model = opts.model ? normalizeModel(opts.model, opts.effort)
+    : opts.effort ? `gemini-3.8-flash-${opts.effort}` : DEFAULTS.model.ask;
+  const timeout = opts.timeout || '90s';
+  const budget = durationToMs(timeout);
+  if (!Number.isFinite(budget) || budget <= 0 || budget > 600_000) die('invalid --timeout: use a positive duration, at most 10m');
+
+  const meter = createSpeedMeter();
+  const agy = agyCommand(agyArgs({ prompt: SPEED_PROMPT, model, timeout, conversation: null, unrestricted: false, workspace: repoRoot() }, 'stream-json'));
+  let stderr = '', stdoutTail = '', timedOut = false, spawnError = null;
+  const tail = (text) => text.slice(-4000);
+  const child = spawn(agy.cmd, agy.args, { detached: process.platform !== 'win32', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const exited = new Promise((resolve) => {
+    child.once('error', (error) => { spawnError = error; resolve(); });
+    child.once('exit', () => resolve());
+  });
+  const closed = new Promise((resolve) => child.once('close', resolve));
+  const parser = createParser((event) => meter.accept(event), () => {}, 8 * 1024 * 1024);
+  meter.start();
+  child.stdout.on('data', (chunk) => { stdoutTail = tail(stdoutTail + chunk.toString('utf8')); parser.write(chunk); });
+  child.stderr.on('data', (chunk) => { stderr = tail(stderr + chunk.toString('utf8')); });
+  const timer = setTimeout(() => {
+    timedOut = true;
+    signalGroup(child.pid, 'SIGKILL');
+    try { child.kill('SIGKILL'); } catch { /* already exited */ }
+  }, budget);
+  await exited;
+  clearTimeout(timer);
+  await Promise.race([closed, sleepMs(500)]); // bounded drain; a descendant may hold the pipes
+  child.stdout.destroy(); child.stderr.destroy();
+  parser.end();
+
+  if (spawnError) die(`failed to launch agy (${AGY_BIN}): ${spawnError.message}`);
+  const report = meter.report();
+  const facts = formatSpeed(report, model);
+  if (timedOut) die(`speed probe received no result within ${timeout}; agy is very slow or stuck right now.\n${facts}`);
+  if (!report.status) {
+    let msg = `agy did not return a parseable result for the speed probe.\nstdout: ${stdoutTail.trim().slice(0, 800) || '(empty)'}\nstderr: ${stderr.trim().slice(0, 800) || '(empty)'}`;
+    if (/operation not permitted/i.test(stderr)) msg += '\nThis looks like a harness command sandbox blocking agy. Run this companion command unsandboxed (escalated permissions).';
+    die(msg);
+  }
+  if (report.status.toUpperCase() !== 'SUCCESS') die(`agy reported an error for the speed probe (status ${report.status}).${report.error ? `\nagy error: ${report.error}` : ''}\n${facts}`);
+  process.stdout.write(facts + '\n');
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -1866,7 +1927,7 @@ function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd) {
     die(
-      'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|restart|observe|status|wait|result|cancel|setup> [flags]\n' +
+      'usage: agy-companion.mjs <staffer|research|review|implement|ask|speed|continue|restart|observe|status|wait|result|cancel|setup> [flags]\n' +
         'flags: --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
         '--prompt <text> --prompt-file <path> --stdin --conversation <id> --continue --json (review) ' +
         '--apply --restrict <modes|none> (setup)\n' +
@@ -1897,6 +1958,8 @@ function main() {
       return cmdCancel(opts);
     case 'setup':
       return cmdSetup(opts);
+    case 'speed':
+      return cmdSpeed(opts);
     case '_worker':
       return workerMain(rest[0]);
     default:
