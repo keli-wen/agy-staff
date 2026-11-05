@@ -32,12 +32,14 @@ import { spawn } from 'node:child_process';
 const argv = process.argv.slice(2);
 if (process.env.FAKE_AGY_CWD_FILE) fs.writeFileSync(process.env.FAKE_AGY_CWD_FILE, process.cwd());
 
+const argvFile = process.env.FAKE_AGY_ARGV_FILE;
 if (argv.includes('--version')) {
-  process.stdout.write((process.env.FAKE_AGY_VERSION ?? '1.4.12-fake') + '\n');
+  if (argvFile && process.env.FAKE_AGY_RECORD_VERSION) {
+    try { fs.appendFileSync(argvFile, JSON.stringify(argv) + '\n'); } catch {}
+  }
+  process.stdout.write((process.env.FAKE_AGY_VERSION ?? '1.1.13-fake') + '\n');
   process.exit(0);
 }
-
-const argvFile = process.env.FAKE_AGY_ARGV_FILE;
 if (argvFile) {
   try {
     fs.appendFileSync(argvFile, JSON.stringify(argv) + '\n');

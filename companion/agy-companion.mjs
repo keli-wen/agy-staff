@@ -92,11 +92,9 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { boundSnapshot, excerpt } from './observation.mjs';
+import { boundSnapshot, excerpt, createNativeErrorCollector, nativeResult, hasNativeWarnings } from './observation.mjs';
 import { atomicJSON, runStreaming, processIdentity } from './stream-worker.mjs';
 import { withStateLock, replaceFile, readTextRetry } from './state-lock.mjs';
-import { createNativeErrorCollector, nativeResult, hasNativeWarnings, isResponseTimeout } from './native-result.mjs';
-import { cliCompatibility, unsupportedCliHint, withCompatibility } from './cli-compatibility.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const TEMPLATES_DIR = path.join(path.dirname(SELF), '..', 'templates');
@@ -712,6 +710,25 @@ function handleUnsupportedModel({ requestedModel, errText, originalError, convNo
   die(msg + (convNote || ''));
 }
 
+function queryAgyVersion() {
+  try {
+    const agy = agyCommand(['--version']);
+    const r = spawnSync(agy.cmd, agy.args, { encoding: 'utf8', timeout: 2000, maxBuffer: 16384, windowsHide: true });
+    if (r.error || r.status !== 0) return null;
+    return /\b(v?\d+\.\d+\.\d+(?:[-+][\w.-]+)?)\b/.exec(r.stdout || '')?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+function unsupportedCliHint(text, version) {
+  const flag = /(?:unknown|unrecognized|unsupported|not defined)[^\n]{0,80}[-]{1,2}(?:output-format|print-timeout|add-dir|json-schema|dangerously-skip-permissions|conversation|model)\b/i;
+  const format = /(?:invalid|unsupported|unknown)[^\n]{0,60}(?:output.format|stream-json)|(?:output.format|stream-json)[^\n]{0,60}(?:not supported|unsupported|invalid)/i;
+  if (!flag.test(text || '') && !format.test(text || '')) return null;
+  const detected = version === undefined ? queryAgyVersion() : version;
+  return `AGY CLI compatibility error (installed version: ${detected || 'unknown'}): the CLI rejected an option or output format used by agy-staff. Run \`agy update\`, then verify with \`agy --version\`; version 1.4.11 or newer is recommended. Updating the plugin alone does not update the AGY binary. Original CLI diagnostics are retained above.`;
+}
+
 function agyArgs({ prompt, model, timeout, conversation, unrestricted, jsonSchema, workspace }, format) {
   const args = ['-p', prompt, '--model', model, '--output-format', format, '--print-timeout', timeout, '--add-dir', workspace];
   if (conversation) args.push('--conversation', conversation);
@@ -740,7 +757,12 @@ function runAgy(invoke) {
     if (r.error && r.error.code === 'ETIMEDOUT') {
       die(`agy timed out: no result within ${timeout} plus 60s grace. Retry with a larger --timeout, or narrow the task.`);
     }
-    if (r.error) die(`failed to launch agy (${AGY_BIN}): ${r.error.message}`);
+    if (r.error) {
+      const hint = r.error.code === 'ENOENT'
+        ? '\nAGY CLI was not found. Updating agy-staff does not install AGY. Install it from https://antigravity.google/docs/cli/install, then verify with `agy --version`.'
+        : '';
+      die(`failed to launch agy (${AGY_BIN}): ${r.error.message}${hint}`);
+    }
     if (r.signal) {
       die(`agy was killed by signal ${r.signal} before returning a result (companion budget: ${timeout} + 60s grace).`);
     }
@@ -787,6 +809,17 @@ function runAgy(invoke) {
     error.agy = nativeResult(payload, nativeErrors.snapshot(), r.status);
     throw error;
   }
+}
+
+// Native AGY metadata is evidence, not a retry policy or a task-completion verdict.
+function isResponseTimeout(payload, native) {
+  // Explicit termination and API failure metadata outrank legacy prose. An API
+  // DEADLINE_EXCEEDED is not evidence that --print-timeout expired.
+  if (native.finished_reason) return native.finished_reason === 'print_timeout';
+  if (native.errors?.length) return false;
+  const status = String(payload.status || '').toUpperCase();
+  return ['TIMEOUT', 'TIMED_OUT', 'RESPONSE_TIMEOUT'].includes(status) ||
+    (status === 'ERROR' && /^timeout waiting for response[.!]?$/i.test(String(payload.error || '').trim()));
 }
 
 /** Triage the agy result into distinct classes with distinct guidance
@@ -1144,17 +1177,15 @@ async function executeRun(resolved, prompt, opts, execution = null) {
   let result, response;
   try {
     result = execution ? await execution(invoke) : runAgy(invoke);
-    result.agy = withCompatibility(result.agy, opts.compatibility);
     opts.agy = result.agy;
     rememberConversation(resolved, result.payload.conversation_id, opts.jobId);
     response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model);
-    process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(result.agy)}\n`);
+    if (hasNativeWarnings(result.agy)) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(result.agy)}\n`);
   } catch (error) {
     error.agy ||= result?.agy;
     // A provider's structured API error can quote flag-like user content.
     // Native evidence outranks prose heuristics for CLI compatibility too.
-    const hint = error.agy?.errors?.length ? null : unsupportedCliHint(error.message, opts.compatibility?.version);
-    error.agy = withCompatibility(error.agy, opts.compatibility, hint);
+    const hint = error.agy?.errors?.length ? null : unsupportedCliHint(`${error.message}\n${error.diagnosticText || ''}`);
     if (hint) {
       error.message += `\n${hint}`;
       if (error.alreadyPrinted) process.stderr.write(`${hint}\n`);
@@ -1213,15 +1244,6 @@ function cmdRun(mode, opts) {
 
 async function dispatch(resolved, prompt, opts) {
   const mode = resolved.mode;
-  // Probe only at launch, never while waiting/observing. Workers inherit the
-  // result through the spec instead of starting another CLI probe.
-  const probe = agyCommand(['--version']);
-  const version = spawnSync(probe.cmd, probe.args, { encoding: 'utf8', timeout: 2000, maxBuffer: 16384, windowsHide: true });
-  if (version.error?.code === 'ENOENT') {
-    die('AGY CLI was not found. Updating agy-staff does not install AGY. Install it from https://antigravity.google/docs/cli/install, then verify with `agy --version`.');
-  }
-  opts.compatibility = cliCompatibility(!version.error && version.status === 0 ? version.stdout : '');
-  if (opts.compatibility.warning) process.stderr.write(`agy-staff warning: ${opts.compatibility.warning}\n`);
   if (!resolved.background) {
     process.stdout.write(await executeRun(resolved, prompt, opts) + '\n');
     return;
@@ -1253,7 +1275,7 @@ async function dispatch(resolved, prompt, opts) {
     // Two callers can both resolve an idle conversation. Recheck under the
     // registration lock before accepting either the job or its prompt file.
     refuseRunningFollowUp(state, resolved.conversation);
-    fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json, compatibility: opts.compatibility }, cwd: process.cwd() }, null, 2));
+    fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
     state.jobs ||= [];
     state.jobs.push(record);
   });

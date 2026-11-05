@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createNativeErrorCollector, nativeResult, isResponseTimeout } from '../companion/native-result.mjs';
+import { createNativeErrorCollector, nativeResult } from '../companion/observation.mjs';
 import { sandbox, run, jobIdOf, waitForJob, agyCalls } from './helpers.mjs';
 
-// Field shape measured with real AGY 1.4.12 against a localhost HTTP 400 stub.
+// Field shape measured with real AGY 1.4.12 against a localhost HTTP 400 stub
+// (status/error_code/code_kind/retryable/error_id, not canonical_status).
 // Other status/code combinations below are synthetic, not live provider errors.
 const apiError = { status: 'INVALID_ARGUMENT', error_code: 400, code_kind: 'http', retryable: false, error_id: 'fixture-error-1' };
 const record = (value = apiError) => `AGY_ERROR: ${JSON.stringify(value)}`;
@@ -43,40 +44,50 @@ test('diagnostics keep recent errors and bound UTF-8 fields without inventing mi
   assert.deepEqual(out.errors.map(e => e.error_code), [7, 8, 9]);
   assert.ok(Buffer.byteLength(JSON.stringify(out)) < 3000);
   assert.deepEqual(collect(record({ status: 'NEW_SERVER_STATUS' })).errors, [{ status: 'NEW_SERVER_STATUS' }]);
+  const invalidReason = nativeResult({ status: 'ERROR', finished_reason: { unexpected: true } });
+  assert.equal(invalidReason.finished_reason, undefined);
+  assert.match(invalidReason.warnings[0], /Invalid finished_reason/);
 });
 
-test('explicit native reasons and API errors outrank legacy timeout prose; malformed reasons fall back', () => {
-  const old = { status: 'ERROR', error: 'timeout waiting for response' };
-  assert.equal(isResponseTimeout(old, nativeResult(old)), true);
-  for (const finished_reason of ['error', 'interrupted', 'future_reason']) {
-    assert.equal(isResponseTimeout(old, nativeResult({ ...old, finished_reason })), false);
-  }
-  assert.equal(isResponseTimeout(old, nativeResult(old, collect(record({ status: 'DEADLINE_EXCEEDED' })))), false);
-  assert.equal(isResponseTimeout(old, nativeResult({ ...old, finished_reason: 'print_timeout' }, collect(record()))), true);
-  const invalid = nativeResult({ ...old, finished_reason: { unexpected: true } });
-  assert.equal(isResponseTimeout(old, invalid), true);
-  assert.match(invalid.warnings[0], /Invalid/);
-});
-
-test('foreground preserves partial answers and distinguishes all native termination reasons', () => {
+test('foreground preserves partial answers and distinguishes termination reasons; normal and old-version runs stay quiet without version probes', async () => {
   const sb = sandbox('native-foreground');
   for (const reason of ['print_timeout', 'interrupted', 'error', 'future_reason']) {
     const r = run(sb, ['ask', '--prompt', 'test'], {
       FAKE_AGY_FINISHED_REASON: JSON.stringify(reason), FAKE_AGY_RESPONSE: 'PARTIAL_ANSWER',
-      FAKE_AGY_STDERR: reason === 'error' ? record() : '',
+      FAKE_AGY_STDERR: reason === 'error' ? record() : '', FAKE_AGY_RECORD_VERSION: '1',
     });
     assert.equal(r.code, 0, r.stderr);
     assert.equal(r.stdout, 'PARTIAL_ANSWER\n');
     assert.equal(nativeLine(r.stderr).finished_reason, reason);
     assert.match(r.stderr, /delivering it for assessment/);
   }
-  const normal = run(sb, ['ask', '--prompt', 'test']);
-  assert.deepEqual(nativeLine(normal.stderr), { exit_code: 0, status: 'SUCCESS', cli_version: '1.4.12-fake' });
-  assert.doesNotMatch(normal.stderr, /agy-staff warning/);
-  assert.equal(agyCalls(sb).filter(args => args.includes('-p')).length, 5);
+  for (const v of ['1.4.12-fake', '1.1.27', 'custom-build']) {
+    const normal = run(sb, ['ask', '--prompt', 'test'], { FAKE_AGY_VERSION: v, FAKE_AGY_RECORD_VERSION: '1' });
+    assert.equal(normal.code, 0, normal.stderr);
+    assert.equal(normal.stdout, 'fake answer\n');
+    assert.doesNotMatch(normal.stderr, /native_result|agy-staff warning|agy update/);
+  }
+  assert.equal(agyCalls(sb).length, 7, 'no --version probes on normal or partial-delivery runs');
+  assert.ok(agyCalls(sb).every(args => args.includes('-p')));
+
+  // Old CLI version on a normal background job: no launch warning, no warnings flag, cleans up intermediates.
+  const bg = sandbox('native-bg-old-clean');
+  const started = run(bg, ['staffer', '--prompt', 'test'], { FAKE_AGY_VERSION: '1.1.27', FAKE_AGY_RECORD_VERSION: '1' });
+  assert.equal(started.code, 0, started.stderr);
+  assert.equal(started.stderr, '');
+  const id = jobIdOf(started.stdout);
+  assert.equal(await waitForJob(bg, id), 'done');
+  const job = JSON.parse(run(bg, ['status', id]).stdout);
+  assert.equal(job.warnings, false);
+  assert.deepEqual(job.agy, { exit_code: 0, status: 'SUCCESS' });
+  assert.equal(fs.existsSync(job.events_file), false, 'warning-free old-CLI run must still clean up raw events');
+  const collected = run(bg, ['wait', id]);
+  assert.equal(collected.code, 0);
+  assert.equal(collected.stderr, '');
+  assert.equal(agyCalls(bg).length, 1, 'background run must not probe --version on success');
 });
 
-test('empty native timeout needs attention; native error/interruption cannot be misclassified as timeout', () => {
+test('empty native timeout needs attention; explicit reasons, API DEADLINE_EXCEEDED and malformed reasons handle timeout precedence', () => {
   const sb = sandbox('native-empty');
   for (const [reason, expected] of [['print_timeout', 5], ['error', 1], ['interrupted', 1], ['future_reason', 1]]) {
     const r = run(sb, ['ask', '--prompt', 'test'], {
@@ -87,6 +98,22 @@ test('empty native timeout needs attention; native error/interruption cannot be 
     assert.equal(nativeLine(r.stderr).finished_reason, reason);
     if (reason !== 'print_timeout') assert.doesNotMatch(r.stderr, /suggested_timeout/);
   }
+  // Structured API DEADLINE_EXCEEDED must not be misclassified as CLI --print-timeout expiry.
+  const apiDeadline = run(sb, ['ask', '--prompt', 'test'], {
+    FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '', FAKE_AGY_ERROR: 'timeout waiting for response',
+    FAKE_AGY_STDERR: record({ ...apiError, status: 'DEADLINE_EXCEEDED', error_code: 504 }),
+  });
+  assert.equal(apiDeadline.code, 1, apiDeadline.stderr);
+  assert.doesNotMatch(apiDeadline.stderr, /suggested_timeout/);
+  assert.equal(nativeLine(apiDeadline.stderr).errors[0].status, 'DEADLINE_EXCEEDED');
+
+  // Invalid finished_reason type falls back to legacy timeout handling with a warning.
+  const fallback = run(sb, ['ask', '--prompt', 'test'], {
+    FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '', FAKE_AGY_ERROR: 'timeout waiting for response',
+    FAKE_AGY_FINISHED_REASON: '{"unexpected":true}',
+  });
+  assert.equal(fallback.code, 5, fallback.stderr);
+  assert.match(nativeLine(fallback.stderr).warnings[0], /Invalid finished_reason/);
 });
 
 test('structured auth/quota/network/model failures remain distinct even without a final JSON result', () => {
@@ -179,4 +206,79 @@ test('background errors with partial text keep native API fields in done observa
   assert.equal(obs.agy.finished_reason, 'error');
   assert.equal(obs.agy.exit_code, 3);
   assert.deepEqual(obs.agy.errors, [apiError]);
+});
+
+test('rejected CLI options/formats probe version on demand and advise agy update; missing binary advises install without fabricating version', async () => {
+  for (const mode of ['ask', 'staffer']) {
+    const sb = sandbox(`cli-rejected-${mode}`);
+    const r = run(sb, [mode, '--prompt', 'test'], {
+      FAKE_AGY_VERSION: '1.0.0', FAKE_AGY_NO_JSON: '1', FAKE_AGY_STDERR: 'unknown flag: --output-format',
+      FAKE_AGY_RECORD_VERSION: '1',
+    });
+    const delivered = mode === 'ask' ? r : await (async () => {
+      const id = jobIdOf(r.stdout);
+      assert.equal(await waitForJob(sb, id), 'error');
+      return run(sb, ['wait', id]);
+    })();
+    assert.notEqual(delivered.code, 0);
+    assert.match(delivered.stdout + delivered.stderr, /unknown flag: --output-format/);
+    assert.match(delivered.stdout + delivered.stderr, /AGY CLI compatibility error \(installed version: 1\.0\.0\)/);
+    assert.match(delivered.stdout + delivered.stderr, /agy update/);
+    assert.match(delivered.stdout + delivered.stderr, /Updating the plugin alone does not update the AGY binary/);
+    const calls = agyCalls(sb);
+    assert.equal(calls.filter(args => args.includes('-p')).length, 1, 'no automatic retry');
+    assert.deepEqual(calls.filter(args => args.includes('--version')), [['--version']], 'version probed once on demand after CLI flag rejection');
+
+    // Missing binary: retain original launch error, advise install, do not invent a detected version.
+    const missingSb = sandbox(`cli-missing-${mode}`);
+    const missingBin = path.join(missingSb.root, 'nonexistent-agy');
+    const missingRun = run(missingSb, [mode, '--prompt', 'test'], { AGY_BIN: missingBin });
+    const missingDelivered = mode === 'ask' ? missingRun : await (async () => {
+      const id = jobIdOf(missingRun.stdout);
+      assert.equal(await waitForJob(missingSb, id), 'error');
+      return run(missingSb, ['wait', id]);
+    })();
+    assert.notEqual(missingDelivered.code, 0);
+    assert.match(missingDelivered.stdout + missingDelivered.stderr, /failed to launch agy/);
+    assert.match(missingDelivered.stdout + missingDelivered.stderr, /AGY CLI was not found\. Updating agy-staff does not install AGY/);
+    assert.doesNotMatch(missingDelivered.stdout + missingDelivered.stderr, /installed version:/);
+  }
+
+  // Foreground JSON error with rejected format emits one native_result record and probes version on demand.
+  const sb = sandbox('cli-rejected-json');
+  const r = run(sb, ['ask', '--prompt', 'test'], {
+    FAKE_AGY_VERSION: '1.1.0+build.42', FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '', FAKE_AGY_EXIT: '1',
+    FAKE_AGY_ERROR: 'unsupported output format: stream-json', FAKE_AGY_RECORD_VERSION: '1',
+  });
+  assert.equal(r.code, 1);
+  assert.match(r.stderr, /AGY CLI compatibility error \(installed version: 1\.1\.0\+build\.42\)/);
+  const records = r.stderr.split('\n').filter(line => line.startsWith('[agy-staff] native_result: '));
+  assert.equal(records.length, 1);
+  assert.equal(JSON.parse(records[0].split('native_result: ')[1]).status, 'ERROR');
+  assert.equal(agyCalls(sb).length, 2);
+});
+
+test('native API diagnostics outrank flag-like provider prose with or without final JSON and do not probe version', async () => {
+  for (const mode of ['ask', 'staffer']) for (const noJSON of [false, true]) {
+    const sb = sandbox(`cli-native-priority-${mode}-${noJSON}`);
+    const error = { short_error: 'Invalid argument: unknown flag --output-format', status: 'INVALID_ARGUMENT', error_code: 400, code_kind: 'http', retryable: false, error_id: 'fixture' };
+    const started = run(sb, [mode, '--prompt', 'test'], {
+      FAKE_AGY_STATUS: 'ERROR', FAKE_AGY_RESPONSE: '', FAKE_AGY_EXIT: '3',
+      FAKE_AGY_FINISHED_REASON: '"error"', FAKE_AGY_NO_JSON: noJSON ? '1' : '',
+      FAKE_AGY_STDERR: `AGY_ERROR: ${JSON.stringify(error)}`, FAKE_AGY_RECORD_VERSION: '1',
+    });
+    let native;
+    if (mode === 'ask') {
+      assert.equal(started.code, 1);
+      native = nativeLine(started.stderr);
+      assert.doesNotMatch(started.stderr, /AGY CLI compatibility error/);
+    } else {
+      const id = jobIdOf(started.stdout);
+      assert.equal(await waitForJob(sb, id), 'error');
+      native = JSON.parse(run(sb, ['observe', id]).stdout).agy;
+      assert.doesNotMatch(run(sb, ['wait', id]).stdout, /AGY CLI compatibility error/);
+    }
+    assert.equal(native.errors[0].status, 'INVALID_ARGUMENT');
+    assert.equal(agyCalls(sb).length, 1, 'structured API error must not trigger --version probe or retry');
+  }
 });

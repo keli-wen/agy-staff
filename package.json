@@ -23,7 +23,6 @@
     "scripts/generate-skills.mjs",
     "docs/INSTALL_FOR_AGENTS.md",
     "docs/REFERENCE*.md",
-    "docs/validation/issue-48.md",
     "README.zh-CN.md"
   ],
   "scripts": {

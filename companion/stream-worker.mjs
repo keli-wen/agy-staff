@@ -1,8 +1,7 @@
 import fs from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
-import { createParser, createProjection, excerpt, boundSnapshot } from './observation.mjs';
+import { createParser, createProjection, excerpt, boundSnapshot, createNativeErrorCollector, nativeResult } from './observation.mjs';
 import { replaceFile } from './state-lock.mjs';
-import { createNativeErrorCollector, nativeResult } from './native-result.mjs';
 
 export function atomicJSON(file, value) {
   const tmp = `${file}.tmp-${process.pid}`;
@@ -345,7 +344,12 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
       stderr = `${stderr}\n${warning}`.trim();
       process.stderr.write(`agy-staff warning: ${warning}\n`);
     } else if (reason) throw Object.assign(new Error(reason === 'hard_timeout' ? 'Worker hard execution limit reached.' : 'Execution canceled.'), { reason });
-    if (spawnError) throw Object.assign(new Error(`failed to launch agy (${binary}): ${spawnError.message}`), { reason: 'launch_error' });
+    if (spawnError) {
+      const hint = spawnError.code === 'ENOENT'
+        ? '\nAGY CLI was not found. Updating agy-staff does not install AGY. Install it from https://antigravity.google/docs/cli/install, then verify with `agy --version`.'
+        : '';
+      throw Object.assign(new Error(`failed to launch agy (${binary}): ${spawnError.message}${hint}`), { reason: 'launch_error' });
+    }
     if (!payload) {
       let message = `agy did not return parseable JSON result (exit ${outcome.exit}, signal ${outcome.killedSignal || 'none'}). stdout: see ${job.events_file}\nstderr: ${stderr || '(empty)'}`;
       if (/operation not permitted/i.test(stderr)) message += '\nThis looks like a harness command sandbox blocking agy. Run this companion command unsandboxed (escalated permissions).';

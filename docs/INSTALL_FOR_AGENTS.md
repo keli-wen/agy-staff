@@ -7,7 +7,7 @@ You are a coding agent that has been asked to install and verify the **agy-staff
 
 ## 0. Prerequisites
 
-1. **`agy` binary** — run `agy --version`. Recommend **v1.4.11 or newer** for native completion reasons and structured failure diagnostics. Older versions supporting `stream-json` can continue with legacy diagnostics (lifecycle smoke tests used v1.1.27); the companion warns at launch. Updating this plugin does not update the separate AGY binary: use `agy update`, then verify with `agy --version`. If it is missing, do **not** install it yourself: give the user the official install page <https://antigravity.google/docs/cli/install> (macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh | bash`) and wait for them to install and authenticate (`agy` run interactively once handles login).
+1. **`agy` binary** — run `agy --version`. Recommend **v1.4.11 or newer** for native completion reasons and structured failure diagnostics. Older versions supporting `stream-json` can continue with legacy diagnostics (lifecycle smoke tests used v1.1.27). Updating this plugin does not update the separate AGY binary: use `agy update`, then verify with `agy --version`. If it is missing, do **not** install it yourself: give the user the official install page <https://antigravity.google/docs/cli/install> (macOS/Linux: `curl -fsSL https://antigravity.google/cli/install.sh | bash`) and wait for them to install and authenticate (`agy` run interactively once handles login).
 2. **Node.js** — run `node --version`. The companion script uses only the Node standard library.
 
 ## 1. Detect which harness you are running in
