@@ -33,7 +33,7 @@ const argv = process.argv.slice(2);
 if (process.env.FAKE_AGY_CWD_FILE) fs.writeFileSync(process.env.FAKE_AGY_CWD_FILE, process.cwd());
 
 if (argv.includes('--version')) {
-  process.stdout.write('1.1.13-fake\n');
+  process.stdout.write((process.env.FAKE_AGY_VERSION ?? '1.4.12-fake') + '\n');
   process.exit(0);
 }
 
@@ -125,6 +125,7 @@ const payload = {
   usage: { input_tokens: 1, output_tokens: 1 },
 };
 if (process.env.FAKE_AGY_ERROR) payload.error = process.env.FAKE_AGY_ERROR;
+if (process.env.FAKE_AGY_FINISHED_REASON !== undefined) payload.finished_reason = JSON.parse(process.env.FAKE_AGY_FINISHED_REASON);
 
 if (process.env.FAKE_AGY_STDERR) process.stderr.write(process.env.FAKE_AGY_STDERR + '\n');
 await new Promise((resolve) => process.stdout.write(JSON.stringify(streaming ? { event: 'result', result: payload } : payload) + '\n', resolve));

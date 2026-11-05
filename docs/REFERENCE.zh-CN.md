@@ -234,6 +234,18 @@ review --prompt "Review the patch at /tmp/change.patch"
 
 如果查询恰好遇到文件清理，companion 会重新检查任务的最终状态：`observe` 返回状态和结果位置，`wait` 返回完整结果。`observe` 不会为了生成最终快照而读取结果正文。进程崩溃且没有结果时，诊断报告会提供任务启动记录、进程 ID、日志是否存在及其大小，以及后续检查或恢复命令，不会复制完整提示词或环境变量。
 
+### 原生结果诊断
+
+每次启动任务时，companion 会进行一次有时间上限、无需模型调用的 `agy --version` 查询；后台 worker 继承查询结果。建议使用 AGY 1.4.11 或更新版本获取结束原因，结构化 API 错误从 1.2.6 开始提供。旧版会收到警告，并继续使用原有诊断规则；版本无法识别时也只警告，不直接阻止任务。收集命令不会重复查询。若 CLI 拒绝插件使用的参数或输出格式，错误会注明检测到的版本，并提示执行 `agy update` 后用 `agy --version` 确认。更新插件不会更新独立安装的 AGY，companion 也不会自动升级它。版本和兼容性警告会保留在任务的 `agy` 元数据中。
+
+新任务会在任务状态、最终状态 sidecar、失败诊断包和终态 `observe` JSON 的 `agy` 字段中保留原生元数据。前台调用将一行 `[agy-staff] native_result: <JSON>` 写入标准错误；`wait` / `result` 遇到原生警告或错误时也输出这一行，回答正文仍单独交付。正常结果包含原生 `status` 和 `exit_code`。旧版 CLI 也可能缺少 `finished_reason`，因此不能仅凭字段缺失判断任务已经完成。
+
+AGY 1.4.11 起可能返回 `finished_reason`，取值为 `print_timeout`、`interrupted` 或 `error`。即使状态为 SUCCESS 或已返回正文，companion 仍保留该原因。有正文时沿用带警告交付的契约：wait 退出 0，由宿主判断部分结果是否满足任务。没有正文且明确为 `print_timeout` 时，使用现有的 response timeout / attention 路径。其他原因按失败处理；未知原因保留并标记警告，类型无效时回退到旧分类规则。明确的结束原因和结构化 API 错误优先于超时文案匹配，API 的 `DEADLINE_EXCEEDED` 不会被归为 CLI 响应预算到期。
+
+AGY 1.2.6 起可能在标准错误输出 `AGY_ERROR: {...}`。companion 将最近三条有效记录保存在 `agy.errors`，按实际存在的类型保留 `status`、`error_code`、`code_kind`、`retryable` 和 `error_id`。字段名已用真实 1.4.12 对本地 HTTP 错误模拟端点验证，见[验证记录](validation/issue-48.md)。缺失字段保持缺失；损坏记录、未知或截断的元数据产生诊断警告，不覆盖此前的有效记录。单行上限为 64 KiB，保留的字符串字段上限为序列化后 256 UTF-8 字节；完整标准错误仍保存在后台任务日志中，`short_error` 不重复放入观察元数据。observe 的总上限仍为 8 KiB。
+
+即使没有最终 JSON 或标准错误尾部被截断，已解析的原生元数据仍保留。带原生警告时保留原始事件与快照。`retryable` 只供宿主参考，不触发自动重试、续跑、换账号或模型回退。现有任务状态与收集退出码继续适用。
+
 <a id="让-agy-staff-不进-git"></a>
 
 ### 避免将本地状态提交到 Git

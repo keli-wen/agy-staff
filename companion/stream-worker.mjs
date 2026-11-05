@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { createParser, createProjection, excerpt, boundSnapshot } from './observation.mjs';
 import { replaceFile } from './state-lock.mjs';
+import { createNativeErrorCollector, nativeResult } from './native-result.mjs';
 
 export function atomicJSON(file, value) {
   const tmp = `${file}.tmp-${process.pid}`;
@@ -237,6 +238,8 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
   const hardDeadline = Date.now() + Math.max(0, budget);
   const rawFd = fs.openSync(job.events_file, 'a');
   const projection = createProjection(conversation);
+  const nativeErrors = createNativeErrorCollector();
+  let exitCode = null;
   let payload = null, stderr = '', stdoutTail = '', lastPublish = 0, child, root, deadline, publishTimer, trackingTimer;
   let stopping = null, reason = null, spawnError = null, streamError = null;
   const tracked = new Map();
@@ -312,9 +315,11 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
     }));
     child.stderr.on('data', (chunk) => safely(() => {
       process.stderr.write(chunk);
+      nativeErrors.write(chunk);
       stderr = excerpt(stderr + chunk.toString('utf8'), 8192, true).text;
     }));
     const outcome = await exited;
+    exitCode = outcome.exit;
     clearTimeout(deadline); clearInterval(trackingTimer);
     if (stopping) await stopping;
     // Kill remaining members even if the CLI itself already exited.
@@ -329,6 +334,7 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
       child.stdout.destroy(); child.stderr.destroy();
     }
     safely(() => parser.end());
+    nativeErrors.end();
     clearTimeout(publishTimer);
     if (inspectionUnavailable) projection.warn('Process-tree inspection unavailable; verify descendant cleanup from the original unsandboxed context.');
     publish();
@@ -345,9 +351,12 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
       if (/operation not permitted/i.test(stderr)) message += '\nThis looks like a harness command sandbox blocking agy. Run this companion command unsandboxed (escalated permissions).';
       throw Object.assign(new Error(message), { reason: 'missing_result', diagnosticText: `${stdoutTail}\n${stderr}` });
     }
-    return { payload, stderr, exit: outcome.exit ?? 1, observationWarnings: projection.snapshot().warnings };
+    return { payload, stderr, exit: outcome.exit ?? 1, observationWarnings: projection.snapshot().warnings,
+      agy: nativeResult(payload, nativeErrors.snapshot(), exitCode) };
   } catch (error) {
     if (!stopping && child?.pid) await cleanup();
+    nativeErrors.end();
+    error.agy = nativeResult(payload, nativeErrors.snapshot(), exitCode);
     throw error;
   } finally {
     clearInterval(trackingTimer);

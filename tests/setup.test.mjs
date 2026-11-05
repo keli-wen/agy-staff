@@ -29,7 +29,7 @@ describe('setup dry run', () => {
     assert.equal(r.code, 0, r.stderr);
 
     // probed the (fake) agy binary
-    assert.match(r.stdout, /agy CLI: OK \(version 1\.1\.13-fake\)/);
+    assert.match(r.stdout, /agy CLI: OK \(version 1\.4\.12-fake\)/);
     assert.match(r.stdout, new RegExp(`${sb.home.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     assert.match(r.stdout, /\.gemini[\\/]antigravity-cli[\\/]settings\.json \(will be created\)/);
 
