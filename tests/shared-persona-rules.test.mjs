@@ -80,22 +80,22 @@ test('deleting both markers from an expected direct persona or placing markers a
   const original = fs.readFileSync(researcher, 'utf8');
   const stripped = original.replace(new RegExp(`${SHARED_START}[\\s\\S]*?${SHARED_END}\\n*`), '');
   fs.writeFileSync(researcher, stripped);
-  assert.throws(() => generateCanonicalSkills({ root }), /Expected exactly one ordered shared rules block in skills\/researcher\/SKILL\.md/);
-  assert.throws(() => generateCanonicalSkills({ root, check: true }), /Expected exactly one ordered shared rules block in skills\/researcher\/SKILL\.md/);
+  assert.throws(() => generateCanonicalSkills({ root }), /Expected exactly one ordered shared rules block in skills[\\/]researcher[\\/]SKILL\.md/);
+  assert.throws(() => generateCanonicalSkills({ root, check: true }), /Expected exactly one ordered shared rules block in skills[\\/]researcher[\\/]SKILL\.md/);
 
   // Reversed markers fail.
   fs.writeFileSync(researcher, stripped.replace('## Locating the companion', `${SHARED_END}\n${SHARED_START}\n\n## Locating the companion`));
-  assert.throws(() => generateCanonicalSkills({ root }), /Expected exactly one ordered shared rules block in skills\/researcher\/SKILL\.md/);
+  assert.throws(() => generateCanonicalSkills({ root }), /Expected exactly one ordered shared rules block in skills[\\/]researcher[\\/]SKILL\.md/);
 
   // Markers placed after "## Locating the companion" fail.
   fs.writeFileSync(researcher, `${stripped}\n${SHARED_START}\n${SHARED_END}\n`);
-  assert.throws(() => generateCanonicalSkills({ root }), /Shared rules block must appear before dispatch example in skills\/researcher\/SKILL\.md/);
+  assert.throws(() => generateCanonicalSkills({ root }), /Shared rules block must appear before dispatch example in skills[\\/]researcher[\\/]SKILL\.md/);
 
   // Restore researcher, then verify unexpected markers in non-persona skills (lead/jobs) fail.
   fs.writeFileSync(researcher, original);
   const lead = path.join(root, 'skills/lead/SKILL.md');
   fs.appendFileSync(lead, `\n${SHARED_START}\n${SHARED_END}\n`);
-  assert.throws(() => generateCanonicalSkills({ root }), /Unexpected shared persona rules block in skills\/lead\/SKILL\.md/);
+  assert.throws(() => generateCanonicalSkills({ root }), /Unexpected shared persona rules block in skills[\\/]lead[\\/]SKILL\.md/);
 });
 
 test('host shared rules stay separate from worker prompt templates', () => {
