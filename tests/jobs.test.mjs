@@ -69,17 +69,18 @@ describe('background job lifecycle', () => {
 });
 
 describe('continue inherits the resumed mode default', () => {
-  test('after ask, continue runs in the foreground', () => {
+  test('after ask, continue --job runs in the foreground', () => {
     const sb = sandbox('continue-ask');
     const first = run(sb, ['ask', '--prompt', 'what is 2 plus 2?']);
     assert.equal(first.code, 0, first.stderr);
+    const askId = jobIdOf(first.stderr);
 
-    const cont = run(sb, ['continue', '--prompt', 'and what about 3 plus 3?']);
+    const cont = run(sb, ['continue', '--job', askId, '--prompt', 'and what about 3 plus 3?']);
     assert.equal(cont.code, 0, cont.stderr);
     assert.match(cont.stdout, /fake answer/);
     assert.doesNotMatch(cont.stdout, /\[agy-staff\]/);
     assert.match(cont.stderr, /\[agy-staff\] mode=ask profile=restricted/);
-    assert.match(cont.stderr, /^conversation: conv-1 \(follow up with --continue\)$/m);
+    assert.match(cont.stderr, /^conversation: conv-1 \(follow up with continue --job ask-[a-z0-9-]+\)$/m);
     assert.doesNotMatch(cont.stdout, /Started background/);
 
     const calls = agyCalls(sb);
@@ -90,13 +91,14 @@ describe('continue inherits the resumed mode default', () => {
     assert.match(argv[argv.indexOf('-p') + 1], /and what about 3 plus 3\?/);
   });
 
-  test('after research, continue starts a background job', async () => {
+  test('after research, continue --job starts a background job', async () => {
     const sb = sandbox('continue-research');
     const first = run(sb, ['research', '--prompt', 'a topic']);
     assert.equal(first.code, 0, first.stderr);
-    await waitForJob(sb, jobIdOf(first.stdout));
+    const firstId = jobIdOf(first.stdout);
+    await waitForJob(sb, firstId);
 
-    const cont = run(sb, ['continue', '--prompt', 'dig into the second part']);
+    const cont = run(sb, ['continue', '--job', firstId, '--prompt', 'dig into the second part']);
     assert.equal(cont.code, 0, cont.stderr);
     assert.match(cont.stdout, /Started background research job\./);
     const secondId = jobIdOf(cont.stdout);
@@ -107,11 +109,15 @@ describe('continue inherits the resumed mode default', () => {
     assert.match(calls[1][calls[1].indexOf('-p') + 1], /dig into the second part/);
   });
 
-  test('continue with no follow-up text and no history fails', () => {
+  test('continue without --job or with an unknown job id fails', () => {
     const sb = sandbox('continue-empty');
-    const none = run(sb, ['continue', '--prompt', 'text with no history']);
-    assert.notEqual(none.code, 0);
-    assert.match(none.stderr, /no previous agy-staff conversation recorded/);
+    const noJob = run(sb, ['continue', '--prompt', 'text with no job flag']);
+    assert.notEqual(noJob.code, 0);
+    assert.match(noJob.stderr, /continue requires --job <id>/);
+
+    const unknown = run(sb, ['continue', '--job', 'research-missing', '--prompt', 'text with unknown job']);
+    assert.notEqual(unknown.code, 0);
+    assert.match(unknown.stderr, /no job research-missing in this repository/);
   });
 });
 

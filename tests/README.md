@@ -74,7 +74,7 @@ the task-source contract (task text comes from exactly one of `--prompt`,
 are opaque — flag-like text inside a task never becomes a companion option, and
 prompt bytes reach the fake `agy` verbatim; value flags reject missing, empty,
 and flag-shaped values; management commands keep their positional ids);
-`continue` mode inheritance; `setup`'s dry run and its optional-hardening
+job-ID-only `continue --job <id>` mode inheritance (including synchronous `ask` job records and migration diagnostics for removed `--continue` / `--conversation` / bare `continue`); `setup`'s dry run and its optional-hardening
 framing; and the state-file robustness fixes (`state.test.mjs`).
 
 ## State-file races (found by this suite, fixed in the companion)

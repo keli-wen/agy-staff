@@ -166,11 +166,14 @@ test('observe racing success cleanup always yields a bounded JSON snapshot', asy
   assert.equal(fs.existsSync(job(sb, id).events_file), false);
 });
 
-test('mode --continue also preserves original configuration and links the job', () => {
+test('continue --job preserves original configuration and links the job, while mode --continue is rejected', () => {
   const sb = sandbox('mode-continue');
   const id = jobIdOf(run(sb, ['research', '--model', 'gemini-3.8-flash-low', '--restricted', '--prompt', 'first']).stdout);
   assert.equal(run(sb, ['wait', id]).code, 0);
-  const next = jobIdOf(run(sb, ['research', '--continue', '--prompt', 'second']).stdout);
+  const rejected = run(sb, ['research', '--continue', '--prompt', 'second']);
+  assert.equal(rejected.code, 1);
+  assert.match(rejected.stderr, new RegExp(`continue --job ${id}`));
+  const next = jobIdOf(run(sb, ['continue', '--job', id, '--prompt', 'second']).stdout);
   assert.equal(run(sb, ['wait', next]).code, 0);
   assert.equal(job(sb, next).parent_job_id, id);
   assert.equal(job(sb, next).model, 'gemini-3.8-flash-low');

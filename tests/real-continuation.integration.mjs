@@ -159,7 +159,7 @@ for (const kind of selected ? [selected] : cases) {
       lockOwner = `owner-${process.pid}-${randomUUID()}`;
       fs.mkdirSync(lock); fs.writeFileSync(path.join(lock, lockOwner), '');
       const labels = ['left', 'right'];
-      const args = label => ['continue', '--conversation', conversation, '--timeout', '120s', '--prompt', toolPrompt(label, true)];
+      const args = label => ['continue', '--job', seed, '--timeout', '120s', '--prompt', toolPrompt(label, true)];
       pending = labels.map(label => launchAsync(cwd, args(label)));
       // Wait for both state-lock candidates, not spec files: a rejected
       // request must never create a spec in the fixed runtime.
@@ -187,18 +187,28 @@ for (const kind of selected ? [selected] : cases) {
       const active = start(cwd, ['continue', '--job', seed, '--timeout', '120s', '--prompt', toolPrompt('active', true)], record, 'active');
       await toolStarted(cwd, active, 'active');
       if (kind === 'running-guards') {
-        const requests = [
+        const runningRequests = [
           ['continue', '--job', seed], ['continue', '--job', active],
-          ['continue', '--conversation', conversation], ['continue'], ['staffer', '--continue'],
+        ];
+        const legacyRequests = [
+          ['continue', '--conversation', conversation], ['continue'], ['staffer', '--continue'], ['staffer', '--job', seed],
           ...['staffer', 'research', 'review', 'implement', 'ask'].map(mode => [mode, '--conversation', conversation]),
         ];
         const before = jobFiles(cwd);
         record.rejections = [];
-        for (const request of requests) {
+        for (const request of runningRequests) {
           const began = Date.now();
           const result = run(cwd, [...request, '--prompt', toolPrompt('blocked', false)]);
           record.rejections.push({ request, elapsed_ms: Date.now() - began, ...result }); save();
           assertRefused(result, active);
+        }
+        for (const request of legacyRequests) {
+          const began = Date.now();
+          const result = run(cwd, [...request, '--prompt', toolPrompt('blocked', false)]);
+          record.rejections.push({ request, elapsed_ms: Date.now() - began, ...result }); save();
+          assert.equal(result.code, 1, result.stdout + result.stderr);
+          assert.equal(result.stdout, '');
+          assert.match(result.stderr, /continue --job/);
         }
         assert.equal(jobs(cwd).length, 2);
         assert.deepEqual(jobFiles(cwd), before, 'A rejected request left job artifacts');

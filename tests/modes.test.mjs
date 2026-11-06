@@ -52,9 +52,9 @@ describe('execution style is fixed per mode', () => {
     assert.doesNotMatch(r.stdout, /^---$/m);
 
     // stderr carries the telemetry, both lines, for the calling agent
-    assert.match(r.stderr, /\[agy-staff\] mode=ask profile=restricted model=\S+ /);
+    assert.match(r.stderr, /\[agy-staff\] mode=ask profile=restricted model=\S+ job=ask-[a-z0-9-]+ /);
     assert.match(r.stderr, /duration=\S+ turns=\S+ tokens\(/);
-    assert.match(r.stderr, /^conversation: conv-1 \(follow up with --continue\)$/m);
+    assert.match(r.stderr, /^conversation: conv-1 \(follow up with continue --job ask-[a-z0-9-]+\)$/m);
   });
 
   for (const [mode, task] of [
@@ -304,7 +304,7 @@ describe('tiered git guards: implement', () => {
     assert.doesNotMatch(res.stdout, /\[agy-staff\]/);
     assert.doesNotMatch(jobResultFile(sb, id), /\[agy-staff\]/);
     assert.match(jobLog(sb, id), /\[agy-staff\] mode=implement profile=unrestricted/);
-    assert.match(jobLog(sb, id), /^conversation: conv-1 \(follow up with --continue\)$/m);
+    assert.match(jobLog(sb, id), new RegExp(`^conversation: conv-1 \\(follow up with continue --job ${id}\\)$`, 'm'));
   });
 
   test('implement reports edits agy made on the clean tree', async () => {
@@ -328,9 +328,10 @@ describe('tiered git guards: implement', () => {
       FAKE_AGY_TOUCH_FILE: path.join(sb.repo, 'agy-wrote.txt'),
     });
     assert.equal(first.code, 0, first.stderr);
-    assert.equal(await waitForJob(sb, jobIdOf(first.stdout)), 'done');
+    const firstId = jobIdOf(first.stdout);
+    assert.equal(await waitForJob(sb, firstId), 'done');
 
-    const cont = run(sb, ['continue', '--prompt', 'refine the same change']);
+    const cont = run(sb, ['continue', '--job', firstId, '--prompt', 'refine the same change']);
     assert.equal(cont.code, 0, cont.stderr);
     assert.match(cont.stdout, /Started background implement job\./);
     assert.equal(await waitForJob(sb, jobIdOf(cont.stdout)), 'done');

@@ -12,10 +12,12 @@
  *                                   the general-purpose mode: a minimal prompt
  *                                   with no role or output-format framing)
  *   ask --prompt <question>         cheap zero-tool one-shot Q&A (foreground)
- *   continue --prompt <text>        continue the most recent conversation (any mode)
+ *   continue --job <id> --prompt <text>
+ *                                   continue a recorded job's conversation with
+ *                                   its original persona and configuration
  *   observe [job-id]                immediate bounded snapshot in every job state
  *   restart <job-id>                explicitly relaunch the stored task
- *   status [job-id]                 list background jobs / show one job
+ *   status [job-id]                 list jobs / show one job
  *   wait [job-id] [--timeout 100s]  block until the job finishes, then print
  *                                   its result (exit 2 = still running: call
  *                                   it again)
@@ -29,9 +31,7 @@
  *   _worker <job-id>                (internal) background job executor
  *
  * Uniform flags:
- *   --job <id>            continue a specific job with its original configuration
- *   --conversation <id>   resume a specific agy conversation
- *   --continue            reuse the last conversation id for this mode
+ *   --job <id>            (continue) continue a specific job with its original persona/configuration
  *   --model <id>          explicit agy model id (overrides --effort)
  *   --effort <l|m|h>      low|medium|high → gemini-3.8-flash-<effort>
  *   --restricted          hardening opt-in: keep agy's permission enforcement
@@ -835,11 +835,11 @@ function isResponseTimeout(payload, native) {
  *                                    --restricted run gets the setup hint
  *                                    (unrestricted runs have no rules to fix).
  */
-function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSource, requestedModel) {
+function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSource, requestedModel, jobId = null) {
   const status = (payload.status || '').toUpperCase();
   const response = (payload.response || '').trim();
   const convNote = payload.conversation_id
-    ? `\nConversation id (you can still continue it): ${payload.conversation_id}`
+    ? `\nConversation id (you can still continue it${jobId ? ` with \`continue --job ${jobId}\`` : ''}): ${payload.conversation_id}`
     : '';
 
   // Match AGY's response deadline, not a tool/network timeout embedded in an
@@ -934,7 +934,46 @@ function refuseRunningFollowUp(state, conversation, jobId = null) {
     `Collect it with \`wait ${active.id}\` and continue afterwards, or \`cancel ${active.id}\` first for an immediate change of direction.`);
 }
 
-// run (research / review / implement / continue)
+function hasLegacyConversation(state, id = null, mode = null) {
+  if (id) {
+    return Boolean(
+      state.conversation_configs?.[id] ||
+      state.last?.id === id ||
+      Object.values(state.conversations || {}).includes(id)
+    );
+  }
+  if (mode) return Boolean(state.conversations?.[mode]);
+  return Boolean(state.last?.id || Object.keys(state.conversations || {}).length);
+}
+
+function rejectLegacyContinuation(kind, cmd, opts) {
+  let state = { conversations: {}, last: null, jobs: [] };
+  try { state = JSON.parse(readTextRetry(statePath())); } catch {}
+  const jobs = [...(state.jobs || [])].reverse();
+  if (kind === 'continue') {
+    const match = MODES.includes(cmd)
+      ? jobs.find((j) => j.mode === cmd && j.conversation_id) || jobs.find((j) => j.mode === cmd)
+      : jobs.find((j) => j.conversation_id) || jobs[0];
+    const hint = match
+      ? ` Run \`continue --job ${match.id} --prompt "..."\` instead.`
+      : hasLegacyConversation(state, null, MODES.includes(cmd) ? cmd : null)
+        ? ' This repository only has a legacy conversation record without a job ID (such as a pre-0.8.1 `ask` run), which cannot be resumed under job-ID-only continuation; start a fresh run to create a job ID.'
+        : ' Run `status` to list recorded job IDs in this repository.';
+    die(`--continue was removed: continuation is job-ID-only (\`continue --job <id> --prompt "..."\`).${hint}`);
+  }
+  if (kind === 'conversation') {
+    const conv = opts.conversation;
+    const match = jobs.find((j) => j.conversation_id === conv);
+    const hint = match
+      ? ` Conversation ${conv} belongs to job ${match.id}; run \`continue --job ${match.id} --prompt "..."\` instead.`
+      : hasLegacyConversation(state, conv)
+        ? ` Conversation ${conv} is a legacy record without a job ID (such as a pre-0.8.1 \`ask\` run) and cannot be resumed under job-ID-only continuation; start a fresh run to create a job ID.`
+        : ' Run `status` to list recorded job IDs in this repository.';
+    die(`--conversation was removed: continuation is job-ID-only (\`continue --job <id> --prompt "..."\`).${hint}`);
+  }
+}
+
+// run (staffer / research / review / implement / ask / continue)
 // ---------------------------------------------------------------------------
 
 function resolveRun(mode, opts, priorJob = null) {
@@ -983,27 +1022,15 @@ function resolveRun(mode, opts, priorJob = null) {
   const budget = durationToMs(timeout);
   if (!Number.isFinite(budget) || budget <= 0 || (background && budget > 7200000)) die('invalid --timeout: use a positive duration, at most 120m for background jobs');
 
-  // conversation
   const state = loadState();
-  let conversation = opts.conversation || null;
-  if (!conversation && opts.continue) {
-    conversation = state.conversations?.[mode] || null;
-    if (!conversation) die(`--continue given but no previous ${mode} conversation is recorded in state.json`);
-  }
-
-  const recorded = state.conversation_configs?.[conversation];
-  const prior = priorJob || (conversation ? [...(state.jobs || [])].reverse().find((j) => j.conversation_id === conversation && j.mode === mode) : null)
-    || (recorded?.mode === mode ? recorded : null)
-    || (state.last?.id === conversation && state.last?.mode === mode ? { model: state.last.model, profile: state.last.profile } : null);
-  // Configuration may come from an earlier job; occupancy belongs to the
-  // whole conversation, including jobs launched through another mode.
-  refuseRunningFollowUp(state, conversation);
-  if (prior) {
-    if (!opts.model && !opts.effort && prior.model) model = prior.model;
-    if (!opts.restricted && !opts.unrestricted && prior.profile) { profile = prior.profile; profileSource = 'inherited'; }
+  const conversation = priorJob ? priorJob.conversation_id : null;
+  refuseRunningFollowUp(state, conversation, priorJob?.id || null);
+  if (priorJob) {
+    if (!opts.model && !opts.effort && priorJob.model) model = priorJob.model;
+    if (!opts.restricted && !opts.unrestricted && priorJob.profile) { profile = priorJob.profile; profileSource = 'inherited'; }
   }
   if (profileSource === 'project') process.stderr.write(`agy-staff: profile=${profile} set by project policy (${configPath()})\n`);
-  return { mode, model, profile, profileSource, background, timeout, conversation, parentJobId: prior?.id || null, originalCwd: prior?.cwd || null };
+  return { mode, model, profile, profileSource, background, timeout, conversation, parentJobId: priorJob?.id || null, originalCwd: priorJob?.cwd || null };
 }
 
 /** Task text comes from exactly one source: --prompt, --prompt-file, or
@@ -1179,7 +1206,7 @@ async function executeRun(resolved, prompt, opts, execution = null) {
     result = execution ? await execution(invoke) : runAgy(invoke);
     opts.agy = result.agy;
     rememberConversation(resolved, result.payload.conversation_id, opts.jobId);
-    response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model);
+    response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model, opts.jobId);
     if (hasNativeWarnings(result.agy)) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(result.agy)}\n`);
   } catch (error) {
     error.agy ||= result?.agy;
@@ -1197,12 +1224,26 @@ async function executeRun(resolved, prompt, opts, execution = null) {
       note: 'Inspect git status --short, git diff and git diff --cached. Status cannot detect further edits to already dirty files; no workspace rollback was performed.' };
     if (error.reason === 'response_timeout' && !resolved.background) {
       const conversation = result.payload.conversation_id;
-      const recovery = timeoutRecovery({ ...resolved, conversation_id: conversation });
-      die(`${error.message}\n${JSON.stringify({
-        status: conversation ? 'attention' : 'error', reason: error.reason,
-        conversation_id: conversation || null, mode: resolved.mode, model: resolved.model,
-        profile: resolved.profile, recovery, agy: error.agy,
-      }, null, 2)}`, conversation ? 5 : 1);
+      const recovery = timeoutRecovery({
+        id: opts.jobId || null,
+        mode: resolved.mode,
+        timeout: resolved.timeout,
+        conversation_id: conversation,
+        spec_file: opts.specFile || null,
+      });
+      try {
+        die(`${error.message}\n${JSON.stringify({
+          status: conversation ? 'attention' : 'error', reason: error.reason,
+          job_id: opts.jobId || null,
+          conversation_id: conversation || null, mode: resolved.mode, model: resolved.model,
+          profile: resolved.profile, recovery, agy: error.agy,
+        }, null, 2)}`, conversation ? 5 : 1);
+      } catch (died) {
+        died.reason = error.reason;
+        died.agy = error.agy;
+        died.workspace = error.workspace;
+        throw died;
+      }
     }
     throw error;
   }
@@ -1211,15 +1252,20 @@ async function executeRun(resolved, prompt, opts, execution = null) {
   opts.warnings = !!(hasNativeWarnings(result.agy) || result.stderr || result.observationWarnings?.length || result.exit !== 0 || (payload.status && payload.status.toUpperCase() !== 'SUCCESS'));
 
   // Telemetry is plumbing, not content: it goes to stderr so it never mixes
-  // into the deliverable. Foreground runs put it on the caller's stderr;
-  // background workers have stdout and stderr both wired to jobs/<id>.log, so
-  // it lands there as the job's provenance record.
-  process.stderr.write(
+  // into the deliverable. Foreground runs put it on the caller's stderr and in
+  // jobs/<id>.log; background workers have stdout and stderr both wired to
+  // jobs/<id>.log, so it lands there as the job's provenance record.
+  const followUpHint = opts.jobId ? `continue --job ${opts.jobId}` : 'continue --job <id>';
+  const telemetry =
     `[agy-staff] mode=${resolved.mode} profile=${resolved.profile} model=${resolved.model} ` +
+      (opts.jobId ? `job=${opts.jobId} ` : '') +
       `agy_status=${payload.status || 'unknown'} agy_exit=${result.exit} ` +
       `duration=${payload.duration_seconds ?? '?'}s turns=${payload.num_turns ?? '?'} tokens(${fmtTokens(payload.usage)})\n` +
-      `conversation: ${payload.conversation_id || 'unknown'} (follow up with --continue)\n`
-  );
+      `conversation: ${payload.conversation_id || 'unknown'} (follow up with ${followUpHint})\n`;
+  process.stderr.write(telemetry);
+  if (!resolved.background && opts.logFile) {
+    try { fs.appendFileSync(opts.logFile, telemetry); } catch {}
+  }
 
   // Guard output is part of the body: the calling agent must act on it.
   let guard = '';
@@ -1232,26 +1278,14 @@ async function executeRun(resolved, prompt, opts, execution = null) {
 function cmdRun(mode, opts) {
   const task = taskText(opts); // Resolve prompt-file/stdin in the caller's cwd.
   const resolved = resolveRun(mode, opts);
-  enterOriginalWorkspace(resolved.originalCwd);
-  if (resolved.parentJobId) {
-    const prior = findJob(resolved.parentJobId);
-    enterOriginalWorkspace(prior.cwd);
-    if (prior.spec_file) { try { opts.json ||= JSON.parse(fs.readFileSync(prior.spec_file, 'utf8')).opts.json; } catch {} }
-  }
   const prompt = buildPrompt(mode, { prompt: task });
   return dispatch(resolved, prompt, { ...opts, promptSource: { kind: 'template', task } });
 }
 
 async function dispatch(resolved, prompt, opts) {
   const mode = resolved.mode;
-  if (!resolved.background) {
-    process.stdout.write(await executeRun(resolved, prompt, opts) + '\n');
-    return;
-  }
-
   if (implementGuardApplies(resolved)) implementDispatchWarning();
 
-  // background: write a job spec, spawn ourselves detached as _worker
   const jobId = `${mode}-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`;
   const jobsDir = path.join(ensureStateDir(), 'jobs');
   fs.mkdirSync(jobsDir, { recursive: true });
@@ -1259,27 +1293,49 @@ async function dispatch(resolved, prompt, opts) {
   const specFile = path.join(jobsDir, `${jobId}.spec.json`);
   const resultFile = path.join(jobsDir, `${jobId}.result.md`);
 
-  // Register the job BEFORE spawning: a fast worker's own state update must
-  // find the record already present, or it gets lost in its read-modify-write.
+  // Register the job BEFORE execution: a fast worker's own state update must
+  // find the record already present, and synchronous `ask` runs also record a
+  // job ID so `continue --job <id>` works uniformly across all five personas.
   const record = {
-    id: jobId, mode, pid: null, status: 'running', cwd: process.cwd(),
+    id: jobId, mode, pid: resolved.background ? null : process.pid, status: 'running', cwd: process.cwd(),
     model: resolved.model, profile: resolved.profile, profileSource: resolved.profileSource,
     timeout: resolved.timeout, conversation_id: resolved.conversation || null,
     parent_job_id: opts.parentJobId || resolved.parentJobId || null,
     started_at: new Date().toISOString(), log_file: logFile, result_file: resultFile,
     spec_file: specFile,
-    events_file: path.join(jobsDir, `${jobId}.events.jsonl`),
-    progress_file: path.join(jobsDir, `${jobId}.progress.json`),
+    events_file: resolved.background ? path.join(jobsDir, `${jobId}.events.jsonl`) : null,
+    progress_file: resolved.background ? path.join(jobsDir, `${jobId}.progress.json`) : null,
   };
   updateState((state) => {
     // Two callers can both resolve an idle conversation. Recheck under the
     // registration lock before accepting either the job or its prompt file.
-    refuseRunningFollowUp(state, resolved.conversation);
+    refuseRunningFollowUp(state, resolved.conversation, record.parent_job_id);
     fs.writeFileSync(specFile, JSON.stringify({ resolved, prompt, prompt_source: opts.promptSource || null, opts: { json: !!opts.json }, cwd: process.cwd() }, null, 2));
     state.jobs ||= [];
     state.jobs.push(record);
   });
   fs.appendFileSync(logFile, `[agy-staff] dispatch registered ${jobId} at ${record.started_at}\n`);
+
+  if (!resolved.background) {
+    const runOpts = { ...opts, jobId, logFile, specFile };
+    try {
+      const output = await executeRun(resolved, prompt, runOpts);
+      finishJob(jobId, output + '\n', { status: 'done', warnings: runOpts.warnings, ...(runOpts.agy ? { agy: runOpts.agy } : {}) });
+      process.stdout.write(output + '\n');
+      return;
+    } catch (error) {
+      const current = loadState().jobs?.find((j) => j.id === jobId);
+      if (current) {
+        const reason = error.reason || 'agy_error';
+        const status = isTimeoutReason(reason) && current.conversation_id ? 'attention' : 'error';
+        finishJob(jobId, (completed) => {
+          const report = { ...diagnosticPacket(completed), result_exists: true, reason: completed.reason, workspace: error.workspace };
+          return `${completed.status === 'attention' ? 'Job needs attention' : 'Job failed'}:\n${error.message}\n\n${JSON.stringify(report, null, 2)}\n`;
+        }, { status, reason, ...(error.agy ? { agy: error.agy } : {}) });
+      }
+      throw error;
+    }
+  }
 
   const logFd = fs.openSync(logFile, 'a');
   // detached on every platform: on POSIX it isolates the process group; on
@@ -1458,12 +1514,12 @@ async function cmdWait(opts) {
   // Wait silently: callers use observe for progress, not periodic liveness text.
   // Read-only lookup: the poll loop must never write state.json, or it races
   // the worker's own final read-modify-write (see liveJobStatus).
-  const findJob = () => {
+  const findTarget = () => {
     const jobs = loadState().jobs || [];
     if (id) return jobs.find((j) => j.id === id) || null;
-    return jobs.length ? jobs[jobs.length - 1] : null;
+    return [...jobs].reverse().find((j) => j.mode !== 'ask') || jobs.at(-1) || null;
   };
-  let job = findJob();
+  let job = findTarget();
   if (!job) die(id ? `no job ${id} in this repository` : 'no agy-staff jobs recorded in this repository');
 
   const POLL_MS = 200;
@@ -1471,7 +1527,7 @@ async function cmdWait(opts) {
   let status = liveJobStatus(job);
   while (status === 'running' && Date.now() - start < budget) {
     await sleepMs(Math.min(POLL_MS, budget - (Date.now() - start)));
-    job = findJob();
+    job = findTarget();
     if (!job) die(`job record disappeared from state.json`);
     status = liveJobStatus(job);
   }
@@ -1481,7 +1537,7 @@ async function cmdWait(opts) {
 
 function findJob(id) {
   const jobs = loadState().jobs || [];
-  const job = id ? jobs.find((j) => j.id === id) : jobs.at(-1);
+  const job = id ? jobs.find((j) => j.id === id) : ([...jobs].reverse().find((j) => j.mode !== 'ask') || jobs.at(-1));
   if (!job) die(id ? `no job ${id} in this repository` : 'no agy-staff jobs recorded in this repository');
   return job;
 }
@@ -1519,11 +1575,10 @@ function timeoutRecovery(job) {
   const previous = durationToMs(job.timeout) || durationToMs(DEFAULTS.timeout[job.mode]) || 3600000;
   const next = job.mode === 'ask' ? previous * 2 : Math.min(previous * 2, 7200000);
   const suggested = next % 60000 === 0 ? `${next / 60000}m` : `${next / 1000}s`;
-  const target = job.id ? `--job ${shellArg(job.id)}` : `--conversation ${shellArg(job.conversation_id || '')}`;
   return {
     inspect: 'git status --short; git diff; git diff --cached', spec_file: job.spec_file || null,
     requires_user_confirmation: true, suggested_timeout: suggested, at_timeout_ceiling: next <= previous,
-    continue: job.conversation_id ? `continue ${target} --timeout ${suggested} --prompt "Continue after inspecting partial workspace changes"` : null,
+    continue: job.conversation_id && job.id ? `continue --job ${shellArg(job.id)} --timeout ${suggested} --prompt "Continue after inspecting partial workspace changes"` : null,
     restart: job.id ? `restart ${shellArg(job.id)} --timeout ${suggested}` : null,
     note: job.conversation_id
       ? 'Ask the user whether to continue ' + (next <= previous ? 'with a narrower task at the 120m ceiling' : `with a larger timeout (suggested: ${suggested})`) +
@@ -1633,7 +1688,8 @@ function cmdResult(opts) {
     job = jobs.find((j) => j.id === opts._[0]);
     if (!job) die(`no job ${opts._[0]} in this repository`);
   } else {
-    job = [...jobs].reverse().find((j) => j.status !== 'running');
+    job = [...jobs].reverse().find((j) => j.status !== 'running' && j.mode !== 'ask')
+      || [...jobs].reverse().find((j) => j.status !== 'running');
     if (!job) die('no finished jobs in this repository');
   }
   if (job.status === 'running') {
@@ -1712,25 +1768,39 @@ function enterOriginalWorkspace(cwd) {
 
 function cmdContinue(opts) {
   const state = loadState();
-  const targetId = opts.conversation || state.last?.id;
-  const prior = opts.job ? findJob(opts.job) : [...(state.jobs || [])].reverse().find((j) => j.conversation_id === targetId)
-    || state.conversation_configs?.[targetId];
-  const legacyMode = Object.entries(state.conversations || {}).find(([, id]) => id === targetId)?.[0];
-  const mode = prior?.mode || legacyMode || (state.last?.id === targetId ? state.last?.mode : null);
-  const conversation = prior?.conversation_id || targetId;
-  if (opts.job) refuseRunningFollowUp(state, prior?.conversation_id, prior?.id);
-  if (!mode || !conversation) die('no previous agy-staff conversation recorded in this repository for this target; use restart <job-id> when no conversation is available');
-  if (opts.job && opts.conversation && opts.conversation !== prior.conversation_id) die('--job and --conversation identify different conversations');
-  if (opts.job && !prior.conversation_id) die('this job has no known conversation; use restart <job-id>');
+  const jobs = [...(state.jobs || [])].reverse();
+  if (!opts.job) {
+    const latest = jobs.find((j) => j.conversation_id) || jobs[0];
+    const hint = latest
+      ? ` Latest recorded job in this repository is ${latest.id} (${latest.mode}); run \`continue --job ${latest.id} --prompt "..."\` if that is the session you want.`
+      : hasLegacyConversation(state)
+        ? ' This repository only has a legacy conversation record without a job ID (such as a pre-0.8.1 `ask` run), which cannot be resumed under job-ID-only continuation; start a fresh run to create a job ID.'
+        : ' No agy-staff jobs are recorded in this repository yet.';
+    die(`continue requires --job <id>: generic latest-conversation continuation was removed so follow-ups always target an explicit job and keep its original persona.${hint}`);
+  }
+  const prior = (state.jobs || []).find((j) => j.id === opts.job);
+  if (!prior) {
+    const byConv = jobs.find((j) => j.conversation_id === opts.job);
+    if (byConv) {
+      die(`no job ${opts.job} in this repository (${opts.job} is the conversation ID for job ${byConv.id}; run \`continue --job ${byConv.id} --prompt "..."\` instead)`);
+    }
+    if (hasLegacyConversation(state, opts.job)) {
+      die(`no job ${opts.job} in this repository (${opts.job} is a legacy conversation ID without a job record, such as a pre-0.8.1 \`ask\` run, and cannot be resumed with \`continue --job\`; start a fresh run to create a job ID)`);
+    }
+    die(`no job ${opts.job} in this repository`);
+  }
+  refuseRunningFollowUp(state, prior.conversation_id, prior.id);
+  if (!prior.conversation_id) die('this job has no known conversation; use restart <job-id>');
   const task = taskText(opts);
   if (!task) die('continue needs follow-up text');
-  enterOriginalWorkspace(prior?.cwd);
-  const resolved = resolveRun(mode, { ...opts, conversation }, prior);
+  enterOriginalWorkspace(prior.cwd);
+  const mode = prior.mode;
+  const resolved = resolveRun(mode, opts, prior);
   const workspace = mode === 'implement' ? dirtyWorkspacePrompt() : '';
   const prompt = `${workspace ? `${workspace}\n\n` : ''}Follow-up in the same conversation:\n\n${task}`;
   let json = opts.json;
-  if (prior?.spec_file) { try { json ||= JSON.parse(fs.readFileSync(prior.spec_file, 'utf8')).opts.json; } catch {} }
-  return dispatch(resolved, prompt, { ...opts, json, parentJobId: prior?.id, promptSource: { kind: 'followup', task } });
+  if (prior.spec_file) { try { json ||= JSON.parse(fs.readFileSync(prior.spec_file, 'utf8')).opts.json; } catch {} }
+  return dispatch(resolved, prompt, { ...opts, json, parentJobId: prior.id, promptSource: { kind: 'followup', task } });
 }
 
 function cmdRestart(opts) {
@@ -1929,7 +1999,7 @@ function main() {
     die(
       'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|restart|observe|status|wait|result|cancel|setup> [flags]\n' +
         'flags: --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
-        '--prompt <text> --prompt-file <path> --stdin --conversation <id> --continue --json (review) ' +
+        '--prompt <text> --prompt-file <path> --stdin --job <id> (continue) --json (review) ' +
         '--apply --restrict <modes|none> (setup)\n' +
         'task text for staffer/research/review/implement/ask/continue comes from exactly one of ' +
         '--prompt <text>, --prompt-file <path>, or --stdin.\n' +
@@ -1939,6 +2009,14 @@ function main() {
     );
   }
   const opts = parseFlags(rest, { taskCommand: MODES.includes(cmd) || cmd === 'continue' });
+  if (opts.continue) rejectLegacyContinuation('continue', cmd, opts);
+  if (opts.conversation !== undefined) rejectLegacyContinuation('conversation', cmd, opts);
+  if (opts.job !== undefined && cmd !== 'continue') {
+    if (MODES.includes(cmd)) {
+      die(`--job cannot be used with \`${cmd}\`: continuation is job-ID-only and inherits the job's original persona. Run \`continue --job ${opts.job} --prompt "..."\` instead.`);
+    }
+    die(`--job is only valid with \`continue\` (run \`continue --job ${opts.job} --prompt "..."\`).`);
+  }
 
   if (MODES.includes(cmd)) return cmdRun(cmd, opts);
   switch (cmd) {

@@ -181,10 +181,10 @@ describe('task text is opaque: flag-like content is never parsed (issue #3)', ()
 
   test('continue reaches the state check with a flag-like follow-up', () => {
     const sb = sandbox('continue-opaque');
-    const r = run(sb, ['continue', '--prompt', 'now check --check again']);
+    const r = run(sb, ['continue', '--job', 'missing-job', '--prompt', 'now check --check again']);
     assert.notEqual(r.code, 0);
-    // the point: it fails on "no conversation yet", not on flag parsing
-    assert.match(r.stderr, /no previous agy-staff conversation recorded/);
+    // the point: it fails on "no job missing-job", not on flag parsing
+    assert.match(r.stderr, /no job missing-job in this repository/);
     assert.doesNotMatch(r.stderr, /unknown flag/);
     assert.doesNotMatch(r.stderr, /needs a value/);
   });

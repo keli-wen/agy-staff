@@ -106,11 +106,11 @@ export function jobResultFile(sb, jobId) {
   return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '';
 }
 
-/** The `job id: <id>` printed by a background dispatch. */
-export function jobIdOf(stdout) {
-  const m = /job id:\s*(\S+)/.exec(stdout);
-  if (!m) throw new Error(`no job id in output:\n${stdout}`);
-  return m[1];
+/** The `job id: <id>` printed by a background dispatch, or `job=<id>` / `"job_id"` on stderr for foreground ask. */
+export function jobIdOf(text) {
+  const m = /job id:\s*(\S+)|\bjob=([a-z]+-[a-z0-9-]+)|"job_id":\s*"([^"]+)"|continue --job\s+([a-z]+-[a-z0-9-]+)/i.exec(text);
+  if (!m) throw new Error(`no job id in output:\n${text}`);
+  return m[1] || m[2] || m[3] || m[4];
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

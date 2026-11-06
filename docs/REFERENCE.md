@@ -107,8 +107,7 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 
 | Flag | Meaning |
 |---|---|
-| `--conversation <id>` | resume a specific agy conversation |
-| `--continue` | reuse this mode's last conversation id from state |
+| `--job <id>` | (`continue` only) resume a specific recorded job's conversation with its original persona, model, and permission profile |
 | `--model <id>` | explicit agy model (see `agy models`). Ids are effort-suffixed (`gemini-3.8-flash-low`); the companion normalizes bare families (`gemini-3.8-flash` + `--effort`) and the aliases `flash`/`pro`, and rejects unknown ids pre-flight |
 | `--effort low\|medium\|high` | shorthand for `gemini-3.8-flash-<effort>` |
 | `--restricted` / `--unrestricted` | permission profile override (ignored by `ask`). `unrestricted` is the default for `staffer`/`research`/`review`/`implement`, so `--restricted` is the flag you actually reach for |
@@ -119,7 +118,7 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 | `--prompt-file <path>` | read the task text from a file — for long prompts, instead of shell quoting |
 | `--stdin` | read the task text from stdin. Exactly one task source per call: `--prompt`, `--prompt-file`, or `--stdin` |
 
-That table is the whole public surface. There is no flag for execution style — see the modes table above.
+That table is the whole public surface. Continuation is job-ID-only via `continue --job <id>`; `--continue` and `--conversation <id>` were removed (see [Migration from 0.8.0](#migration-from-080)). There is no flag for execution style — see the modes table above.
 
 ## Task text
 
@@ -139,7 +138,7 @@ Giving two at once is an error (`task text given more than one way (…) — use
 
 `--prompt` accepts a value that starts with `--` when it is a real sentence, meaning one that contains whitespace: `ask --prompt "--check means what?"` works. A flag-shaped value with no whitespace reads as a forgotten value and is rejected. `--` itself carries no special meaning; it parses as an unknown flag.
 
-Value flags (`--conversation`, `--model`, `--effort`, `--timeout`, `--restrict`, `--prompt`, `--prompt-file`) require a value. A missing one, an empty one, and — apart from the `--prompt` sentences above — a flag-shaped one are all errors, so `--model ""` is an error.
+Value flags (`--job`, `--model`, `--effort`, `--timeout`, `--restrict`, `--prompt`, `--prompt-file`) require a value. A missing one, an empty one, and — apart from the `--prompt` sentences above — a flag-shaped one are all errors, so `--model ""` is an error.
 
 Each flag is its own argument. Flags packed into a single quoted string (`review "--restricted Review PR #730"`) are an error that names the fix rather than a guess at where the flags end and the task begins.
 
@@ -168,10 +167,10 @@ The review template itself is a neutral skeleton (reviewer stance, evidence disc
 - `observe [id]` always returns bounded JSON (at most 8 KiB): current progress while running; terminal status, result path/availability and collection instructions when finished. Error/canceled/crashed states include bounded diagnostic and recovery metadata, never the full report. It reads job state independently of any wait, without resetting deadlines or consuming another observer’s history.
 - `status [id]` lists jobs or shows state and a bounded diagnostic log tail. `result [id]` reprints stored output.
 - `cancel <id>` requests cancellation and returns success after the worker stores its report and publishes `canceled`. It preserves crash diagnostics and never signals an unverified stored PID. Legacy jobs without a cancellation channel fail explicitly. A cancellation error requires checking the job and logs; it does not establish that execution stopped. Interrupting a wait does not cancel the worker.
-- `continue --job <id> --prompt "..."` resumes the known conversation with its original mode/model/profile and a linked new job. `continue --conversation <id>` also resolves configuration from that known conversation, never an unrelated last mode.
+- `continue --job <id> --prompt "..."` resumes the recorded job's conversation with its original mode/model/profile and creates a linked new job (staying synchronous in the foreground when continuing an `ask` job).
 - `restart <id>` explicitly relaunches the original task/configuration without a conversation, linked to the original job. Inspect partial workspace changes with `git status` and `git diff` before either recovery action. New runs regenerate workspace context. Legacy specifications label historical snapshots and append current context.
 
-Continuation/restart can be invoked from any directory within the same worktree and execute in the original cwd. Generic `continue` rejects unrecorded conversation IDs without launching AGY or searching other worktrees. Continuing a conversation whose job is still running (generic `continue`, or a mode's `--continue`/`--conversation`) is refused with exit 1 and the job ID and status; the follow-up is not queued, and the caller waits or cancels first. For continuation, explicit model/profile flags override the recorded values; otherwise those values are inherited. A new recovery budget defaults to 60m unless overridden.
+Continuation/restart can be invoked from any directory within the same worktree and execute in the original cwd. `continue` requires `--job <id>` and rejects unknown job IDs, bare `continue`, or legacy `--continue`/`--conversation` flags without launching AGY or searching other worktrees. Continuing a job whose conversation is still running is refused with exit 1 and the active job ID and status; the follow-up is not queued, and the caller waits or cancels first. For continuation, explicit model/profile flags override the recorded values; otherwise those values are inherited. A new recovery budget defaults to 60m unless overridden.
 
 Exit codes for wait/observe/status-with-id: **0** done, **2** running, **3** error/crashed, **4** canceled, **5** attention (resumable timeout), **1** command error. `result` also exits 5 for attention; its legacy exit behavior for other states is unchanged. Observe exit 0 means the job is finished, not that its report was delivered. Collect an already pending wait session; otherwise call result. Wait/result keep their existing full-result contract. A `done` status means invocation and response delivery ended, not that the task was accepted. Successful calls with warnings include an 8 KiB log tail on stderr and the full-log path; native status and exit code are recorded in that log. The orchestrator assesses completion and inspects further only when needed. Intermediate tool errors are retained internally and are not automatically promoted to warnings in successful delivery. A running snapshot contains timestamps, elapsed time, the latest five tool activities with input/output excerpts and the latest response text merged by step. Unknown states, incomplete text and truncation are labeled; a tool finishing is not proof of useful progress. UTF-8 JSON budgets are 1 KiB per activity, 2 KiB for text and 8 KiB total. For a user-requested progress answer or diagnosis after failure/required intervention, read bounded `details` excerpts only if the returned information is insufficient.
 
@@ -254,6 +253,18 @@ Management commands (`status`, `wait`, `result`, `cancel`, `setup`) are untouche
 0.5.0 updates all persona defaults and the `flash` alias/`--effort` shorthand from Gemini 3.7 Flash to Gemini 3.8 Flash while preserving each persona effort tier (`ask`: low; `staffer` & `reviewer`: medium; `researcher` & `implementer`: high).
 
 If the installed `agy` CLI does not support Gemini 3.8 Flash, the companion fails clearly without silent fallback: it queries `agy models` and reports available models alongside the best same-effort compatible recommendation (e.g. `--model gemini-3.7-flash-high`), advising that updating `agy` is preferred to use the latest default.
+
+## Migration from 0.8.0
+
+0.8.1 standardizes continuation on job IDs (`continue --job <id>`) so follow-ups always target an explicit job and keep its original persona, and records `ask-...` job entries for synchronous `ask` runs.
+
+| 0.8.0 | 0.8.1 | Notes |
+|---|---|---|
+| `<persona> --continue --prompt "..."` | `continue --job <id> --prompt "..."` | Removed flag; error names the latest matching job ID in the repository when available. |
+| `<persona> --conversation <conv> --prompt "..."` or `continue --conversation <conv> --prompt "..."` | `continue --job <id> --prompt "..."` | Removed flag; error maps a recorded `<conv>` to its `<job-id>` when available. |
+| `<persona> --job <id> --prompt "..."` | `continue --job <id> --prompt "..."` | Rejected on persona commands instead of being ignored; continuation inherits the job's original persona. |
+| bare `continue --prompt "..."` | `continue --job <id> --prompt "..."` | `--job <id>` is required; error names the latest recorded job ID when available. |
+| synchronous `ask` recorded only a conversation ID | `ask` records an `ask-...` job ID (`job=ask-...` on stderr, listed by `status`) | Follow up with `continue --job <ask-id> --prompt "..."` (stays synchronous in the foreground). Pre-0.8.1 jobless `ask` conversations cannot be resumed with `continue --job`; start a fresh `ask` run to create a job ID. |
 
 ## Windows support
 
