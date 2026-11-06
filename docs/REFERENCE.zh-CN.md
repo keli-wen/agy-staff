@@ -234,6 +234,10 @@ review --prompt "Review the patch at /tmp/change.patch"
 
 如果查询恰好遇到文件清理，companion 会重新检查任务的最终状态：`observe` 返回状态和结果位置，`wait` 返回完整结果。`observe` 不会为了生成最终快照而读取结果正文。进程崩溃且没有结果时，诊断报告会提供任务启动记录、进程 ID、日志是否存在及其大小，以及后续检查或恢复命令，不会复制完整提示词或环境变量。
 
+### 原生结果诊断
+
+新任务会在任务状态、最终状态 sidecar、失败诊断包和终态 `observe` JSON（受 8 KiB 总上限约束，`short_error` 保留在原始日志中）的 `agy` 字段下保留原生元数据（`exit_code`、`status`、AGY 1.4.11+ 的 `finished_reason`，以及 AGY 1.2.6+ 标准错误中最近三条有界 `AGY_ERROR` 记录的 `status`、`error_code`、`code_kind`、`retryable`、`error_id`）。正常无警告完成时不额外输出诊断行；出现原生警告或错误时，前台调用及 `wait`/`result` 会在标准错误输出 `[agy-staff] native_result: <JSON>`。带正文的 `finished_reason`（`print_timeout`、`interrupted`、`error`）沿用带警告交付契约并保留中间记录；无正文时，明确的 `print_timeout` 进入 `response_timeout`/`attention` 路径，其他明确结束原因和结构化 API 错误（如 `DEADLINE_EXCEEDED`）优先于旧版超时或参数兼容文案匹配。`retryable` 仅供宿主参考，不触发自动重试。若未找到 `agy` 或 CLI 在无结构化 API 错误时拒绝参数/输出格式，companion 会按需查询 `agy --version` 并提示安装或执行 `agy update`（更新插件不会更新独立安装的 AGY 二进制）。
+
 <a id="让-agy-staff-不进-git"></a>
 
 ### 避免将本地状态提交到 Git

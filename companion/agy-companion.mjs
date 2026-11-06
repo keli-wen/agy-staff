@@ -92,7 +92,7 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { boundSnapshot, excerpt } from './observation.mjs';
+import { boundSnapshot, excerpt, createNativeErrorCollector, nativeResult, hasNativeWarnings } from './observation.mjs';
 import { atomicJSON, runStreaming, processIdentity } from './stream-worker.mjs';
 import { withStateLock, replaceFile, readTextRetry } from './state-lock.mjs';
 
@@ -710,6 +710,25 @@ function handleUnsupportedModel({ requestedModel, errText, originalError, convNo
   die(msg + (convNote || ''));
 }
 
+function queryAgyVersion() {
+  try {
+    const agy = agyCommand(['--version']);
+    const r = spawnSync(agy.cmd, agy.args, { encoding: 'utf8', timeout: 2000, maxBuffer: 16384, windowsHide: true });
+    if (r.error || r.status !== 0) return null;
+    return /\b(v?\d+\.\d+\.\d+(?:[-+][\w.-]+)?)\b/.exec(r.stdout || '')?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+function unsupportedCliHint(text, version) {
+  const flag = /(?:unknown|unrecognized|unsupported|not defined)[^\n]{0,80}[-]{1,2}(?:output-format|print-timeout|add-dir|json-schema|dangerously-skip-permissions|conversation|model)\b/i;
+  const format = /(?:invalid|unsupported|unknown)[^\n]{0,60}(?:output.format|stream-json)|(?:output.format|stream-json)[^\n]{0,60}(?:not supported|unsupported|invalid)/i;
+  if (!flag.test(text || '') && !format.test(text || '')) return null;
+  const detected = version === undefined ? queryAgyVersion() : version;
+  return `AGY CLI compatibility error (installed version: ${detected || 'unknown'}): the CLI rejected an option or output format used by agy-staff. Run \`agy update\`, then verify with \`agy --version\`; version 1.4.11 or newer is recommended. Updating the plugin alone does not update the AGY binary. Original CLI diagnostics are retained above.`;
+}
+
 function agyArgs({ prompt, model, timeout, conversation, unrestricted, jsonSchema, workspace }, format) {
   const args = ['-p', prompt, '--model', model, '--output-format', format, '--print-timeout', timeout, '--add-dir', workspace];
   if (conversation) args.push('--conversation', conversation);
@@ -730,53 +749,77 @@ function runAgy(invoke) {
     timeout: budget,
     windowsHide: true,
   });
-  if (r.error && r.error.code === 'ETIMEDOUT') {
-    die(`agy timed out: no result within ${timeout} plus 60s grace. Retry with a larger --timeout, or narrow the task.`);
-  }
-  if (r.error) die(`failed to launch agy (${AGY_BIN}): ${r.error.message}`);
-  if (r.signal) {
-    die(`agy was killed by signal ${r.signal} before returning a result (companion budget: ${timeout} + 60s grace).`);
-  }
-
-  const stdout = (r.stdout || '').trim();
-  const stderr = (r.stderr || '').trim();
-  // agy prints a single-line JSON object; be defensive about leading noise.
-  const start = stdout.indexOf('{');
+  const nativeErrors = createNativeErrorCollector();
+  nativeErrors.write(r.stderr || '');
+  nativeErrors.end();
   let payload = null;
-  if (start >= 0) {
-    try {
-      payload = JSON.parse(stdout.slice(start));
-    } catch {
-      /* fall through */
+  try {
+    if (r.error && r.error.code === 'ETIMEDOUT') {
+      die(`agy timed out: no result within ${timeout} plus 60s grace. Retry with a larger --timeout, or narrow the task.`);
     }
+    if (r.error) {
+      const hint = r.error.code === 'ENOENT'
+        ? '\nAGY CLI was not found. Updating agy-staff does not install AGY. Install it from https://antigravity.google/docs/cli/install, then verify with `agy --version`.'
+        : '';
+      die(`failed to launch agy (${AGY_BIN}): ${r.error.message}${hint}`);
+    }
+    if (r.signal) {
+      die(`agy was killed by signal ${r.signal} before returning a result (companion budget: ${timeout} + 60s grace).`);
+    }
+
+    const stdout = (r.stdout || '').trim();
+    const stderr = (r.stderr || '').trim();
+    // agy prints a single-line JSON object; be defensive about leading noise.
+    const start = stdout.indexOf('{');
+    if (start >= 0) {
+      try {
+        payload = JSON.parse(stdout.slice(start));
+      } catch {
+        /* fall through */
+      }
+    }
+    if (!payload) {
+      const errText = `${stdout}\n${stderr}`;
+      if (!nativeErrors.snapshot().errors?.length && isUnsupportedModelError(errText)) {
+        handleUnsupportedModel({
+          requestedModel: model,
+          errText,
+          originalError: stderr || stdout,
+        });
+      }
+      let msg =
+        `agy did not return parseable JSON (exit ${r.status}).\n` +
+        `stdout: ${stdout.slice(0, 800) || '(empty)'}\n` +
+        `stderr: ${stderr.slice(0, 800) || '(empty)'}`;
+      // EPERM on agy's own home files or on binding localhost is the signature of
+      // a harness command sandbox (e.g. Codex workspace-write). agy cannot run
+      // sandboxed: it binds a local port for its language server and reads its
+      // OAuth token file, which sandbox secret-protection hides — no
+      // writable_roots/network_access knob fixes the hidden token.
+      if (/operation not permitted/i.test(stderr)) {
+        msg +=
+          '\n\nThis looks like a harness command sandbox blocking agy (EPERM on its log/state files or on binding 127.0.0.1). ' +
+          'agy cannot run inside a sandbox — it needs a localhost port and its OAuth token file, which sandboxes typically hide. ' +
+          'Run this companion command unsandboxed: in Codex, grant the workspace full access or approve the command with escalated permissions.';
+      }
+      die(msg);
+    }
+    return { payload, stderr, exit: r.status ?? 0, agy: nativeResult(payload, nativeErrors.snapshot(), r.status) };
+  } catch (error) {
+    error.agy = nativeResult(payload, nativeErrors.snapshot(), r.status);
+    throw error;
   }
-  if (!payload) {
-    const errText = `${stdout}\n${stderr}`;
-    if (isUnsupportedModelError(errText)) {
-      handleUnsupportedModel({
-        requestedModel: model,
-        errText,
-        originalError: stderr || stdout,
-      });
-    }
-    let msg =
-      `agy did not return parseable JSON (exit ${r.status}).\n` +
-      `stdout: ${stdout.slice(0, 800) || '(empty)'}\n` +
-      `stderr: ${stderr.slice(0, 800) || '(empty)'}`;
-    // EPERM on agy's own home files or on binding localhost is the signature of
-    // a harness command sandbox (e.g. Codex workspace-write). agy cannot run
-    // sandboxed: it binds a local port for its language server and reads its
-    // OAuth token file, which sandbox secret-protection hides — no
-    // writable_roots/network_access knob fixes the hidden token.
-    if (/operation not permitted/i.test(stderr)) {
-      msg +=
-        '\n\nThis looks like a harness command sandbox blocking agy (EPERM on its log/state files or on binding 127.0.0.1). ' +
-        'agy cannot run inside a sandbox — it needs a localhost port and its OAuth token file, which sandboxes typically hide. ' +
-        'Run this companion command unsandboxed: in Codex, grant the workspace full access or approve the command with escalated permissions.';
-    }
-    die(msg);
-  }
-  return { payload, stderr, exit: r.status ?? 0 };
+}
+
+// Native AGY metadata is evidence, not a retry policy or a task-completion verdict.
+function isResponseTimeout(payload, native) {
+  // Explicit termination and API failure metadata outrank legacy prose. An API
+  // DEADLINE_EXCEEDED is not evidence that --print-timeout expired.
+  if (native.finished_reason) return native.finished_reason === 'print_timeout';
+  if (native.errors?.length) return false;
+  const status = String(payload.status || '').toUpperCase();
+  return ['TIMEOUT', 'TIMED_OUT', 'RESPONSE_TIMEOUT'].includes(status) ||
+    (status === 'ERROR' && /^timeout waiting for response[.!]?$/i.test(String(payload.error || '').trim()));
 }
 
 /** Triage the agy result into distinct classes with distinct guidance
@@ -792,7 +835,7 @@ function runAgy(invoke) {
  *                                    --restricted run gets the setup hint
  *                                    (unrestricted runs have no rules to fix).
  */
-function triageResult({ payload, stderr, exit }, mode, profile, profileSource, requestedModel) {
+function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSource, requestedModel) {
   const status = (payload.status || '').toUpperCase();
   const response = (payload.response || '').trim();
   const convNote = payload.conversation_id
@@ -801,13 +844,12 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
 
   // Match AGY's response deadline, not a tool/network timeout embedded in an
   // unrelated error. Response text keeps the done-with-warnings delivery contract.
-  if (!response && (['TIMEOUT', 'TIMED_OUT', 'RESPONSE_TIMEOUT'].includes(status) ||
-      (status === 'ERROR' && /^timeout waiting for response[.!]?$/i.test(String(payload.error || '').trim())))) {
+  if (!response && isResponseTimeout(payload, agy)) {
     throw Object.assign(new Error(`agy timed out (status ${payload.status}) before finishing.` +
       (payload.error ? `\nagy error: ${payload.error}` : '') + convNote), { reason: 'response_timeout' });
   }
 
-  if ((status && status !== 'SUCCESS') || exit !== 0) {
+  if ((status && status !== 'SUCCESS') || exit !== 0 || agy.finished_reason || agy.errors?.length) {
     if (response) {
       // Preserve response text and diagnostics for the orchestrator to assess.
       process.stderr.write(
@@ -819,7 +861,7 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
       return response;
     }
     const errText = `${payload.error || ''}\n${stderr}`;
-    if (isUnsupportedModelError(errText)) {
+    if (!agy.errors?.length && isUnsupportedModelError(errText)) {
       handleUnsupportedModel({
         requestedModel: requestedModel || DEFAULTS.model[mode],
         errText,
@@ -832,13 +874,14 @@ function triageResult({ payload, stderr, exit }, mode, profile, profileSource, r
     if (payload.error) msg += `\nagy error: ${payload.error}`;
     if (stderr) msg += `\nagy stderr: ${stderr}`;
     const hints = [];
-    if (/model|effort/i.test(errText)) {
+    const nativeError = agy.errors?.at(-1);
+    if (!nativeError && /model|effort/i.test(errText)) {
       hints.push('invalid model id (agy needs effort-suffixed ids, e.g. gemini-3.8-flash-low — run `agy models`)');
     }
-    if (/auth|login|credential|unauthorized|401|403/i.test(errText)) {
+    if (nativeError ? ['UNAUTHENTICATED', 'PERMISSION_DENIED'].includes(nativeError.status) : /auth|login|credential|unauthorized|401|403/i.test(errText)) {
       hints.push('expired auth (run `agy` interactively once to re-login)');
     }
-    if (/quota|rate.?limit|resource.?exhausted|429/i.test(errText)) {
+    if (nativeError ? nativeError.status === 'RESOURCE_EXHAUSTED' : /quota|rate.?limit|resource.?exhausted|429/i.test(errText)) {
       hints.push('exhausted quota');
     }
     if (hints.length) msg += `\nLikely cause: ${hints.join('; ')}.`;
@@ -1134,9 +1177,20 @@ async function executeRun(resolved, prompt, opts, execution = null) {
   let result, response;
   try {
     result = execution ? await execution(invoke) : runAgy(invoke);
+    opts.agy = result.agy;
     rememberConversation(resolved, result.payload.conversation_id, opts.jobId);
     response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model);
+    if (hasNativeWarnings(result.agy)) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(result.agy)}\n`);
   } catch (error) {
+    error.agy ||= result?.agy;
+    // A provider's structured API error can quote flag-like user content.
+    // Native evidence outranks prose heuristics for CLI compatibility too.
+    const hint = error.agy?.errors?.length ? null : unsupportedCliHint(`${error.message}\n${error.diagnosticText || ''}`);
+    if (hint) {
+      error.message += `\n${hint}`;
+      if (error.alreadyPrinted) process.stderr.write(`${hint}\n`);
+    }
+    if (error.agy) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(error.agy)}\n`);
     error.workspace = {
       before: excerpt(workspaceBefore?.join('\n') ?? 'Git status unavailable', 3000),
       after: excerpt(porcelainSnapshot()?.join('\n') ?? 'Git status unavailable', 3000),
@@ -1147,14 +1201,14 @@ async function executeRun(resolved, prompt, opts, execution = null) {
       die(`${error.message}\n${JSON.stringify({
         status: conversation ? 'attention' : 'error', reason: error.reason,
         conversation_id: conversation || null, mode: resolved.mode, model: resolved.model,
-        profile: resolved.profile, recovery,
+        profile: resolved.profile, recovery, agy: error.agy,
       }, null, 2)}`, conversation ? 5 : 1);
     }
     throw error;
   }
   const payload = result.payload;
   const treeAfter = treeBefore ? porcelainSnapshot() : null;
-  opts.warnings = !!(result.stderr || result.observationWarnings?.length || result.exit !== 0 || (payload.status && payload.status.toUpperCase() !== 'SUCCESS'));
+  opts.warnings = !!(hasNativeWarnings(result.agy) || result.stderr || result.observationWarnings?.length || result.exit !== 0 || (payload.status && payload.status.toUpperCase() !== 'SUCCESS'));
 
   // Telemetry is plumbing, not content: it goes to stderr so it never mixes
   // into the deliverable. Foreground runs put it on the caller's stderr;
@@ -1287,14 +1341,17 @@ async function workerMain(jobId) {
         conversation: (id) => rememberConversation(spec.resolved, id, jobId),
       }).catch((error) => {
         if (error.reason === 'missing_result' && isUnsupportedModelError(error.diagnosticText || '')) {
-          handleUnsupportedModel({ requestedModel: invoke.model, errText: error.diagnosticText, originalError: error.diagnosticText });
+          if (!error.agy?.errors?.length) {
+            try { handleUnsupportedModel({ requestedModel: invoke.model, errText: error.diagnosticText, originalError: error.diagnosticText }); }
+            catch (diagnostic) { diagnostic.agy = error.agy; throw diagnostic; }
+          }
         }
         throw error;
       });
     });
-    if (controller.signal.aborted) throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled' });
+    if (controller.signal.aborted) throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled', agy: opts.agy });
     // Result and conversation metadata are durable before completion is visible.
-    job = finishJob(jobId, output + '\n', { status: 'done', warnings: opts.warnings });
+    job = finishJob(jobId, output + '\n', { status: 'done', warnings: opts.warnings, agy: opts.agy });
     if (job.status === 'done' && !job.warnings) {
       for (const file of [job.events_file, job.progress_file]) {
         try { fs.unlinkSync(file); } catch (error) { process.stderr.write(`cleanup: ${error.message}\n`); }
@@ -1311,7 +1368,8 @@ async function workerMain(jobId) {
       const report = { ...diagnosticPacket(completed), result_exists: true, reason: completed.reason,
         workspace: error.workspace, last_snapshot: readObservation(completed) };
       return `${completed.status === 'attention' ? 'Job needs attention' : 'Job failed'}:\n${completed.reason === 'canceled' ? 'Execution canceled.' : error.message}\n\n${JSON.stringify(report, null, 2)}\n`;
-    }, (current) => current.cancel_requested_at ? { status: 'canceled', reason: 'canceled' } : { status, reason });
+    }, (current) => ({ ...(current.cancel_requested_at ? { status: 'canceled', reason: 'canceled' } : { status, reason }),
+      ...(error.agy ? { agy: error.agy } : {}) }));
     process.exitCode = JOB_EXIT_CODES[job.status] ?? 1;
   } finally {
     clearInterval(cancelTimer);
@@ -1483,6 +1541,7 @@ function diagnosticPacket(job) {
     log_state: logBytes === null ? 'missing' : logBytes === 0 ? 'empty' : 'present',
     result_exists: fs.existsSync(job.result_file), log_file: job.log_file, events_file: job.events_file || null,
     conversation_id: job.conversation_id || null, model: job.model || null, profile: job.profile || null,
+    ...(job.agy ? { agy: job.agy } : {}),
     recovery: isTimeoutReason(job.reason) ? timeoutRecovery(job) : { inspect: 'git status --short; git diff', spec_file: job.spec_file || null,
       continue: job.conversation_id ? `continue --job ${job.id} --prompt "Continue after inspecting partial workspace changes"` : null,
       restart: `restart ${job.id}`, note: 'Inspect partial workspace changes first. Recovery creates a linked new job with a fresh budget; nothing is retried automatically.' },
@@ -1501,6 +1560,7 @@ function readTerminalObservation(job, status) {
     started_at: job.started_at, finished_at: finishedAt, observed_at: new Date().toISOString(),
     elapsed_seconds: Math.max(0, Math.round(((Date.parse(finishedAt) || Date.now()) - Date.parse(job.started_at)) / 1000)),
     result_file: job.result_file, result_available: fs.existsSync(job.result_file),
+    ...((final.agy || job.agy) ? { agy: final.agy || job.agy } : {}),
     collection: {
       command: `result ${job.id}`,
       instruction: 'Collect the existing wait session if one is pending; otherwise use result for the full output.',
@@ -1556,6 +1616,7 @@ function renderJobResponse(initial, { observeOnly = false } = {}) {
     process.stdout.write(JSON.stringify(diagnosticPacket(job), null, 2) + '\n');
     if (status === 'crashed') process.stdout.write(`\n${CRASH_SANDBOX_HINT}\n`);
   }
+  if (hasNativeWarnings(job.agy)) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(job.agy)}\n`);
   if (status === 'done' && job.warnings) {
     process.stderr.write(`Job diagnostics (tail, up to 8192 bytes). Full log: ${job.log_file}\n${readTail(job.log_file)}\n`);
   }
