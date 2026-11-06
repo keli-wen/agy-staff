@@ -51,14 +51,13 @@ Follow through to a result unless the user asked only to launch. If the host can
 | `status [id]` | List jobs or show one job's state and log tail. |
 | `result [id]` | Reprint stored output; default to the latest finished job. |
 | `cancel <id>` | Stop that job's execution. Interrupting wait does not cancel it. |
-| `continue --job <id> --prompt "..."` | Resume the job's conversation with its original mode/model/profile; create a linked new job. |
-| `continue --prompt "..."` | Continue the latest conversation; `--conversation <id>` selects a known older one. |
+| `continue --job <id> --prompt "..."` | Resume the job's conversation with its original mode/model/profile; create a linked new job (stays synchronous in the foreground for `ask` jobs). |
 | `restart <id>` | Start the original task/configuration again without its conversation; create a linked new job. |
 | `setup [--apply] [--restrict <modes\|none>]` | Optional permission setup; read `references/setup.md` first. |
 
-Wait/observe default to the latest job. Observe uses the same status exit codes, but exit 0 means **finished, not full result delivered**. Collect the existing wait session, or use `result <id>` if none is pending; do not start another wait or expect observe to consume the pending session. Failed/canceled/attention observations provide bounded recovery metadata; wait/result deliver the full report. A continued ask remains synchronous. `result` also returns exit 5 for attention (its legacy exit behavior for other terminal states is unchanged).
+Wait/observe default to the latest background job (or explicitly inspect an `ask-...` job by ID). Observe uses the same status exit codes, but exit 0 means **finished, not full result delivered**. Collect the existing wait session, or use `result <id>` if none is pending; do not start another wait or expect observe to consume the pending session. Failed/canceled/attention observations provide bounded recovery metadata; wait/result deliver the full report. A continued `ask` job remains synchronous in the foreground and records a new `ask-...` job ID. `result` also returns exit 5 for attention (its legacy exit behavior for other terminal states is unchanged).
 
-Continuation and restart may be invoked from the root or any subdirectory of the same worktree; execution returns to the original cwd. Generic `continue` fails for an unrecorded conversation ID. It does not search other worktrees or infer configuration from an unrelated conversation. For continuation, explicit model/profile flags override the inherited values.
+Continuation and restart may be invoked from the root or any subdirectory of the same worktree; execution returns to the original cwd. `continue` requires `--job <id>` and rejects bare `continue`, legacy `--continue` / `--conversation <id>` flags, or unknown job IDs (it does not search other worktrees or switch personas). Pre-0.8.1 `ask` conversations recorded before `ask` created job IDs cannot be resumed via `continue --job`; start a fresh `ask` run to create a job ID. For continuation, explicit model/profile flags override the inherited values.
 
 Cancel records a request first and returns success only after the worker has stored the cancellation report and published `canceled`. A crashed job keeps its crash diagnostics. A cancellation error requires inspection; it does not mean execution has stopped.
 

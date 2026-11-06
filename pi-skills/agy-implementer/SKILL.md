@@ -9,6 +9,16 @@ description: Delegate a coding task to Google's Antigravity CLI (agy staffer, fa
 
 Hand a coding task to the agy staffer. agy edits the real working tree under its unrestricted permission profile; the companion is a thin launcher and job collector. Pass the user's requested delivery through in the task text instead of doing Git work yourself.
 
+<!-- BEGIN SHARED PERSONA RULES -->
+<!-- Generated from templates/persona-skill-rules.md; run npm run generate:skills. Do not edit this block. -->
+## Dispatch
+
+- Continue a completed job with `continue --job <id> --prompt "..."` when the task and persona are the same and prior context helps, even if the user does not say "continue". Keep each job ID with its assignment; if the target is unclear, check known jobs before asking the user.
+- Start fresh for a different task or persona, an independent opinion, or an explicit fresh start. Carry relevant findings and artifact paths into the new brief.
+- Pass the user's task and explicit authorizations verbatim. On follow-up, add decisions and constraints from the host chat that the worker has not seen. Continuation does not expand authorization.
+- Run the companion unsandboxed; in Codex, request escalated execution. Follow `../agy-jobs/SKILL.md` for collection and recovery. After an execution timeout, obtain explicit user confirmation before continuing or restarting.
+<!-- END SHARED PERSONA RULES -->
+
 ## Locating the companion
 
 This skill file lives at `<plugin-root>/pi-skills/agy-implementer/SKILL.md`; resolve the companion path relative to this skill directory:
@@ -16,11 +26,6 @@ This skill file lives at `<plugin-root>/pi-skills/agy-implementer/SKILL.md`; res
 ```bash
 node "<skill-dir>/../../companion/agy-companion.mjs" implement [flags] --prompt "task description"
 ```
-
-Pass the user's task description verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for long text.
-
-> [!IMPORTANT]
-> Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../agy-jobs/references/troubleshooting.md`. (The companion passes `--dangerously-skip-permissions` to agy in this mode — that is the unrestricted profile working as designed.)
 
 ## Workspace and delivery
 
@@ -36,7 +41,7 @@ The command returns a job id. Read `../agy-jobs/SKILL.md` for result collection 
 ## Flags (all optional)
 
 - `--restricted` / `--unrestricted` — permission profile. implement defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it can usually only propose rather than edit, and it needs the setup flow's evidence-gathering allowlist to be useful.
-- `--continue` (or `--conversation <id>`), `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-high`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
+- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-high`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
 
 ## Rules
@@ -47,7 +52,7 @@ The command returns a job id. Read `../agy-jobs/SKILL.md` for result collection 
 - Never commit agy's changes yourself unless the user explicitly asks you, the host agent, to do it.
 - For errors and recovery, follow `../agy-jobs/SKILL.md`.
 
-For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
+For an existing session, `continue --job <id>` inherits the job's persona, recorded model, and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
 
 ## Host compatibility
 

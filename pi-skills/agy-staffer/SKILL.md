@@ -13,6 +13,16 @@ Prefer a specialist when one fits: `researcher` for surveys and deep dives, `rev
 
 staffer is also the route to agy-native tools no specialist covers — notably **image generation**: agy ships a `generate_image` tool (verified on v1.1.15; a 1024×1024 PNG in ~30s). Name the output path in the task, e.g. `staffer --prompt "generate a pixel-art robot mascot, save it as assets/mascot.png"`.
 
+<!-- BEGIN SHARED PERSONA RULES -->
+<!-- Generated from templates/persona-skill-rules.md; run npm run generate:skills. Do not edit this block. -->
+## Dispatch
+
+- Continue a completed job with `continue --job <id> --prompt "..."` when the task and persona are the same and prior context helps, even if the user does not say "continue". Keep each job ID with its assignment; if the target is unclear, check known jobs before asking the user.
+- Start fresh for a different task or persona, an independent opinion, or an explicit fresh start. Carry relevant findings and artifact paths into the new brief.
+- Pass the user's task and explicit authorizations verbatim. On follow-up, add decisions and constraints from the host chat that the worker has not seen. Continuation does not expand authorization.
+- Run the companion unsandboxed; in Codex, request escalated execution. Follow `../agy-jobs/SKILL.md` for collection and recovery. After an execution timeout, obtain explicit user confirmation before continuing or restarting.
+<!-- END SHARED PERSONA RULES -->
+
 ## Locating the companion
 
 This skill file lives at `<plugin-root>/pi-skills/agy-staffer/SKILL.md`; resolve the companion path relative to this skill directory:
@@ -20,11 +30,6 @@ This skill file lives at `<plugin-root>/pi-skills/agy-staffer/SKILL.md`; resolve
 ```bash
 node "<skill-dir>/../../companion/agy-companion.mjs" staffer [flags] --prompt "task"
 ```
-
-Pass the user's task text verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for long text.
-
-> [!IMPORTANT]
-> Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../agy-jobs/references/troubleshooting.md`.
 
 ## Collecting the result
 
@@ -35,7 +40,7 @@ The command returns a job id. Read `../agy-jobs/SKILL.md` for result collection 
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts instead of shell quoting.
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-medium`.
 - `--restricted` / `--unrestricted` — permission profile; staffer defaults to unrestricted like the other tool-using personas, `--restricted` is the opt-in hardening path.
-- `--continue` (or `--conversation <id>`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
+- `--timeout <dur>` — default 60m, maximum 120m hard execution limit.
 
 ## Rules
 
@@ -44,7 +49,7 @@ The command returns a job id. Read `../agy-jobs/SKILL.md` for result collection 
 - A general task may legitimately edit files. The companion reports any working-tree delta with the result — inspect it (`git diff`) and confirm it is what the task asked for before building on it.
 - For errors and recovery, follow `../agy-jobs/SKILL.md`.
 
-For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
+For an existing session, `continue --job <id>` inherits the job's persona, recorded model, and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
 
 ## Host compatibility
 

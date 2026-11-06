@@ -28,7 +28,7 @@ node "<skill-dir>/../../companion/agy-companion.mjs" staffer --prompt-file "<bri
 
 For a specialist, replace `staffer` with `research`, `review`, or `implement`. When requesting code review, use the review-brief guidance in `../agy-reviewer/references/code-review.md`. Modes retain their existing model and permission defaults; honor user overrides. Run unsandboxed as described in `../agy-jobs/references/troubleshooting.md` (escalated execution in Codex).
 
-Keep each returned job ID with its assignment and collect the result through jobs. Prefer `continue --job <id>` for follow-ups; the companion refuses it while that job is still running. Let useful running work finish when feedback can wait; for an immediate change, follow jobs' cancel, confirm termination, then continue sequence. Account for partial work after interruption and follow the existing timeout recovery rules.
+Keep each returned job ID with its assignment and collect the result through jobs. Use `continue --job <id>` for follow-ups; the companion refuses it while that job is still running. Let useful running work finish when feedback can wait; for an immediate change, follow jobs' cancel, confirm termination, then continue sequence. Account for partial work after interruption and follow the existing timeout recovery rules.
 
 In this workflow you compose briefs and synthesize results. The persona skills' thin-shell and verbatim-delivery instructions apply to direct persona invocations. Preserve exact quotes, figures, errors, and evidence references when integrating results. The lead skill uses existing companion modes; it adds no scheduler.
 

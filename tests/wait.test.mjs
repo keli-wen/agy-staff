@@ -61,11 +61,11 @@ describe('wait', () => {
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stdout, /fake answer/);
     assert.doesNotMatch(r.stdout, /\[agy-staff\]/);
-    assert.doesNotMatch(r.stdout, /follow up with --continue/);
+    assert.doesNotMatch(r.stdout, /follow up with continue --job/);
 
     const log = jobLog(sb, id);
     assert.match(log, /\[agy-staff\] mode=research profile=unrestricted model=\S+ /);
-    assert.match(log, /^conversation: conv-1 \(follow up with --continue\)$/m);
+    assert.match(log, new RegExp(`^conversation: conv-1 \\(follow up with continue --job ${id}\\)$`, 'm'));
   });
 
   test('own timeout while the job runs → exit 2, then a second wait succeeds', async () => {

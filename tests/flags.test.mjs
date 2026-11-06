@@ -91,3 +91,21 @@ describe('deprecated aliases', () => {
     assert.match(r.stderr, /--restricted and --unrestricted are mutually exclusive/);
   });
 });
+
+describe('removed 0.8.1 continuation flags (--continue / --conversation / persona --job)', () => {
+  for (const [label, args, pattern] of [
+    ['--continue on persona', ['research', '--continue', '--prompt', 'follow up'], /--continue was removed: continuation is job-ID-only/],
+    ['--conversation on persona', ['review', '--conversation', 'conv-1', '--prompt', 'follow up'], /--conversation was removed: continuation is job-ID-only/],
+    ['--conversation on continue', ['continue', '--conversation', 'conv-1', '--prompt', 'follow up'], /--conversation was removed: continuation is job-ID-only/],
+    ['--job on persona', ['implement', '--job', 'research-123', '--prompt', 'follow up'], /--job cannot be used with `implement`: continuation is job-ID-only/],
+    ['bare continue without --job', ['continue', '--prompt', 'follow up'], /continue requires --job <id>/],
+  ]) {
+    test(`${label} dies with job-ID-only migration guidance`, () => {
+      const sb = sandbox('removed-continuation');
+      const r = run(sb, args);
+      assert.equal(r.code, 1);
+      assert.match(r.stderr, pattern);
+      assert.equal(agyCalls(sb).length, 0, 'agy must not be invoked');
+    });
+  }
+});

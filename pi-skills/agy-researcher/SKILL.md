@@ -9,6 +9,16 @@ description: Delegate a deep research or survey task to Google's Antigravity CLI
 
 Delegate a research task to the agy staffer via the shared companion script. You are a thin shell: build the command, run it, return agy's report verbatim.
 
+<!-- BEGIN SHARED PERSONA RULES -->
+<!-- Generated from templates/persona-skill-rules.md; run npm run generate:skills. Do not edit this block. -->
+## Dispatch
+
+- Continue a completed job with `continue --job <id> --prompt "..."` when the task and persona are the same and prior context helps, even if the user does not say "continue". Keep each job ID with its assignment; if the target is unclear, check known jobs before asking the user.
+- Start fresh for a different task or persona, an independent opinion, or an explicit fresh start. Carry relevant findings and artifact paths into the new brief.
+- Pass the user's task and explicit authorizations verbatim. On follow-up, add decisions and constraints from the host chat that the worker has not seen. Continuation does not expand authorization.
+- Run the companion unsandboxed; in Codex, request escalated execution. Follow `../agy-jobs/SKILL.md` for collection and recovery. After an execution timeout, obtain explicit user confirmation before continuing or restarting.
+<!-- END SHARED PERSONA RULES -->
+
 ## Locating the companion
 
 This skill file lives at `<plugin-root>/pi-skills/agy-researcher/SKILL.md`; resolve the companion path relative to this skill directory:
@@ -17,18 +27,12 @@ This skill file lives at `<plugin-root>/pi-skills/agy-researcher/SKILL.md`; reso
 node "<skill-dir>/../../companion/agy-companion.mjs" research [flags] --prompt "what to research"
 ```
 
-Pass the user's research topic verbatim via `--prompt`; use `--prompt-file <path>` or `--stdin` for a long brief.
-
-> [!IMPORTANT]
-> Run this command **unsandboxed** — agy needs a localhost port and its OAuth token file, which harness sandboxes hide. In Codex, request escalated permissions for the command. Details: `../agy-jobs/references/troubleshooting.md`.
-
 ## Collecting the result
 
 The command returns a job id. Read `../agy-jobs/SKILL.md` for result collection and recovery: dispatch, wait for the final result, then validate as needed. Do not proactively observe progress, read logs or inspect intermediate artifacts while running. Observe only when the user explicitly asks for progress; diagnose a failure or a result requiring intervention under the jobs protocol.
 
 ## Flags (all optional)
 
-- `--continue` — reuse the last research conversation (quota-friendly, served largely from cache); `--conversation <id>` targets a specific one.
 - `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-high`.
 - `--restricted` / `--unrestricted` — permission profile. research defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy runs without `--dangerously-skip-permissions` and may only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
@@ -42,7 +46,7 @@ The command returns a job id. Read `../agy-jobs/SKILL.md` for result collection 
 - If a `--restricted` run reports an empty response due to denied permissions, relay the companion's guidance: run the setup flow once (see `../agy-jobs/references/setup.md`), or drop `--restricted`.
 - For errors and recovery, follow `../agy-jobs/SKILL.md`.
 
-For an existing conversation, `--continue` / `--conversation <id>` inherit its recorded model and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
+For an existing session, `continue --job <id>` inherits the job's persona, recorded model, and permission profile unless explicitly overridden. The unrestricted defaults above apply to new tasks.
 
 ## Host compatibility
 

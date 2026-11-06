@@ -33,7 +33,7 @@ test('initializing jobs reject follow-ups before a conversation or PID is availa
   assert.equal(agyCalls(sb).length, 0);
 });
 
-test('all follow-up entrypoints reject an active successor while other conversations remain usable', async t => {
+test('continue --job rejects an active successor while legacy continuation selectors fail with migration hints and other conversations remain usable', async t => {
   const sb = sandbox('continue-successor');
   const release = path.join(sb.root, 'release');
   t.after(() => { for (const j of state(sb).jobs) run(sb, ['cancel', j.id]); });
@@ -42,13 +42,23 @@ test('all follow-up entrypoints reject an active successor while other conversat
   const conversation = state(sb).jobs.find(j => j.id === first).conversation_id;
   const active = jobIdOf(run(sb, ['continue', '--job', first, '--prompt', 'active'], { FAKE_AGY_RELEASE_FILE: release }).stdout);
   await waitForCalls(sb, 2);
-  const requests = [
-    ['continue', '--job', first], ['continue', '--job', active],
-    ['continue', '--conversation', conversation], ['continue'], ['research', '--continue'],
+  const filesBefore = fs.readdirSync(path.join(sb.repo, '.agy-staff/jobs')).sort();
+  for (const jobTarget of [first, active]) {
+    refused(run(sb, ['continue', '--job', jobTarget, '--prompt', 'must not run']), active);
+  }
+  const legacyRequests = [
+    ['continue', '--conversation', conversation],
+    ['continue'],
+    ['research', '--continue'],
+    ['research', '--job', first],
     ...['staffer', 'research', 'review', 'implement', 'ask'].map(mode => [mode, '--conversation', conversation]),
   ];
-  const filesBefore = fs.readdirSync(path.join(sb.repo, '.agy-staff/jobs')).sort();
-  for (const request of requests) refused(run(sb, [...request, '--prompt', 'must not run']), active);
+  for (const request of legacyRequests) {
+    const res = run(sb, [...request, '--prompt', 'must not run']);
+    assert.equal(res.code, 1, res.stdout + res.stderr);
+    assert.equal(res.stdout, '');
+    assert.match(res.stderr, /continue --job/);
+  }
   assert.equal(agyCalls(sb).length, 2);
   assert.equal(state(sb).jobs.length, 2);
   assert.deepEqual(fs.readdirSync(path.join(sb.repo, '.agy-staff/jobs')).sort(), filesBefore);
@@ -78,10 +88,9 @@ test('simultaneous follow-ups recheck occupancy inside registration and leave no
   const first = jobIdOf(run(sb, ['staffer', '--prompt', 'seed']).stdout);
   assert.equal(run(sb, ['wait', first]).code, 0);
   await until(() => state(sb).jobs[0].status === 'done' && !fs.existsSync(lock));
-  const conversation = state(sb).jobs[0].conversation_id;
   fs.mkdirSync(lock); fs.writeFileSync(path.join(lock, owner), '');
   const invoke = () => new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [COMPANION, 'continue', '--conversation', conversation, '--prompt', 'contender'], {
+    const child = spawn(process.execPath, [COMPANION, 'continue', '--job', first, '--prompt', 'contender'], {
       cwd: sb.repo, env: { ...process.env, HOME: sb.home, USERPROFILE: sb.home, AGY_BIN: FAKE_AGY,
         FAKE_AGY_ARGV_FILE: sb.argvFile, FAKE_AGY_RELEASE_FILE: release },
     });
@@ -103,4 +112,100 @@ test('simultaneous follow-ups recheck occupancy inside registration and leave no
   assert.equal(agyCalls(sb).length, 2);
   fs.writeFileSync(release, 'finish');
   assert.equal(run(sb, ['wait', active]).code, 0);
+});
+
+test('synchronous ask records a job ID and supports job-ID-only continuation without hijacking default background wait/result', () => {
+  const sb = sandbox('ask-job-record');
+  const bg = jobIdOf(run(sb, ['research', '--prompt', 'background research'], { FAKE_AGY_CONVERSATION_ID: 'conv-bg' }).stdout);
+  assert.equal(run(sb, ['wait', bg]).code, 0);
+
+  const ask1 = run(sb, ['ask', '--model', 'gemini-3.8-flash-medium', '--prompt', 'first question'], {
+    FAKE_AGY_CONVERSATION_ID: 'conv-ask',
+    FAKE_AGY_RESPONSE: 'first answer',
+  });
+  assert.equal(ask1.code, 0, ask1.stderr);
+  assert.equal(ask1.stdout, 'first answer\n');
+  const askJob1 = jobIdOf(ask1.stderr);
+  assert.match(askJob1, /^ask-/);
+  assert.match(ask1.stderr, new RegExp(`conversation: conv-ask \\(follow up with continue --job ${askJob1}\\)`));
+
+  // Bare wait/result still default to the latest background job, while explicit askJob1 works.
+  assert.match(run(sb, ['result']).stdout, new RegExp(`# Job ${bg} \\(research, done\\)`));
+  assert.match(run(sb, ['result', askJob1]).stdout, new RegExp(`# Job ${askJob1} \\(ask, done\\)[\\s\\S]*first answer`));
+
+  const ask2 = run(sb, ['continue', '--job', askJob1, '--prompt', 'follow-up question'], {
+    FAKE_AGY_CONVERSATION_ID: 'conv-ask',
+    FAKE_AGY_RESPONSE: 'second answer',
+  });
+  assert.equal(ask2.code, 0, ask2.stderr);
+  assert.equal(ask2.stdout, 'second answer\n');
+  const askJob2 = jobIdOf(ask2.stderr);
+  assert.notEqual(askJob2, askJob1);
+  const record2 = state(sb).jobs.find(j => j.id === askJob2);
+  assert.equal(record2.mode, 'ask');
+  assert.equal(record2.parent_job_id, askJob1);
+  assert.equal(record2.model, 'gemini-3.8-flash-medium');
+  assert.equal(record2.profile, 'restricted');
+  assert.equal(record2.conversation_id, 'conv-ask');
+});
+
+test('removed continuation flags, bare continue, persona --job, and legacy jobless ask records fail clearly without calling AGY', () => {
+  const sb = sandbox('legacy-continuation-migration');
+  const jobId = jobIdOf(run(sb, ['staffer', '--prompt', 'initial task'], { FAKE_AGY_CONVERSATION_ID: 'conv-staffer' }).stdout);
+  assert.equal(run(sb, ['wait', jobId]).code, 0);
+  const callsBefore = agyCalls(sb).length;
+
+  // 1. Persona with --job <id> (cannot switch persona or silently ignore --job)
+  const personaJob = run(sb, ['review', '--job', jobId, '--prompt', 'try switching to review']);
+  assert.equal(personaJob.code, 1);
+  assert.match(personaJob.stderr, /--job cannot be used with `review`: continuation is job-ID-only and inherits the job's original persona/);
+  assert.match(personaJob.stderr, new RegExp(`continue --job ${jobId} --prompt`));
+
+  // 2. Persona with --continue
+  const personaCont = run(sb, ['staffer', '--continue', '--prompt', 'follow up']);
+  assert.equal(personaCont.code, 1);
+  assert.match(personaCont.stderr, /--continue was removed: continuation is job-ID-only/);
+  assert.match(personaCont.stderr, new RegExp(`continue --job ${jobId} --prompt`));
+
+  // 3. Persona or continue with --conversation <conv>
+  for (const cmd of ['staffer', 'continue']) {
+    const convFlag = run(sb, [cmd, '--conversation', 'conv-staffer', '--prompt', 'follow up']);
+    assert.equal(convFlag.code, 1);
+    assert.match(convFlag.stderr, /--conversation was removed: continuation is job-ID-only/);
+    assert.match(convFlag.stderr, new RegExp(`Conversation conv-staffer belongs to job ${jobId}; run \`continue --job ${jobId} --prompt`));
+  }
+
+  // 4. Bare continue without --job
+  const bareCont = run(sb, ['continue', '--prompt', 'follow up']);
+  assert.equal(bareCont.code, 1);
+  assert.match(bareCont.stderr, /continue requires --job <id>/);
+  assert.match(bareCont.stderr, new RegExp(`Latest recorded job in this repository is ${jobId} \\(staffer\\); run \`continue --job ${jobId} --prompt`));
+
+  // 5. Passing conversation ID to continue --job <conv-id>
+  const convAsJob = run(sb, ['continue', '--job', 'conv-staffer', '--prompt', 'follow up']);
+  assert.equal(convAsJob.code, 1);
+  assert.match(convAsJob.stderr, new RegExp(`no job conv-staffer in this repository \\(conv-staffer is the conversation ID for job ${jobId}; run \`continue --job ${jobId} --prompt`));
+
+  assert.equal(agyCalls(sb).length, callsBefore, 'rejected continuation selectors must never invoke AGY');
+
+  // 6. Pre-0.8.1 legacy jobless ask conversation record
+  const legacySb = sandbox('legacy-jobless-ask');
+  fs.mkdirSync(path.dirname(stateFile(legacySb)), { recursive: true });
+  fs.writeFileSync(stateFile(legacySb), JSON.stringify({
+    conversations: { ask: 'legacy-ask-conv' },
+    last: { mode: 'ask', id: 'legacy-ask-conv', model: 'gemini-3.8-flash-low', profile: 'restricted' },
+    conversation_configs: { 'legacy-ask-conv': { mode: 'ask', model: 'gemini-3.8-flash-low', profile: 'restricted', cwd: legacySb.repo } },
+    jobs: [],
+  }));
+  for (const args of [
+    ['ask', '--continue', '--prompt', 'follow up'],
+    ['continue', '--conversation', 'legacy-ask-conv', '--prompt', 'follow up'],
+    ['continue', '--prompt', 'follow up'],
+    ['continue', '--job', 'legacy-ask-conv', '--prompt', 'follow up'],
+  ]) {
+    const res = run(legacySb, args);
+    assert.equal(res.code, 1, args.join(' '));
+    assert.match(res.stderr, /legacy conversation|pre-0\.8\.1 `ask` run/);
+  }
+  assert.equal(agyCalls(legacySb).length, 0);
 });

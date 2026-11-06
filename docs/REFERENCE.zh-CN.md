@@ -112,8 +112,7 @@ agy 还有与 `--project` 体系关联的项目级权限规则，可以将权限
 
 | 参数 | 含义 |
 | --- | --- |
-| `--conversation <id>` | 继续指定的 agy 会话 |
-| `--continue` | 继续状态记录中该模式最近一次会话 |
+| `--job <id>` | 仅用于 `continue`，继续指定任务对应的 AGY 会话，并沿用原任务的角色、模型与权限配置 |
 | `--model <id>` | 指定模型，可用 `agy models` 查看可用 ID。模型 ID 带有推理强度后缀，如 `gemini-3.8-flash-low`；companion 也能补全模型系列名与 `flash`、`pro` 别名，未知 ID 会在启动前报错 |
 | `--effort low\|medium\|high` | 指定推理强度，是 `gemini-3.8-flash-<effort>` 的简写 |
 | `--restricted` / `--unrestricted` | 覆盖本次运行的权限配置；`ask` 会忽略这两个参数 |
@@ -124,7 +123,7 @@ agy 还有与 `--project` 体系关联的项目级权限规则，可以将权限
 | `--prompt-file <path>` | 从文件读取任务正文，适合较长的描述 |
 | `--stdin` | 从标准输入读取任务正文 |
 
-每次任务只能选择 `--prompt`、`--prompt-file` 和 `--stdin` 中的一个来源。同步或后台执行由模式决定，没有单独的切换参数。
+每次任务只能选择 `--prompt`、`--prompt-file` 和 `--stdin` 中的一个来源。会话续接统一使用 `continue --job <id>`；旧的 `--continue` 与 `--conversation <id>` 已移除（见[从 0.8.0 迁移](#从-080-迁移)）。同步或后台执行由模式决定，没有单独的切换参数。
 
 ## 任务正文
 
@@ -201,11 +200,11 @@ review --prompt "Review the patch at /tmp/change.patch"
 
 `cancel <id>` 会先记录取消请求，等 worker 保存取消报告并将任务状态设为 `canceled` 后才返回成功。它会保留已经崩溃的任务的诊断信息，也不会仅凭保存的 PID 就向一个未经身份核实的进程发送信号。缺少取消通道的旧任务会明确报错。取消命令报错时，应检查任务和日志，不能据此认定执行已经停止。中断 `wait` 只会结束等待，不会取消后台任务。
 
-需要继续已有会话时，使用 `continue --job <id> --prompt "..."`。它会沿用所选任务的模式、模型和权限配置，创建一个关联的新任务。也可以用 `--conversation <id>` 选择已记录的会话。显式指定模型或权限参数时，会覆盖继承的值。
+需要继续已有会话时，使用 `continue --job <id> --prompt "..."`。它会沿用所选任务的模式（角色）、模型和权限配置，创建一个关联的新任务（继续 `ask` 任务时仍保持前台同步返回并生成新的 `ask-...` 任务 ID）。显式指定模型或权限参数时，会覆盖继承的值。
 
 `restart <id>` 会用原任务和配置重新开始，但不复用原会话。新任务会重新生成当前工作区的上下文。对于旧版本保存的任务规格，companion 会将其中的旧快照标记为历史信息，再追加当前上下文。
 
-继续或重启前，应先用 `git status` 和 `git diff` 检查上一次执行留下的修改。你可以从同一 Git 工作树（worktree）的根目录或任意子目录发起恢复，任务实际执行时会回到原工作目录。通用 `continue` 命令遇到未登记的会话 ID 会报错，不会搜索其他工作树或启动 AGY。如果目标会话对应的任务仍在运行（无论是通用 `continue`，还是某个模式的 `--continue`/`--conversation`），companion 会以退出码 1 拒绝，并返回该任务的 ID 和状态；后续指令不会排队，需要先等待或取消。
+继续或重启前，应先用 `git status` 和 `git diff` 检查上一次执行留下的修改。你可以从同一 Git 工作树（worktree）的根目录或任意子目录发起恢复，任务实际执行时会回到原工作目录。`continue` 必须传入 `--job <id>`，对未知任务 ID、不带 `--job` 的 `continue` 或已移除的 `--continue`/`--conversation` 参数会直接报错，不会搜索其他工作树或启动 AGY。如果目标任务或其会话仍在运行，companion 会以退出码 1 拒绝，并返回该任务的 ID 和状态；后续指令不会排队，需要先等待或取消。
 
 恢复会创建新任务，保留原任务的最终记录，并重新获得默认 60 分钟的执行时限；也可以用 `--timeout` 指定其他时长。恢复信息提供 `requires_user_confirmation`、建议的 `suggested_timeout` 和具体续跑命令。建议超时为原时长的两倍，后台最多 120 分钟；已到上限时应缩小任务。主 agent 必须询问你是否继续或停下查看工作区，得到明确确认后才执行。companion 不会自动重试或续跑。前台 `ask` 的历史会话配置也按会话 ID 保存，不会因后续任务覆盖而丢失。
 
@@ -344,6 +343,18 @@ AGY 会读取工作区中的 `AGENTS.md`、`GEMINI.md` 和 `.agents/rules/*.md`�
 0.5.0 将各角色的默认模型，以及 `flash` 别名和 `--effort` 简写，从 Gemini 3.7 Flash 调整为 Gemini 3.8 Flash。推理强度保持不变：`ask` 为 low，`staffer` 和 `reviewer` 为 medium，`researcher` 和 `implementer` 为 high。
 
 如果已安装的 AGY 不支持默认模型，companion 会报错，不会自动换成别的模型。它会查询 `agy models`，列出可用 ID，并推荐相同推理强度的兼容选项，例如 `--model gemini-3.7-flash-high`。你可以显式指定兼容模型，也可以更新 AGY 后再使用默认值。
+
+## 从 0.8.0 迁移
+
+0.8.1 将会话续接统一为 `continue --job <id>`，确保追问始终指向明确的任务 ID 并沿用原角色，同时为同步执行的 `ask` 记录 `ask-...` 任务条目。
+
+| 0.8.0 写法或行为 | 0.8.1 写法或行为 | 说明 |
+| --- | --- | --- |
+| `<persona> --continue --prompt "..."` | `continue --job <id> --prompt "..."` | 参数已移除；若仓库中有对应任务，报错信息会提示具体的 `<id>` |
+| `<persona> --conversation <conv> --prompt "..."` 或 `continue --conversation <conv> --prompt "..."` | `continue --job <id> --prompt "..."` | 参数已移除；若 `<conv>` 关联了已记录任务，报错信息会提示对应的 `--job <id>` |
+| `<persona> --job <id> --prompt "..."` | `continue --job <id> --prompt "..."` | 角色命令不再忽略 `--job`，而是报错并提示使用 `continue --job <id>` 沿用原角色 |
+| 不带 `--job` 的 `continue --prompt "..."` | `continue --job <id> --prompt "..."` | `continue` 必须指定 `--job <id>`；报错信息会提示最近一次记录的任务 ID |
+| 同步 `ask` 仅记录会话 ID | `ask` 同时记录 `ask-...` 任务 ID（标准错误输出 `job=ask-...`，可通过 `status` 查看） | 后续追问使用 `continue --job <ask-id> --prompt "..."`（保持前台同步返回）。0.8.1 之前未生成任务记录的旧 `ask` 会话无法通过 `continue --job` 续接，请重新发起一次 `ask` 以生成任务 ID |
 
 ## Windows 支持
 

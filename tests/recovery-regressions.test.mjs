@@ -217,24 +217,25 @@ test('continue and restart return to the original cwd within a worktree and refr
   assert.match(promptOf(agyCalls(sb).at(-1)), /sub\//);
   assert.match(promptOf(agyCalls(sb).at(-1)), /preserve the task/);
   assert.equal(fs.readFileSync(path.join(subdir, 'partial.txt'), 'utf8'), 'keep this work');
-  // The mode-specific entry point also resolves caller-relative prompt files.
-  const resumed = jobIdOf(run({ ...sb, repo: caller }, ['implement', '--continue', '--prompt-file', 'followup.txt']).stdout);
+  // A second continuation from caller also resolves caller-relative prompt files while executing in subdir.
+  const resumed = jobIdOf(run({ ...sb, repo: caller }, ['continue', '--job', next, '--prompt-file', 'followup.txt']).stdout);
   assert.equal(run(sb, ['wait', resumed]).code, 0); assert.equal(job(sb, resumed).cwd, subdir);
 });
 
-test('unknown conversations and jobs from another worktree fail without launching AGY', () => {
+test('unknown jobs and jobs from another worktree fail without launching AGY', () => {
   const sb = sandbox('unknown-conversation');
   const id = jobIdOf(run(sb, ['research', '--prompt', 'task']).stdout);
   assert.equal(run(sb, ['wait', id]).code, 0);
   const count = agyCalls(sb).length;
+  assert.equal(run(sb, ['continue', '--job', 'unknown', '--prompt', 'follow up']).code, 1);
   assert.equal(run(sb, ['continue', '--conversation', 'unknown', '--prompt', 'follow up']).code, 1);
   assert.equal(agyCalls(sb).length, count);
   const commit = spawnSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--allow-empty', '-qm', 'initial'], { cwd: sb.repo });
   assert.equal(commit.status, 0);
   const other = path.join(sb.root, 'other-worktree');
   assert.equal(spawnSync('git', ['worktree', 'add', '--detach', other], { cwd: sb.repo }).status, 0);
-  const r = run({ ...sb, repo: other }, ['continue', '--conversation', job(sb, id).conversation_id, '--prompt', 'follow up']);
-  assert.equal(r.code, 1); assert.match(r.stderr, /no previous agy-staff conversation/);
+  const r = run({ ...sb, repo: other }, ['continue', '--job', id, '--prompt', 'follow up']);
+  assert.equal(r.code, 1); assert.match(r.stderr, new RegExp(`no job ${id} in this repository`));
   assert.equal(agyCalls(sb).length, count);
 });
 
@@ -249,12 +250,14 @@ test('continuing a conversation whose job is still running is refused without qu
   assert.match(generic.stderr, /not accepted or queued/);
   assert.match(generic.stderr, new RegExp(`wait ${id}`)); assert.match(generic.stderr, new RegExp(`cancel ${id}`));
   assert.equal(agyCalls(sb).length, count);
-  // The mode entry point's --continue resolves the same running job once its conversation id is recorded.
+  // Persona --continue / --job are rejected immediately without launching AGY.
   const deadline = Date.now() + 5000;
   while (!job(sb, id).conversation_id && Date.now() < deadline) await pause(25);
   assert.ok(job(sb, id).conversation_id, 'conversation id recorded while running');
   const modeContinue = run(sb, ['research', '--continue', '--prompt', 'change direction']);
-  assert.equal(modeContinue.code, 1); assert.match(modeContinue.stderr, /still running/);
+  assert.equal(modeContinue.code, 1); assert.match(modeContinue.stderr, /--continue was removed/);
+  const modeJob = run(sb, ['research', '--job', id, '--prompt', 'change direction']);
+  assert.equal(modeJob.code, 1); assert.match(modeJob.stderr, /--job cannot be used with `research`/);
   assert.equal(agyCalls(sb).length, count);
   // After cancel, the follow-up is accepted on the same conversation.
   assert.equal(run(sb, ['cancel', id]).code, 0);

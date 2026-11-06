@@ -38,6 +38,7 @@ test('OpenCode generation copies assets, detects drift and never overwrites in c
   const sb = sandbox('opencode-generation');
   t.after(() => fs.rmSync(sb.root, { recursive: true, force: true }));
   fs.cpSync(path.join(ROOT, 'skills'), path.join(sb.root, 'skills'), { recursive: true });
+  fs.cpSync(path.join(ROOT, 'templates'), path.join(sb.root, 'templates'), { recursive: true });
   const asset = Buffer.from([0, 128, 255]);
   fs.writeFileSync(path.join(sb.root, 'skills/ask/asset.bin'), asset);
   const options = { root: sb.root, target: 'opencode' };
