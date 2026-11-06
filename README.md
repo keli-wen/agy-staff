@@ -136,8 +136,8 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, in Pi `/sk
 
 | Use case | Invocation |
 |---|---|
-| Lead an ongoing task | `/agy:lead investigate the options, draft a proposal, and revise it with my feedback` |
-| Ask Argon to propose the route | `/agy:brain design a migration; check the assumptions before implementing` |
+| <img src="assets/icons/lead.svg" width="16" height="16" alt=""> Lead an ongoing task | `/agy:lead investigate the options, draft a proposal, and revise it with my feedback` |
+| <img src="assets/icons/brain.svg" width="16" height="16" alt=""> Ask Argon to propose the route | `/agy:brain design a migration; check the assumptions before implementing` |
 | Quick second opinion | `/agy:ask what's your backend model` |
 | A general task | `/agy:staffer summarize the open TODOs in this repo` |
 | Generate an image | `/agy:staffer generate a pixel-art robot mascot, save it as assets/mascot.png` |
