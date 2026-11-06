@@ -10,7 +10,7 @@ export const COMPATIBILITY_CONTEXT = fs.readFileSync(new URL('../templates/harne
 export const SHARED_START = '<!-- BEGIN SHARED PERSONA RULES -->';
 export const SHARED_END = '<!-- END SHARED PERSONA RULES -->';
 export const DIRECT_PERSONAS = ['ask', 'implementer', 'researcher', 'reviewer', 'staffer'];
-const NON_PERSONA_SKILLS = new Set(['jobs', 'lead']);
+const NON_PERSONA_SKILLS = new Set(['brain', 'jobs', 'lead']);
 
 // Canonical SKILL.md files are installed directly by Claude Code and Codex.
 // Only their marked block is generated; everything outside stays hand-written.

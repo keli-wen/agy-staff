@@ -16,6 +16,8 @@
 
 `lead` 为当前主 agent 提供任务编排指导，复用现有 companion 模式，没有自己的运行模式；Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`，OpenCode 使用 `/agy-lead`。
 
+`brain` 让外部 AGY 先提出方案，由主 agent 检验关键假设、执行并交付。Claude Code 使用 `/agy:brain`，Codex 使用 `$agy:brain`，Pi 使用 `/skill:agy-brain`，OpenCode 使用 `/agy-brain`。技能通过 `staffer --brain` 启动后台任务，默认模型为 `gemini-4-argon-medium`。
+
 `staffer` 不预设专业分工或固定的报告格式，但仍遵守共享的操作约定。`reviewer` 会根据对象选择审查方式：代码问题按严重程度列出，并附上 `file:line` 位置；方案和决策审查则检查假设、风险和取舍。`implementer` 可以直接修改工作区，也可以完成任务明确要求的提交、推送或 PR 操作。
 
 执行方式由模式决定，不能通过参数切换。继续一个 `ask` 会话时，答案仍在同一次调用中返回；继续其他模式时，会创建新的后台任务。
@@ -113,6 +115,7 @@ agy 还有与 `--project` 体系关联的项目级权限规则，可以将权限
 | 参数 | 含义 |
 | --- | --- |
 | `--job <id>` | 仅用于 `continue`，继续指定任务对应的 AGY 会话，并沿用原任务的角色、模型与权限配置 |
+| `--brain` | 新建 `staffer` 任务时使用 brain 咨询模板及其默认模型；续接与重启时沿用任务配置 |
 | `--model <id>` | 指定模型，可用 `agy models` 查看可用 ID。模型 ID 带有推理强度后缀，如 `gemini-3.8-flash-low`；companion 也能补全模型系列名与 `flash`、`pro` 别名，未知 ID 会在启动前报错 |
 | `--effort low\|medium\|high` | 指定推理强度，是 `gemini-3.8-flash-<effort>` 的简写 |
 | `--restricted` / `--unrestricted` | 覆盖本次运行的权限配置；`ask` 会忽略这两个参数 |
@@ -372,7 +375,7 @@ Windows 为尽力支持，由 CI 的 `Tests (Windows)` 任务覆盖，尚未在�
 }
 ```
 
-插件将包内 `opencode-skills/` 的绝对路径追加到 `skills.paths`，保留已有路径并避免重复注册。OpenCode 会发现七个带品牌前缀的技能，并提供同名原生斜杠命令：`/agy-ask`、`/agy-staffer`、`/agy-researcher`、`/agy-reviewer`、`/agy-implementer`、`/agy-jobs` 和 `/agy-lead`。无需额外命令包装，已有 OpenCode 技能权限仍然适用。
+插件将包内 `opencode-skills/` 的绝对路径追加到 `skills.paths`，保留已有路径并避免重复注册。OpenCode 会发现八个带品牌前缀的技能，并提供同名原生斜杠命令：`/agy-ask`、`/agy-staffer`、`/agy-researcher`、`/agy-reviewer`、`/agy-implementer`、`/agy-jobs`、`/agy-lead` 和 `/agy-brain`。无需额外命令包装，已有 OpenCode 技能权限仍然适用。
 
 `npm run generate:opencode` 从唯一方法源 `skills/` 生成入口，复制所有资源、改写调用方式与相对路径，并附上与 Pi 相同的主环境兼容说明。companion 与提示词模板继续共用。请安装完整包；单独复制插件文件会缺失相对路径引用的资源。
 
@@ -413,9 +416,9 @@ companion/agy-companion.mjs    命令入口、模式选择、任务管理与 set
 companion/stream-worker.mjs    AGY 流式执行、进程清理与执行时限
 companion/observation.mjs      事件解析、进度快照与输出长度限制
 companion/state-lock.mjs       状态更新与锁回收
-skills/                       角色技能与 jobs 管理技能，以及按需加载的参考文件
+skills/                       八个技能的源文件：五个角色、两种编排技能（lead 和 brain）及 jobs
 pi-skills/                    自动生成的 Pi 入口与参考文件，不应手动编辑
-templates/                    共享提示词模板与宿主兼容说明
+templates/                    worker 提示词（含 brain.md）、共享角色规则与宿主兼容说明
 opencode-skills/              自动生成的 OpenCode 入口与参考文件，不应手动编辑
 opencode.mjs                  OpenCode V1 包入口，注册包内技能
 scripts/generate-skills.mjs   生成 Pi/OpenCode 技能并检查一致性

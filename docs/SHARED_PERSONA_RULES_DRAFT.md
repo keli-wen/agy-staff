@@ -1,20 +1,20 @@
 # Single-source shared persona rules
 
-Host-facing dispatch and continuation rules for all five direct personas (`ask`, `staffer`, `researcher`, `reviewer`, `implementer`) are maintained in one source file (`templates/persona-skill-rules.md`) and generated into each direct persona's `SKILL.md` before adapter generation.
+The eight canonical skills in `skills/` comprise five direct personas, two orchestration skills (`lead`, `brain`), and one job-management skill (`jobs`). Host-facing dispatch and continuation rules for all five direct personas (`ask`, `staffer`, `researcher`, `reviewer`, `implementer`) are maintained in one source file (`templates/persona-skill-rules.md`) and generated into each direct persona's `SKILL.md` before adapter generation.
 
 ## What maintainers edit
 
 - `templates/persona-skill-rules.md`: the shared host-agent rules, including pre-dispatch continuation heuristics (`continue --job <id>` vs. starting a fresh persona invocation) and task-input/execution requirements. Edit once for all five direct personas.
 - `skills/<persona>/SKILL.md`: persona-specific instructions outside the marked shared block (`<!-- BEGIN SHARED PERSONA RULES -->` ... `<!-- END SHARED PERSONA RULES -->`). The shared block is generated; do not maintain its contents by hand.
-- `skills/lead/` and `skills/jobs/`: orchestration and lifecycle instructions. They are not direct persona entry points and must not contain shared persona markers.
+- `skills/lead/`, `skills/brain/`, and `skills/jobs/`: orchestration and lifecycle instructions. They are not direct persona entry points and must not contain shared persona markers.
 
-The shared block appears before `## Locating the companion` (the dispatch command example). It contains instructions for the host agent, never for the AGY worker. Worker execution rules and guardrails remain separate in `templates/{staffer,research,review,implement,ask}.md`.
+The shared block appears before `## Locating the companion` (the dispatch command example). It contains instructions for the host agent, never for the AGY worker. Worker execution rules and guardrails remain separate in `templates/{staffer,research,review,implement,ask}.md`. The `brain` orchestrator uses a separate advisory template, `templates/brain.md`, via `staffer --brain`.
 
 ## Generation and verification
 
 Run `npm run generate:skills` after changing `templates/persona-skill-rules.md` or any file under `skills/`. The generator:
 
-1. Validates that all five direct persona entrypoints (`skills/{ask,implementer,researcher,reviewer,staffer}/SKILL.md`) exist and each has one well-formed marker pair before `## Locating the companion`, and rejects markers in `skills/{jobs,lead}/` or non-entrypoint files.
+1. Validates that all five direct persona entrypoints (`skills/{ask,implementer,researcher,reviewer,staffer}/SKILL.md`) exist and each has one well-formed marker pair before `## Locating the companion`, and rejects markers in `skills/{brain,jobs,lead}/` or non-entrypoint files.
 2. Synchronizes the marked block in canonical `skills/<persona>/SKILL.md`.
 3. Generates `pi-skills/` and `opencode-skills/` from the updated canonical skills. Target-specific generation (`npm run generate:pi`, `npm run generate:opencode`) also synchronizes canonical blocks first.
 

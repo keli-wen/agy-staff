@@ -32,8 +32,9 @@
  *
  * Uniform flags:
  *   --job <id>            (continue) continue a specific job with its original persona/configuration
+ *   --brain               (staffer) use the brain template and default to Argon Medium
  *   --model <id>          explicit agy model id (overrides --effort)
- *   --effort <l|m|h>      low|medium|high → gemini-3.8-flash-<effort>
+ *   --effort <l|m|h>      Flash shorthand; brain jobs require an explicit --model with --effort
  *   --restricted          hardening opt-in: keep agy's permission enforcement
  *                         on (wants setup's evidence-gathering allowlist)
  *   --unrestricted        pass --dangerously-skip-permissions (already the
@@ -415,7 +416,7 @@ function pidAlive(pid) {
 }
 
 const VALUE_FLAGS = new Set(['job', 'conversation', 'model', 'effort', 'timeout', 'restrict', 'prompt', 'prompt-file']);
-const BOOL_FLAGS = new Set(['continue', 'restricted', 'unrestricted', 'json', 'apply', 'dry-run', 'stdin']);
+const BOOL_FLAGS = new Set(['brain', 'continue', 'restricted', 'unrestricted', 'json', 'apply', 'dry-run', 'stdin']);
 
 // Flags dropped in 0.2. They get their own error instead of falling through to
 // "unknown flag", so a 0.1 caller learns what replaced them.
@@ -983,12 +984,20 @@ function resolveRun(mode, opts, priorJob = null) {
   }
 
   // model / effort
+  const brain = mode === 'staffer' && (opts.brain || priorJob?.brain);
+  if (brain && opts.effort && !opts.model) {
+    die('--effort on a brain job requires --model; pass --model <family> with --effort, or omit --effort to keep the brain job model.');
+  }
   if (opts.effort && !['low', 'medium', 'high'].includes(opts.effort)) {
     die('--effort must be low|medium|high');
   }
   let model;
   if (opts.model) {
     model = normalizeModel(opts.model, opts.effort);
+  } else if (priorJob?.model && !opts.effort) {
+    model = priorJob.model;
+  } else if (brain) {
+    model = 'gemini-4-argon-medium';
   } else if (opts.effort) {
     model = `gemini-3.8-flash-${opts.effort}`;
   } else {
@@ -1026,11 +1035,10 @@ function resolveRun(mode, opts, priorJob = null) {
   const conversation = priorJob ? priorJob.conversation_id : null;
   refuseRunningFollowUp(state, conversation, priorJob?.id || null);
   if (priorJob) {
-    if (!opts.model && !opts.effort && priorJob.model) model = priorJob.model;
     if (!opts.restricted && !opts.unrestricted && priorJob.profile) { profile = priorJob.profile; profileSource = 'inherited'; }
   }
   if (profileSource === 'project') process.stderr.write(`agy-staff: profile=${profile} set by project policy (${configPath()})\n`);
-  return { mode, model, profile, profileSource, background, timeout, conversation, parentJobId: priorJob?.id || null, originalCwd: priorJob?.cwd || null };
+  return { mode, ...(brain && { brain: true }), model, profile, profileSource, background, timeout, conversation, parentJobId: priorJob?.id || null, originalCwd: priorJob?.cwd || null };
 }
 
 /** Task text comes from exactly one source: --prompt, --prompt-file, or
@@ -1062,8 +1070,7 @@ function taskText(opts) {
   return '';
 }
 
-function buildPrompt(mode, opts) {
-  const task = taskText(opts);
+function buildPrompt({ mode, brain }, task) {
   const context = gatherContext();
 
   if (!task) {
@@ -1080,7 +1087,7 @@ function buildPrompt(mode, opts) {
   }
   // ask is zero-tool by design: question only, no workspace context
   if (mode === 'ask') return fillTemplate('ask', { TASK: task });
-  return fillTemplate(mode, {
+  return fillTemplate(brain ? 'brain' : mode, {
     TASK: task,
     CONTEXT: context,
     WORKSPACE: mode === 'implement' ? dirtyWorkspacePrompt() : '',
@@ -1278,7 +1285,7 @@ async function executeRun(resolved, prompt, opts, execution = null) {
 function cmdRun(mode, opts) {
   const task = taskText(opts); // Resolve prompt-file/stdin in the caller's cwd.
   const resolved = resolveRun(mode, opts);
-  const prompt = buildPrompt(mode, { prompt: task });
+  const prompt = buildPrompt(resolved, task);
   return dispatch(resolved, prompt, { ...opts, promptSource: { kind: 'template', task } });
 }
 
@@ -1298,6 +1305,7 @@ async function dispatch(resolved, prompt, opts) {
   // job ID so `continue --job <id>` works uniformly across all five personas.
   const record = {
     id: jobId, mode, pid: resolved.background ? null : process.pid, status: 'running', cwd: process.cwd(),
+    ...(resolved.brain && { brain: true }),
     model: resolved.model, profile: resolved.profile, profileSource: resolved.profileSource,
     timeout: resolved.timeout, conversation_id: resolved.conversation || null,
     parent_job_id: opts.parentJobId || resolved.parentJobId || null,
@@ -1809,6 +1817,9 @@ function cmdRestart(opts) {
   if (liveJobStatus(job) === 'running') die('job is still running; cancel it before restarting');
   if (!job.spec_file) die('this legacy job has no stored restart specification');
   const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
+  if (spec.resolved.brain && (opts.model || opts.effort)) {
+    die('restart uses the recorded brain model; omit --model and --effort, or start a new staffer --brain job with --model.');
+  }
   enterOriginalWorkspace(spec.cwd);
   const resolved = { ...spec.resolved, conversation: null, timeout: DEFAULTS.timeout[job.mode] };
   if (opts.timeout) {
@@ -1818,7 +1829,8 @@ function cmdRestart(opts) {
   // historical snapshots and append current facts without parsing task text.
   const source = spec.prompt_source || { kind: 'legacy', text: spec.prompt };
   let prompt;
-  if (source.kind === 'template') prompt = buildPrompt(job.mode, { prompt: source.task });
+  // A restarted follow-up has no conversation history to supply its brain instructions.
+  if (source.kind === 'template' || (source.kind === 'followup' && resolved.brain)) prompt = buildPrompt(resolved, source.task);
   else if (source.kind === 'followup') prompt = `${job.mode === 'implement' ? dirtyWorkspacePrompt() + '\n\n' : ''}Follow-up task in a fresh conversation:\n\n${source.task}`;
   else {
     const current = `${gatherContext()}\n\n${job.mode === 'implement' ? dirtyWorkspacePrompt() || 'Working tree is currently clean.' : ''}`;
@@ -1998,7 +2010,7 @@ function main() {
   if (!cmd) {
     die(
       'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|restart|observe|status|wait|result|cancel|setup> [flags]\n' +
-        'flags: --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
+        'flags: --brain (staffer) --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
         '--prompt <text> --prompt-file <path> --stdin --job <id> (continue) --json (review) ' +
         '--apply --restrict <modes|none> (setup)\n' +
         'task text for staffer/research/review/implement/ask/continue comes from exactly one of ' +
@@ -2009,6 +2021,7 @@ function main() {
     );
   }
   const opts = parseFlags(rest, { taskCommand: MODES.includes(cmd) || cmd === 'continue' });
+  if (opts.brain && cmd !== 'staffer') die('--brain is only valid with `staffer`; continue and restart inherit the original job configuration.');
   if (opts.continue) rejectLegacyContinuation('continue', cmd, opts);
   if (opts.conversation !== undefined) rejectLegacyContinuation('conversation', cmd, opts);
   if (opts.job !== undefined && cmd !== 'continue') {

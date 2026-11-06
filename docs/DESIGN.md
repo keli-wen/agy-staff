@@ -51,7 +51,7 @@ The integration never judges. It does not decide whether work is good enough, wh
 - **The brief is all the worker knows.** The worker sees its brief and its own conversation, not the host's discussion. A brief states the outcome and completion criteria, the relevant background and constraints, settled decisions, existing authorizations, and the shape of the deliverable.
 - **Task text is opaque.** It arrives through exactly one explicit source: an argument, a file or stdin. The companion never re-splits it, and flag-like text inside it stays text. A misparsed brief silently changes behavior, which is worse than a rejected command.
 - **The user's words pass through.** The host forwards the request, its constraints and its authorizations verbatim and adds framing around them, never in place of them. Instructions addressed to the host about orchestration, such as which skill to use or what to delegate, stay with the host.
-- **Workers share one way of working.** Every tool-using persona does its assignment itself without delegating further, respects a stated deadline, and writes its final message only after all started work has finished. `staffer`, `researcher` and `implementer` also report confirmed contradictions between the brief's premises and what they observed, and open their final message with a status line: done, done with concerns, or blocked (`reviewer` keeps its review verdict and findings format).
+- **Workers share one way of working.** On direct invocations, every tool-using persona does its assignment itself without delegating further, respects a stated deadline, and writes its final message only after all started work has finished. `staffer`, `researcher` and `implementer` also report confirmed contradictions between the brief's premises and what they observed, and open their final message with a status line: done, done with concerns, or blocked (`reviewer` keeps its review verdict and findings format).
 - **Personas are thin.** A persona template adds a stance, an evidence discipline and the guardrails, nothing tied to a particular task or to the worker CLI's internal tool heuristics. The worker model is post-trained on its own built-in tools and output limits; overriding those choices in prompt prose (for example, forcing shell commands in place of native file readers) trades one tool limit for another. Flavor-specific contracts, such as how to review code versus a plan, travel in the brief; the skill composes them from a reference file.
 
 | Persona | Contract |
@@ -134,7 +134,19 @@ Every state other than running is final for that job. Continue and restart never
 
 ## 10. Orchestration
 
-The lead persona is guidance for the host, not a scheduler.
+The two orchestration skills differ in who proposes the approach. With `brain`, the external reasoning lead originates the proposal in a `staffer --brain` job and may use a native Flash research child for read-only reconnaissance. The host challenges the proposal with evidence and owns implementation, verification and delivery.
+```mermaid
+flowchart TD
+    G["Host: hand off goal, constraints and evidence"] --> P["Brain: propose a route"]
+    P --> C{"Host: do the key assumptions hold?"}
+    C -->|"Yes"| D["Host: proceed within scope and verify"]
+    C -->|"Missing facts"| E["Gather targeted evidence"]
+    E --> C
+    C -->|"Counterexample"| R["Continue brain job with the evidence"]
+    R --> P
+```
+
+In a design-only task, proceeding means delivering the checked proposal. With `lead`, the host sets the direction and coordinates the work as follows.
 
 - **Frame just enough.** State the outcome and the completion criteria. When the right next step is unclear, discovery itself can be delegated. Copy the user's constraints verbatim, keep orchestration instructions out of the brief, and separate settled decisions from open ones after checking the facts they rest on. A deadline sets the job's time limit and appears in the brief.
 - **Delegate substantive work by default.** Delegation saves the host's context and quota, not total time or tokens. Handle work directly when it is small, or when existing context makes handoff and review more expensive. Noisy exploration whose conclusion is cheap to check hands off cleanly; a tightly coupled change stays in one assignment with its investigation and verification. Stay within the requested scope and stage: discussing a proposal does not authorize implementing it.

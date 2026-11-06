@@ -90,17 +90,20 @@ test('deleting both markers from an expected direct persona or placing markers a
   // Markers placed after "## Locating the companion" fail.
   fs.writeFileSync(researcher, `${stripped}\n${SHARED_START}\n${SHARED_END}\n`);
   assert.throws(() => generateCanonicalSkills({ root }), /Shared rules block must appear before dispatch example in skills[\\/]researcher[\\/]SKILL\.md/);
-
-  // Restore researcher, then verify unexpected markers in non-persona skills (lead/jobs) fail.
-  fs.writeFileSync(researcher, original);
-  const lead = path.join(root, 'skills/lead/SKILL.md');
-  fs.appendFileSync(lead, `\n${SHARED_START}\n${SHARED_END}\n`);
-  assert.throws(() => generateCanonicalSkills({ root }), /Unexpected shared persona rules block in skills[\\/]lead[\\/]SKILL\.md/);
 });
+
+for (const name of ['brain', 'jobs', 'lead']) {
+  test(`shared persona markers are rejected in ${name}`, t => {
+    const root = fixture(t);
+    const entry = path.join(root, 'skills', name, 'SKILL.md');
+    fs.appendFileSync(entry, `\n${SHARED_START}\n${SHARED_END}\n`);
+    assert.throws(() => generateCanonicalSkills({ root }), /Unexpected shared persona rules block/);
+  });
+}
 
 test('host shared rules stay separate from worker prompt templates', () => {
   const hostShared = fs.readFileSync(path.join(ROOT, 'templates/persona-skill-rules.md'), 'utf8');
-  for (const template of ['staffer.md', 'research.md', 'review.md', 'implement.md', 'ask.md']) {
+  for (const template of ['staffer.md', 'brain.md', 'research.md', 'review.md', 'implement.md', 'ask.md']) {
     const worker = fs.readFileSync(path.join(ROOT, 'templates', template), 'utf8');
     assert.ok(!worker.includes(SHARED_START), `${template} must not include shared host markers`);
     assert.ok(!worker.includes(SHARED_END), `${template} must not include shared host markers`);

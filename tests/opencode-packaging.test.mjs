@@ -6,9 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { generateSkills, skillFiles, ROOT, COMPATIBILITY_CONTEXT } from '../scripts/generate-skills.mjs';
 import { sandbox, FAKE_AGY, jobIdOf } from './helpers.mjs';
-import { pack } from './pi-pack-helpers.mjs';
-
-const names = ['ask', 'implementer', 'jobs', 'lead', 'researcher', 'reviewer', 'staffer'];
+import { names, pack } from './pi-pack-helpers.mjs';
 
 test('OpenCode output preserves canonical policy, rewrites invocations, and resolves every resource', () => {
   assert.deepEqual(generateSkills({ target: 'opencode', check: true }).changed, []);
@@ -18,6 +16,7 @@ test('OpenCode output preserves canonical policy, rewrites invocations, and reso
     const canonical = fs.readFileSync(path.join(ROOT, 'skills', name, 'SKILL.md'), 'utf8');
     const generated = fs.readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8');
     assert.match(generated, new RegExp(`^name: agy-${name}$`, 'm'));
+    if (name === 'brain') assert.match(generated, /\bstaffer --brain\b/);
     assert.doesNotMatch(generated, /^(?:allowed-tools|argument-hint|user-invocable):/m);
     assert.doesNotMatch(generated, /\/agy:|\$agy:|\/skill:agy-/);
     let body = canonical.replace(/^---\n[\s\S]*?\n---\n/, '');
@@ -57,7 +56,7 @@ test('packed OpenCode plugin registers only bundled branded skills idempotently 
   const { metadata, dir } = pack(sb.root);
   const packed = new Set(metadata.files.map(file => file.path));
   for (const file of skillFiles(ROOT, 'opencode').keys()) assert.ok(packed.has(file.split(path.sep).join('/')), file);
-  for (const file of ['opencode.mjs', 'templates/harness-compatibility.md', 'companion/agy-companion.mjs', 'docs/INSTALL_FOR_AGENTS.md']) assert.ok(packed.has(file), file);
+  for (const file of ['opencode.mjs', 'templates/harness-compatibility.md', 'templates/brain.md', 'skills/brain/SKILL.md', 'companion/agy-companion.mjs', 'docs/INSTALL_FOR_AGENTS.md']) assert.ok(packed.has(file), file);
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
   assert.equal(manifest.main, './opencode.mjs');
   assert.equal(manifest.exports, './opencode.mjs');

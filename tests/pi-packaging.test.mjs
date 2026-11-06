@@ -6,12 +6,11 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { generateSkills, skillFiles, ROOT, COMPATIBILITY_CONTEXT } from '../scripts/generate-skills.mjs';
 import { sandbox, FAKE_AGY, jobIdOf } from './helpers.mjs';
-import { pack } from './pi-pack-helpers.mjs';
+import { names, pack } from './pi-pack-helpers.mjs';
 
 const json = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const generatePiSkills = options => generateSkills({ ...options, target: 'pi' });
 const piFiles = () => skillFiles(ROOT, 'pi');
-const names = ['ask', 'implementer', 'jobs', 'lead', 'researcher', 'reviewer', 'staffer'];
 
 test('Pi adapters are current; canonical names and all relative resources remain valid', () => {
   assert.deepEqual(generatePiSkills({ check: true }).changed, []);
@@ -20,6 +19,7 @@ test('Pi adapters are current; canonical names and all relative resources remain
     const generated = fs.readFileSync(path.join(ROOT, 'pi-skills', `agy-${name}`, 'SKILL.md'), 'utf8');
     assert.match(canonical, new RegExp(`^name: ${name}$`, 'm'));
     assert.match(generated, new RegExp(`^name: agy-${name}$`, 'm'));
+    if (name === 'brain') assert.match(generated, /\bstaffer --brain\b/);
     assert.doesNotMatch(generated, /^(?:allowed-tools|argument-hint|user-invocable):/m);
     assert.doesNotMatch(generated, /\/agy:|\$agy:/);
     const skillDir = path.join(ROOT, 'pi-skills', `agy-${name}`);
@@ -144,7 +144,7 @@ test('actual npm archive contains resources and runs ask + detached job collecti
   const packed = new Set(metadata.files.map(file => file.path));
   // npm lists archive entries with forward slashes; piFiles() keys use path.sep.
   for (const file of piFiles().keys()) assert.ok(packed.has(file.split(path.sep).join('/')), `not packed: ${file}`);
-  for (const file of ['companion/agy-companion.mjs', 'templates/ask.md', 'templates/staffer.md', 'templates/harness-compatibility.md', 'LICENSE']) {
+  for (const file of ['companion/agy-companion.mjs', 'templates/ask.md', 'templates/staffer.md', 'templates/harness-compatibility.md', 'templates/brain.md', 'skills/brain/SKILL.md', 'LICENSE']) {
     assert.ok(packed.has(file), `not packed: ${file}`);
   }
   assert.ok(!packed.has('adapters/harness-compatibility.md'), 'adapters should not be packed');
@@ -167,7 +167,9 @@ test('actual npm archive contains resources and runs ask + detached job collecti
   const ask = invoke('ask', ['ask', '--prompt', 'reply with OK']);
   assert.equal(ask.status, 0, ask.stderr);
   assert.match(ask.stdout, /packaged OK/);
-  const start = invoke('staffer', ['staffer', '--prompt', 'read-only test'], { FAKE_AGY_SLEEP_MS: '1200' });
+  const start = invoke('brain', ['staffer', '--brain', '--prompt', 'propose a plan'], {
+    FAKE_AGY_SLEEP_MS: '1200', FAKE_AGY_MODELS_OUTPUT: 'gemini-4-argon-medium\tArgon Medium',
+  });
   assert.equal(start.status, 0, start.stderr);
   const id = jobIdOf(start.stdout);
   const brief = invoke('jobs', ['wait', id, '--timeout', '1ms']);
