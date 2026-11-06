@@ -38,7 +38,8 @@ test('one shared edit reaches all five canonical personas and both adapters; che
     for (const location of [`skills/${persona}`, `pi-skills/agy-${persona}`, `opencode-skills/agy-${persona}`]) {
       const content = fs.readFileSync(path.join(root, location, 'SKILL.md'), 'utf8');
       assert.equal(content.split(addition.trim()).length, 2, location);
-      assert.ok(content.indexOf('## Shared dispatch rules') < content.indexOf('## Locating the companion'));
+      assert.match(content, /continue --job <id>/);
+      assert.ok(content.indexOf(SHARED_START) < content.indexOf('## Locating the companion'));
     }
   }
   assert.equal(fs.readFileSync(canonical, 'utf8').split(SHARED_START)[0], before.split(SHARED_START)[0]);
@@ -50,14 +51,15 @@ test('manual edits to generated rules fail check, while persona edits outside th
   const root = fixture(t);
   const canonical = path.join(root, 'skills/staffer/SKILL.md');
   const modified = fs.readFileSync(canonical, 'utf8')
-    .replace('## Shared dispatch rules', '## Hand-edited shared rules')
+    .replace(new RegExp(`${SHARED_START}[\\s\\S]*?${SHARED_END}`), `${SHARED_START}\nHand-edited shared rules.\n${SHARED_END}`)
     + '\nPersona-specific guidance maintained here.\n';
   fs.writeFileSync(canonical, modified);
   assert.throws(() => generateCanonicalSkills({ root, check: true }), /Stale canonical persona rules/);
   assert.equal(fs.readFileSync(canonical, 'utf8'), modified);
   generateCanonicalSkills({ root });
   const content = fs.readFileSync(canonical, 'utf8');
-  assert.match(content, /## Shared dispatch rules/);
+  assert.doesNotMatch(content, /Hand-edited shared rules/);
+  assert.match(content, /continue --job <id>/);
   assert.match(content, /Persona-specific guidance maintained here/);
 });
 
@@ -101,7 +103,7 @@ test('host shared rules stay separate from worker prompt templates', () => {
   for (const template of ['staffer.md', 'research.md', 'review.md', 'implement.md', 'ask.md']) {
     const worker = fs.readFileSync(path.join(ROOT, 'templates', template), 'utf8');
     assert.ok(!worker.includes(SHARED_START), `${template} must not include shared host markers`);
-    assert.ok(!worker.includes('## Shared dispatch rules'), `${template} must not embed host dispatch rules`);
+    assert.ok(!worker.includes(SHARED_END), `${template} must not include shared host markers`);
     assert.ok(!worker.includes('Locating the companion'), `${template} must not embed host companion invocation instructions`);
   }
   assert.ok(!hostShared.includes('Status: DONE | DONE_WITH_CONCERNS'), 'host shared rules must not inject worker status-header format into the host');

@@ -14,7 +14,7 @@ The shared block appears before `## Locating the companion` (the dispatch comman
 
 Run `npm run generate:skills` after changing `templates/persona-skill-rules.md` or any file under `skills/`. The generator:
 
-1. Validates that all five direct persona entrypoints (`skills/{ask,implementer,researcher,reviewer,implementer,staffer}/SKILL.md`) exist and each has one well-formed marker pair before `## Locating the companion`, and rejects markers in `skills/{jobs,lead}/` or non-entrypoint files.
+1. Validates that all five direct persona entrypoints (`skills/{ask,implementer,researcher,reviewer,staffer}/SKILL.md`) exist and each has one well-formed marker pair before `## Locating the companion`, and rejects markers in `skills/{jobs,lead}/` or non-entrypoint files.
 2. Synchronizes the marked block in canonical `skills/<persona>/SKILL.md`.
 3. Generates `pi-skills/` and `opencode-skills/` from the updated canonical skills. Target-specific generation (`npm run generate:pi`, `npm run generate:opencode`) also synchronizes canonical blocks first.
 
