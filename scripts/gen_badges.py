@@ -129,6 +129,7 @@ PAPER = "#F8F9FA"    # Google grey 50
 EDGE = "#BDC1C6"     # Google grey 400
 BLUE = "#4285F4"     # Google / Gemini blue
 PURPLE = "#9B72CB"   # Gemini heritage gradient purple
+VIOLET = "#6A3AB2"   # Deep royal purple from design.svg (/agy:brain)
 YELLOW = "#FBBC04"   # Google yellow
 ARCH_APEX = "#DB863D"  # sampled from the official Antigravity mark (apex)
 ARCH_LEGS = "#3289FC"  # sampled from the official Antigravity mark (legs)
@@ -226,6 +227,9 @@ SPECS = [
     ("model-gemini-3-8-flash", "MODEL", "GEMINI 3.8 FLASH", PURPLE, PAPER,
      [(SPARKLE, BLUE, 2, None)],
      "model: Gemini 3.8 Flash", True),
+    ("model-gemini-4-argon", "MODEL", "GEMINI 4 ARGON", VIOLET, PAPER,
+     [(SPARKLE, BLUE, 2, None)],
+     "model: Gemini 4 Argon", True),
     ("claude-code-plugin", "CLAUDE CODE", "PLUGIN", CLAUDE, PAPER, [],
      "Claude Code: plugin", True),
     ("codex-plugin", "CODEX", "PLUGIN", CODEX, PAPER, [],

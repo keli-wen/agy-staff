@@ -2,7 +2,7 @@
 
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">Simplified Chinese</a></p>
 
-<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-8-flash.svg" height="20" alt="model: Gemini 3.8 Flash"></p>
+<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-4-argon.svg" height="20" alt="model: Gemini 4 Argon"> <img src="assets/badges/model-gemini-3-8-flash.svg" height="20" alt="model: Gemini 3.8 Flash"></p>
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
@@ -14,9 +14,9 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ## What & Why
 
-agy-staff lets your senior agents delegate to `agy`, which ships fast Gemini 3.8 Flash. Five personas: staffer (general-purpose), researcher, reviewer (code **and** plans/decisions), implementer, and ask — plus a model-facing jobs skill. Claude Code uses `/agy:<persona>` and Codex uses `$agy:<persona>`.
+agy-staff pairs your senior agents with `agy`, which ships both **Gemini 4 Argon** and fast **Gemini 3.8 Flash**. It gives you two orchestration modes — `lead` (your host directs fast Flash workers) and `brain` (Argon originates the proposal while your host challenges and delivers) — plus five worker personas: `staffer` (general-purpose), `researcher`, `reviewer` (code **and** plans/decisions), `implementer`, and `ask`, backed by a model-facing `jobs` skill. Claude Code uses `/agy:<skill>` and Codex uses `$agy:<skill>`.
 
-If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And where speed isn't the point, a second model family looking at the same code buys coverage and robustness your main agent can't give itself.
+If you use Codex you know the feeling: GPT-5.6-Sol is slow even with fast mode on. Claude Code is quicker but still not fast, and Fable quota is scarce enough that you want it orchestrating subagents, not grinding through every survey and review itself. An agy worker gives you a fast lane — second opinions in seconds, research and reviews at Flash speed, scoped implementation handled off to the side while you keep moving. And on hard design problems or questions that lean on broad world knowledge, Gemini 4 Argon is strong enough to serve as a peer second brain alongside Astra or Fable: with `brain`, Argon frames the route first, your host verifies its assumptions against the repo before executing, and a second model family looking at the same problem buys coverage and judgment your main agent can't give itself.
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
@@ -46,7 +46,7 @@ agy-staff Bench v1 runs Claude Code and Codex on three benchmarks, each task thr
 
 ### Invoke a persona
 
-Type `/agy:` in Claude Code and the five personas are right there:
+Type `/agy:` in Claude Code and the orchestration modes and personas are right there:
 
 ![the /agy: command menu in Claude Code](assets/claude-code-screenshot.png)
 
@@ -80,7 +80,7 @@ codex plugin add agy@agy-staff
 <summary>Using Pi?</summary>
 
 Install: `pi install git:github.com/keli-wen/agy-staff`.
-Skills are prefixed as `/skill:agy-<persona>` (e.g. `/skill:agy-ask reply with OK`), with `/skill:agy-jobs` for job management.
+Skills are prefixed as `/skill:agy-<persona>` (e.g. `/skill:agy-ask reply with OK`), including `/skill:agy-lead`, `/skill:agy-brain`, and `/skill:agy-jobs` for job management.
 Update with `pi update --extension git:github.com/keli-wen/agy-staff`, then run `/reload`.
 
 </details>
@@ -94,7 +94,7 @@ With OpenCode V1 (verified on 1.18.34), install the package through its native p
 opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global
 ```
 
-Restart OpenCode, then run `/agy-ask reply with OK`. The plugin automatically registers all eight `agy-*` skills and their native slash commands, including `/agy-lead` and `/agy-jobs`. No separate skills path or command wrappers are needed. Node.js and an authenticated `agy` are required, as above.
+Restart OpenCode, then run `/agy-ask reply with OK`. The plugin automatically registers all eight `agy-*` skills and their native slash commands, including `/agy-lead`, `/agy-brain`, and `/agy-jobs`. No separate skills path or command wrappers are needed. Node.js and an authenticated `agy` are required, as above.
 
 OpenCode caches the complete package spec. Restarting does not refresh an unchanged Git spec. To upgrade, choose a newer Git tag or commit and run `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`, then restart. See [the reference](docs/REFERENCE.md#opencode) for config and local development. OpenCode V2 is not covered by this adapter.
 
@@ -154,9 +154,9 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, in Pi `/sk
 
 ## Core design
 
-`lead` adds task orchestration guidance for your current agent. Within lead, orient enough to frame the assignment, delegate substantive work to `staffer` by default, wait for the result, then assess it and integrate or follow up. Specialists provide dedicated guidance when useful, while `ask` is reserved for testing. The host owns cross-task decisions, acceptance, integration, and delivery, using the existing jobs workflow. Invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, `/skill:agy-lead` in Pi, or `/agy-lead` in OpenCode.
+`lead` adds task orchestration guidance for your current agent. Within lead, orient enough to frame the assignment, delegate substantive work to `staffer` by default, wait for the result, then assess it and integrate or follow up. Specialists provide dedicated guidance when useful, while `ask` is reserved for testing. The host owns cross-task decisions, acceptance, integration, and delivery, using the existing jobs workflow.
 
-With `brain`, Argon proposes the route first. The host supplies the goal and evidence, challenges assumptions before execution, and owns verification. Use `/agy:brain` (Claude Code), `$agy:brain` (Codex), `/skill:agy-brain` (Pi), or `/agy-brain` (OpenCode). See the [brain skill](skills/brain/SKILL.md).
+With `brain`, Argon proposes the route first. The host supplies the goal and evidence, challenges assumptions before execution, and owns verification. See the [brain skill](skills/brain/SKILL.md).
 
 `ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 
