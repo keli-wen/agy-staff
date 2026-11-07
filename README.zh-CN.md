@@ -14,9 +14,9 @@
 
 ## 它适合做什么
 
-agy-staff 把自带 **Gemini 4 Argon** 与 **Gemini 3.8 Flash** 的 `agy` 接入你的主力 agent，提供两种编排模式与五种执行角色（persona）：`lead` 由宿主主导并派工给高速 Flash 员工，`brain` 由 Argon 先提出方案、宿主核查假设并负责交付；五个角色中，`staffer` 适合通用任务，`researcher` 负责调研，`reviewer` 审查代码、方案和决策，`implementer` 处理编码任务，`ask` 用于不需要工具的简短问答。除 `ask` 外都使用相同的后台任务机制，由 `jobs` 技能负责等待、查看进度和收取结果。
+agy-staff 把自带 **Gemini 4 Argon** 与 **Gemini 3.8 Flash** 的 `agy` 接入主力 agent：提供 `lead`、`brain` 两种编排模式，以及 `staffer`（通用）、`researcher`（调研）、`reviewer`（审代码与方案）、`implementer`（编码）、`ask`（简短问答）五种角色，配合 `jobs` 技能管理后台任务。
 
-为什么需要它：一方面，GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。把这些任务交给 agy 的 Flash 员工，几秒钟就能拿到第二意见，调研、审查和范围明确的实现都能放到后台高速完成。另一方面，Gemini 4 Argon 在系统设计和世界知识上足够强，可以作为与 Astra、Fable 同量级的「第二大脑」（second brain）参与编排：遇到复杂设计时，通过 `brain` 让 Argon 先独立出方案并标出关键假设，再由宿主结合仓库证据核查反例、打回修订并负责落地——把跨模型家族的互补从“事后审代码”提前到“动手前定方向”。
+为什么需要它：GPT-6.1-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，不划算亲自跑每一次调研和审查。agy 同时给你**高速员工**和**第二大脑**：Flash 负责秒级第二意见，并在后台高速完成调研、审查和范围明确的实现；Argon 则在系统设计与世界知识上足够强，能作为与 Astra、Fable 同量级的编排搭档，从另一个模型家族的视角先出方案，再由宿主核查假设并交付。
 
 ![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
 
