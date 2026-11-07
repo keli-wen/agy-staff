@@ -6,11 +6,9 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { sandbox } from './helpers.mjs';
-import { exec, pack } from './pi-pack-helpers.mjs';
+import { brandedNames as names, exec, pack } from './pi-pack-helpers.mjs';
 
-const names = ['agy-ask', 'agy-implementer', 'agy-jobs', 'agy-lead', 'agy-researcher', 'agy-reviewer', 'agy-staffer'];
-
-test('OpenCode V1: native package install registers seven skills and same-named commands', { timeout: 180_000 }, async t => {
+test('OpenCode V1: native package install registers the bundled skills and same-named commands', { timeout: 180_000 }, async t => {
   const binary = process.env.AGY_OPENCODE_BIN || 'opencode';
   const sb = sandbox('opencode-host');
   t.after(() => fs.rmSync(sb.root, { recursive: true, force: true }));
@@ -46,7 +44,15 @@ test('OpenCode V1: native package install registers seven skills and same-named 
   exec(binary, ['plugin', gitSpec, '--global', '--force'], { cwd: sb.repo, env, timeout: 120_000 });
   const configured = JSON.parse(exec(binary, ['debug', 'config'], { cwd: sb.repo, env, timeout: 120_000 }));
   assert.ok(configured.plugin.some(entry => (Array.isArray(entry) ? entry[0] : entry) === gitSpec), 'Git install must replace the tarball entry');
-  const discovered = JSON.parse(exec(binary, ['debug', 'skill'], { cwd: sb.repo, env, timeout: 120_000 }));
+  // The CLI can exit before a large skill listing finishes flushing to a pipe.
+  const listing = path.join(sb.root, 'discovered-skills.json');
+  const fd = fs.openSync(listing, 'w');
+  try {
+    exec(binary, ['debug', 'skill'], { cwd: sb.repo, env, timeout: 120_000, stdio: ['ignore', fd, 'pipe'] });
+  } finally {
+    fs.closeSync(fd);
+  }
+  const discovered = JSON.parse(fs.readFileSync(listing, 'utf8'));
   // OpenCode also ships its own built-in skills.
   const skills = discovered.filter(skill => skill.name.startsWith('agy-'));
   assert.deepEqual(skills.map(skill => skill.name).sort(), names);

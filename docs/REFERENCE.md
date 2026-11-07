@@ -14,6 +14,8 @@ Back to the [README](../README.md). See the [Chinese reference](REFERENCE.zh-CN.
 
 `lead` provides task orchestration guidance for the current agent, reusing the existing companion modes without adding a mode of its own; invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, `/skill:agy-lead` in Pi, or `/agy-lead` in OpenCode.
 
+`brain` asks an external AGY reasoning lead to make the first proposal; the host challenges its assumptions and owns execution and delivery. Invoke `/agy:brain` in Claude Code, `$agy:brain` in Codex, `/skill:agy-brain` in Pi, or `/agy-brain` in OpenCode. The skill launches `staffer --brain`, a background job that defaults to `gemini-4-argon-medium`.
+
 Execution style is fixed per mode and cannot be overridden by a flag. `continue` inherits the resolved mode's style (continuing an `ask` stays synchronous; continuing the others returns a job id).
 
 Claude Code, Codex, Pi, and OpenCode surface the same personas, backed by one companion script (`companion/agy-companion.mjs`, Node stdlib only) and shared prompt templates (`templates/`). Invocation tokens: `/agy:<persona>` on Claude Code, `$agy:<persona>` on Codex, `/skill:agy-<persona>` on Pi, and `/agy-<persona>` on OpenCode. Pi's manifest exposes only `pi-skills/`, generated mechanically from canonical `skills/` via `npm run generate:pi`. Generated skills use `agy-` prefixes, rewrite sibling references, and append `templates/harness-compatibility.md` (directing the host to adapt missing tools to equivalent methods without dropping requirements, or ask for help). Job management (`wait`/`status`/`result`/`cancel`/`continue`/`setup`) lives in `jobs` (`agy-jobs` on Pi and OpenCode) plus the companion CLI — ask for it in natural language ("is the agy job done?").
@@ -108,6 +110,7 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 | Flag | Meaning |
 |---|---|
 | `--job <id>` | (`continue` only) resume a specific recorded job's conversation with its original persona, model, and permission profile |
+| `--brain` | on a fresh `staffer` job, use the advisory brain template and its model default; continuation and restart inherit the job configuration |
 | `--model <id>` | explicit agy model (see `agy models`). Ids are effort-suffixed (`gemini-3.8-flash-low`); the companion normalizes bare families (`gemini-3.8-flash` + `--effort`) and the aliases `flash`/`pro`, and rejects unknown ids pre-flight |
 | `--effort low\|medium\|high` | shorthand for `gemini-3.8-flash-<effort>` |
 | `--restricted` / `--unrestricted` | permission profile override (ignored by `ask`). `unrestricted` is the default for `staffer`/`research`/`review`/`implement`, so `--restricted` is the flag you actually reach for |
@@ -282,7 +285,7 @@ The native installer adds a package entry to the `plugin` array in the OpenCode 
 }
 ```
 
-The plugin appends its absolute bundled `opencode-skills/` directory to `skills.paths`, preserving existing paths and avoiding duplicate registrations. OpenCode discovers seven branded skills and exposes them as same-named slash commands: `/agy-ask`, `/agy-staffer`, `/agy-researcher`, `/agy-reviewer`, `/agy-implementer`, `/agy-jobs`, and `/agy-lead`. No command wrappers are installed. Existing OpenCode skill permissions still apply.
+The plugin appends its absolute bundled `opencode-skills/` directory to `skills.paths`, preserving existing paths and avoiding duplicate registrations. OpenCode discovers eight branded skills and exposes them as same-named slash commands: `/agy-ask`, `/agy-staffer`, `/agy-researcher`, `/agy-reviewer`, `/agy-implementer`, `/agy-jobs`, `/agy-lead`, and `/agy-brain`. No command wrappers are installed. Existing OpenCode skill permissions still apply.
 
 `npm run generate:opencode` generates these entrypoints from canonical `skills/`, copying all assets, rewriting invocation syntax and sibling paths, and appending the same host compatibility context as Pi. The companion and prompt templates remain shared. Install the whole package; copying only the plugin file would lose its relative resources.
 
@@ -306,7 +309,7 @@ companion/agy-companion.mjs    command entrypoint, modes, job management and set
 companion/stream-worker.mjs    streaming execution, process cleanup and deadlines
 companion/observation.mjs      event parsing, progress snapshots and output budgets
 companion/state-lock.mjs       state-write locking and stale-lock recovery
-templates/                    shared prompt templates (staffer/ask/research/review/implement) and harness-compatibility.md
+templates/                    worker prompts (including brain.md), shared persona rules, and host compatibility guidance
 .claude-plugin/               Claude Code plugin + self-hosting marketplace manifests
 .codex-plugin/plugin.json     Codex plugin manifest
 .agents/plugins/              Codex marketplace manifest
@@ -315,7 +318,7 @@ opencode-skills/              generated agy-* entrypoints/resources for OpenCode
 opencode.mjs                  OpenCode V1 package plugin; registers bundled skills
 scripts/generate-skills.mjs   generates Pi/OpenCode skills and checks for drift
 package.json                  Pi manifest, OpenCode entrypoint, npm file allowlist, and verification commands
-skills/                       canonical personas + jobs (Claude/Codex entrypoints;
+skills/                       eight canonical skills: five personas, lead, brain, and jobs (Claude/Codex entrypoints;
                               reviewer/ and jobs/ carry references/ for on-demand detail)
 assets/                       design diagram + logo + badges
 tests/                        offline regression tests and opt-in integration suites

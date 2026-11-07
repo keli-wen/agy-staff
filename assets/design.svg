@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 448" role="img" aria-label="agy-staff: Claude Code and Codex delegate work via /agy:* to agy staff, the fast Antigravity CLI worker running Gemini 3.8 Flash - staffer for general tasks and nano-banana imagegen, researcher for deep research, reviewer for code and plan second opinions, implementer for scoped coding, plus the tool-free ask; /agy:lead lets the senior agent orchestrate an ongoing task with that staff">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 448" fill="#202124" role="img" aria-label="agy-staff overview: AGY Brain (Antigravity CLI running Gemini 4 Argon) acts as an external second brain that guides Claude Code and Codex via /agy:brain, while the host agents orchestrate with /agy:lead and delegate fast worker tasks via /agy:* to AGY Staff (Gemini 3.8 Flash: staffer, researcher, reviewer, implementer).">
   <style>
-    text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: #202124; }
+    text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .sans { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
     .muted { fill: #5F6368; }
@@ -15,32 +15,64 @@
   <g stroke="#4285F4" stroke-width="1.5" opacity="0.85"><line x1="20" y1="26" x2="32" y2="26"/><line x1="26" y1="20" x2="26" y2="32"/></g>
   <g stroke="#4285F4" stroke-width="1.5" opacity="0.85"><line x1="888" y1="422" x2="900" y2="422"/><line x1="894" y1="416" x2="894" y2="428"/></g>
 
-  <!-- Left: Senior Agents -->
-  <text x="48" y="118" font-size="13" font-weight="700" fill="#1A73E8" letter-spacing="1.5">SENIOR AGENTS</text>
-  <text x="48" y="137" font-size="12.5" class="muted">busy &amp; expensive</text>
-  <rect x="48" y="152" width="210" height="62" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/>
-  <g transform="translate(62,166) scale(1.4)"><path clip-rule="evenodd" d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z" fill="#D97757" fill-rule="evenodd"/></g>
-  <text x="104" y="189" font-size="15.5" font-weight="600">Claude Code</text>
-  <rect x="48" y="226" width="210" height="62" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/>
-  <g transform="translate(62,240) scale(1.4)"><path d="M19.503 0H4.496A4.496 4.496 0 000 4.496v15.007A4.496 4.496 0 004.496 24h15.007A4.496 4.496 0 0024 19.503V4.496A4.496 4.496 0 0019.503 0z" fill="#fff"/><path d="M9.064 3.344a4.578 4.578 0 012.285-.312c1 .115 1.891.54 2.673 1.275.01.01.024.017.037.021a.09.09 0 00.043 0 4.55 4.55 0 013.046.275l.047.022.116.057a4.581 4.581 0 012.188 2.399c.209.51.313 1.041.315 1.595a4.24 4.24 0 01-.134 1.223.123.123 0 00.03.115c.594.607.988 1.33 1.183 2.17.289 1.425-.007 2.71-.887 3.854l-.136.166a4.548 4.548 0 01-2.201 1.388.123.123 0 00-.081.076c-.191.551-.383 1.023-.74 1.494-.9 1.187-2.222 1.846-3.711 1.838-1.187-.006-2.239-.44-3.157-1.302a.107.107 0 00-.105-.024c-.388.125-.78.143-1.204.138a4.441 4.441 0 01-1.945-.466 4.544 4.544 0 01-1.61-1.335c-.152-.202-.303-.392-.414-.617a5.81 5.81 0 01-.37-.961 4.582 4.582 0 01-.014-2.298.124.124 0 00.006-.056.085.085 0 00-.027-.048 4.467 4.467 0 01-1.034-1.651 3.896 3.896 0 01-.251-1.192 5.189 5.189 0 01.141-1.6c.337-1.112.982-1.985 1.933-2.618.212-.141.413-.251.601-.33.215-.089.43-.164.646-.227a.098.098 0 00.065-.066 4.51 4.51 0 01.829-1.615 4.535 4.535 0 011.837-1.388zm3.482 10.565a.637.637 0 000 1.272h3.636a.637.637 0 100-1.272h-3.636zM8.462 9.23a.637.637 0 00-1.106.631l1.272 2.224-1.266 2.136a.636.636 0 101.095.649l1.454-2.455a.636.636 0 00.005-.64L8.462 9.23z" fill="url(#codexgrad)"/></g>
-  <text x="104" y="263" font-size="15.5" font-weight="600">Codex</text>
-  <text x="313" y="188" font-size="12.5" text-anchor="middle" class="muted">delegate via<tspan x="313" dy="19" class="mono" font-size="14" font-weight="700" fill="#1A73E8">/agy:*</tspan></text>
-  <line x1="264" y1="220" x2="352" y2="220" stroke="#1A73E8" stroke-width="1.8" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
-  <g shape-rendering="crispEdges"><rect x="272" y="228" width="5" height="5" fill="#4285F4"/><rect x="286" y="232" width="5" height="5" fill="#9B72CB"/><rect x="300" y="228" width="5" height="5" fill="#FBBC04"/></g>
+  <!-- Left Column (y=46..346): Senior Agents + Second Brain -->
+  <text x="48" y="58" font-size="13" font-weight="700" fill="#1A73E8" letter-spacing="1.5">SENIOR AGENTS</text>
+  <text x="48" y="76" font-size="12.5" class="muted">busy &amp; expensive</text>
+  <rect x="48" y="88" width="210" height="52" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/>
+  <g transform="translate(62,97) scale(1.35)"><path clip-rule="evenodd" d="M20.998 10.949H24v3.102h-3v3.028h-1.487V20H18v-2.921h-1.487V20H15v-2.921H9V20H7.488v-2.921H6V20H4.487v-2.921H3V14.05H0V10.95h3V5h17.998v5.949zM6 10.949h1.488V8.102H6v2.847zm10.51 0H18V8.102h-1.49v2.847z" fill="#D97757" fill-rule="evenodd"/></g>
+  <text x="104" y="119" font-size="15.5" font-weight="600">Claude Code</text>
+  <rect x="48" y="150" width="210" height="52" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/>
+  <g transform="translate(62,160) scale(1.35)"><path d="M19.503 0H4.496A4.496 4.496 0 000 4.496v15.007A4.496 4.496 0 004.496 24h15.007A4.496 4.496 0 0024 19.503V4.496A4.496 4.496 0 0019.503 0z" fill="#fff"/><path d="M9.064 3.344a4.578 4.578 0 012.285-.312c1 .115 1.891.54 2.673 1.275.01.01.024.017.037.021a.09.09 0 00.043 0 4.55 4.55 0 013.046.275l.047.022.116.057a4.581 4.581 0 012.188 2.399c.209.51.313 1.041.315 1.595a4.24 4.24 0 01-.134 1.223.123.123 0 00.03.115c.594.607.988 1.33 1.183 2.17.289 1.425-.007 2.71-.887 3.854l-.136.166a4.548 4.548 0 01-2.201 1.388.123.123 0 00-.081.076c-.191.551-.383 1.023-.74 1.494-.9 1.187-2.222 1.846-3.711 1.838-1.187-.006-2.239-.44-3.157-1.302a.107.107 0 00-.105-.024c-.388.125-.78.143-1.204.138a4.441 4.441 0 01-1.945-.466 4.544 4.544 0 01-1.61-1.335c-.152-.202-.303-.392-.414-.617a5.81 5.81 0 01-.37-.961 4.582 4.582 0 01-.014-2.298.124.124 0 00.006-.056.085.085 0 00-.027-.048 4.467 4.467 0 01-1.034-1.651 3.896 3.896 0 01-.251-1.192 5.189 5.189 0 01.141-1.6c.337-1.112.982-1.985 1.933-2.618.212-.141.413-.251.601-.33.215-.089.43-.164.646-.227a.098.098 0 00.065-.066 4.51 4.51 0 01.829-1.615 4.535 4.535 0 011.837-1.388zm3.482 10.565a.637.637 0 000 1.272h3.636a.637.637 0 100-1.272h-3.636zM8.462 9.23a.637.637 0 00-1.106.631l1.272 2.224-1.266 2.136a.636.636 0 101.095.649l1.454-2.455a.636.636 0 00.005-.64L8.462 9.23z" fill="url(#codexgrad)"/></g>
+  <text x="104" y="181" font-size="15.5" font-weight="600">Codex</text>
 
-  <!-- Lead caption: the senior agents above take the lead via /agy:lead (bracket motif mirrors the footer) -->
-  <g stroke="#5F6368" stroke-width="1"><line x1="48" y1="311" x2="258" y2="311"/><line x1="48" y1="306" x2="48" y2="316"/><line x1="258" y1="306" x2="258" y2="316"/></g>
-  <rect x="101" y="300" width="106" height="22" rx="4" fill="#E8F0FE"/>
-  <g fill="#4285F4" shape-rendering="crispEdges" transform="translate(111,305)"><rect x="0" y="0" width="2" height="12" fill="#202124"/><rect x="2" y="0" width="8" height="2"/><rect x="2" y="2" width="10" height="2"/><rect x="2" y="4" width="10" height="2"/><rect x="2" y="6" width="8" height="2"/></g>
-  <text x="129" y="315" font-size="12.5" font-weight="700" fill="#1A73E8" class="mono">/agy:lead</text>
-  <text x="153" y="338" font-size="11" text-anchor="middle" class="muted">task orchestration with AGY</text>
+  <!-- Host bracket & repeatable goal/proposal exchange with /agy:brain -->
+  <g stroke="#6A3AB2" stroke-width="1.3"><line x1="48" y1="218" x2="258" y2="218"/><line x1="48" y1="213" x2="48" y2="223"/><line x1="258" y1="213" x2="258" y2="223"/></g>
+  <g stroke="#7E4BC4" fill="none" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M114 226v50m-4.5-5.5 4.5 5.5 4.5-5.5"/>
+    <path d="M192 276v-50m-4.5 5.5 4.5-5.5 4.5 5.5"/>
+  </g>
+  <!-- Optional returning loop between proposal (up) and goal (down) -->
+  <g stroke="#9B72CB" fill="none" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M184 236 C172 226, 134 226, 122 236" stroke-dasharray="3 2.5"/>
+    <path d="M125.5 231.5 L121.5 236.2 L126.8 236.8"/>
+    <path d="M122 266 C134 276, 172 276, 184 266" stroke-dasharray="3 2.5"/>
+    <path d="M180.5 270.5 L184.5 265.8 L179.2 265.2"/>
+  </g>
+  <rect x="123" y="243" width="60" height="15" rx="4" fill="#F8F9FA"/>
+  <text x="153" y="254" font-size="10" font-weight="600" fill="#7E4BC4" text-anchor="middle" class="mono">multi-turn</text>
+  <g font-size="11.5" fill="#69438D" font-weight="500">
+    <text x="103" y="255" text-anchor="end">goal</text>
+    <text x="203" y="255">proposal</text>
+  </g>
 
-  <!-- Right: AGY Staff Worker Container -->
-  <rect x="388" y="56" width="484" height="292" rx="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="1.5"/>
-  <g shape-rendering="crispEdges"><rect x="826" y="72" width="8" height="8" fill="#4285F4"/><rect x="836" y="80" width="8" height="8" fill="#9B72CB"/><rect x="846" y="88" width="8" height="8" fill="#FBBC04"/></g>
+  <!-- Second brain card (bottom y=346 aligned with right employee panel bottom y=346) -->
+  <rect x="48" y="286" width="210" height="60" rx="8" fill="#FCFAFF" stroke="#9B72CB" stroke-width="1.5"/>
+  <rect x="60" y="298" width="36" height="36" rx="7" fill="#F2EAFB" stroke="#8A5AC9" stroke-width="1.2"/>
+  <g shape-rendering="crispEdges" transform="translate(66, 304)">
+    <g fill="#6A3AB2"><rect x="10" y="0" width="4" height="3"/><rect x="7" y="3" width="10" height="3"/><rect x="4" y="6" width="16" height="3"/><rect x="7" y="9" width="10" height="3"/><rect x="10" y="12" width="4" height="3"/></g>
+    <g fill="#4285F4"><rect x="4" y="15" width="6" height="3"/><rect x="14" y="15" width="6" height="3"/><rect x="1" y="18" width="6" height="3"/><rect x="17" y="18" width="6" height="3"/><rect x="1" y="21" width="6" height="3"/><rect x="17" y="21" width="6" height="3"/></g>
+    <rect x="10" y="6" width="4" height="3" fill="#FBBC04"/>
+  </g>
+  <text x="106" y="313" class="mono" font-size="15.5" font-weight="700" fill="#6A3AB2">/agy:brain</text>
+  <text x="106" y="332" font-size="12" class="muted">Argon &#183; second brain</text>
+
+  <!-- Middle Bridge: Host delegates work to AGY Staff -->
+  <text x="323" y="114" font-size="12.5" text-anchor="middle" class="muted">delegate via<tspan x="323" dy="19" class="mono" font-size="14" font-weight="700" fill="#1A73E8">/agy:*</tspan></text>
+  <line x1="266" y1="146" x2="368" y2="146" stroke="#1A73E8" stroke-width="1.8" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+  <g shape-rendering="crispEdges"><rect x="299" y="154" width="5" height="5" fill="#4285F4"/><rect x="313" y="158" width="5" height="5" fill="#9B72CB"/><rect x="327" y="154" width="5" height="5" fill="#FBBC04"/></g>
+
+  <!-- Lead tag on the host-to-worker orchestration bridge -->
+  <rect x="270" y="186" width="106" height="22" rx="4" fill="#E8F0FE"/>
+  <g fill="#4285F4" shape-rendering="crispEdges" transform="translate(280,191)"><rect x="0" y="0" width="2" height="12" fill="#202124"/><rect x="2" y="0" width="8" height="2"/><rect x="2" y="2" width="10" height="2"/><rect x="2" y="4" width="10" height="2"/><rect x="2" y="6" width="8" height="2"/></g>
+  <text x="298" y="201" font-size="12.5" font-weight="700" fill="#1A73E8" class="mono">/agy:lead</text>
+  <text x="323" y="223" font-size="11" text-anchor="middle" class="muted">task orchestration</text>
+
+  <!-- Right Column (y=46..346): AGY Staff Worker Container -->
+  <rect x="388" y="46" width="484" height="300" rx="10" fill="#FFFFFF" stroke="#4285F4" stroke-width="1.5"/>
+  <g shape-rendering="crispEdges"><rect x="826" y="62" width="8" height="8" fill="#4285F4"/><rect x="836" y="70" width="8" height="8" fill="#9B72CB"/><rect x="846" y="78" width="8" height="8" fill="#FBBC04"/></g>
 
   <!-- Employee ID Card (scaled & refined pixel alignment) -->
-  <g transform="translate(406, 68) scale(0.72)" shape-rendering="crispEdges">
+  <g transform="translate(406, 58) scale(0.72)" shape-rendering="crispEdges">
     <!-- Lanyard clip -->
     <rect fill="#202124" x="115" y="4" width="26" height="22" rx="0"/>
     <rect fill="#BDC1C6" x="121" y="9" width="14" height="5"/>
@@ -64,20 +96,20 @@
     <rect fill="#202124" x="88" y="98" width="6" height="24"/><rect fill="#202124" x="97" y="98" width="6" height="24"/><rect fill="#202124" x="106" y="98" width="6" height="24"/><rect fill="#202124" x="115" y="98" width="6" height="24"/><rect fill="#202124" x="124" y="98" width="2" height="24"/><rect fill="#202124" x="129" y="98" width="6" height="24"/><rect fill="#202124" x="138" y="98" width="4" height="24"/><rect fill="#202124" x="145" y="98" width="4" height="24"/><rect fill="#202124" x="152" y="98" width="6" height="24"/><rect fill="#202124" x="161" y="98" width="6" height="24"/><rect fill="#202124" x="170" y="98" width="6" height="24"/><rect fill="#202124" x="179" y="98" width="6" height="24"/><rect fill="#202124" x="188" y="98" width="2" height="24"/><rect fill="#202124" x="193" y="98" width="6" height="24"/><rect fill="#202124" x="202" y="98" width="4" height="24"/><rect fill="#202124" x="209" y="98" width="4" height="24"/>
   </g>
 
-  <!-- Right side header copy next to ID Card (Centered & Sized with roomy margins) -->
-  <text x="608" y="102" font-size="24" font-weight="700">agy staff</text>
-  <text x="608" y="124" font-size="12.5" class="mono muted">Antigravity CLI &#183; Gemini 3.8 Flash</text>
-  <rect x="608" y="138" width="236" height="22" rx="4" fill="#E8F0FE"/>
-  <text x="726" y="153" font-size="10" font-weight="700" fill="#1A73E8" letter-spacing="1.0" text-anchor="middle">THE FAST WORKER &#183; STAFF #001</text>
-  <path d="M608,170 q 32,4 64,1.2 t 64,-0.4" fill="none" stroke="#9B72CB" stroke-width="1.6" stroke-linecap="round" opacity="0.9"/>
+  <!-- Right side header copy next to ID Card -->
+  <text x="602" y="92" font-size="24" font-weight="700">agy staff</text>
+  <text x="602" y="114" font-size="12" class="mono muted">Antigravity CLI &#183; Gemini 3.8 Flash</text>
+  <rect x="602" y="128" width="236" height="22" rx="4" fill="#E8F0FE"/>
+  <text x="720" y="143" font-size="10" font-weight="700" fill="#1A73E8" letter-spacing="1.0" text-anchor="middle">THE FAST WORKER &#183; STAFF #001</text>
+  <path d="M602,160 q 32,4 64,1.2 t 64,-0.4" fill="none" stroke="#9B72CB" stroke-width="1.6" stroke-linecap="round" opacity="0.9"/>
 
-  <!-- 4 Personas (Synchronized with codebase: all unrestricted by default; ask degraded to the footer) -->
-  <rect x="412" y="196" width="216" height="58" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/><g fill="#4285F4" shape-rendering="crispEdges"><rect x="434" y="211" width="4" height="2"/><rect x="432" y="213" width="8" height="2"/><rect x="432" y="215" width="8" height="2"/><rect x="434" y="217" width="4" height="2"/><rect x="432" y="221" width="8" height="2"/><rect x="430" y="223" width="12" height="2"/><rect x="428" y="225" width="16" height="2"/></g><text x="456" y="221" font-size="15" font-weight="700" class="mono">staffer<tspan x="456" dy="18" font-size="11.5" font-weight="400" fill="#5F6368" class="sans">any purpose &#183; any format</tspan></text>
-  <rect x="640" y="196" width="216" height="58" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/><g fill="#34A853" shape-rendering="crispEdges"><rect x="658" y="211" width="4" height="2"/><rect x="666" y="211" width="4" height="2"/><rect x="656" y="213" width="12" height="2"/><rect x="670" y="213" width="2" height="2"/><rect x="656" y="215" width="2" height="2"/><rect x="662" y="215" width="4" height="2"/><rect x="670" y="215" width="2" height="2"/><rect x="656" y="217" width="12" height="2"/><rect x="670" y="217" width="2" height="2"/><rect x="656" y="219" width="2" height="2"/><rect x="662" y="219" width="4" height="2"/><rect x="670" y="219" width="2" height="2"/><rect x="656" y="221" width="12" height="2"/><rect x="670" y="221" width="2" height="2"/><rect x="658" y="223" width="4" height="2"/><rect x="666" y="223" width="4" height="2"/><rect x="660" y="225" width="8" height="2"/></g><text x="684" y="221" font-size="15" font-weight="700" class="mono">researcher<tspan x="684" dy="18" font-size="11.5" font-weight="400" fill="#5F6368" class="sans">deep research &#183; cited sources</tspan></text>
-  <rect x="412" y="266" width="216" height="58" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/><g fill="#9B72CB" shape-rendering="crispEdges"><rect x="430" y="281" width="8" height="2"/><rect x="428" y="283" width="2" height="2"/><rect x="438" y="283" width="2" height="2"/><rect x="428" y="285" width="2" height="2"/><rect x="438" y="285" width="2" height="2"/><rect x="428" y="287" width="2" height="2"/><rect x="438" y="287" width="2" height="2"/><rect x="430" y="289" width="8" height="2"/><rect x="436" y="291" width="4" height="2"/><rect x="438" y="293" width="4" height="2"/><rect x="440" y="295" width="4" height="2"/></g><text x="456" y="291" font-size="15" font-weight="700" class="mono">reviewer<tspan x="456" dy="18" font-size="11.5" font-weight="400" fill="#5F6368" class="sans">second opinions &#183; code &amp; plans</tspan></text>
-  <rect x="640" y="266" width="216" height="58" rx="8" fill="#FFFFFF" stroke="#D93025" stroke-width="1.8"/><g fill="#D93025" shape-rendering="crispEdges"><rect x="660" y="281" width="8" height="2"/><rect x="658" y="283" width="12" height="2"/><rect x="656" y="285" width="16" height="2"/><rect x="656" y="287" width="6" height="2"/><rect x="666" y="287" width="6" height="2"/><rect x="656" y="289" width="6" height="2"/><rect x="666" y="289" width="6" height="2"/><rect x="656" y="291" width="16" height="2"/><rect x="658" y="293" width="12" height="2"/><rect x="660" y="295" width="8" height="2"/></g><text x="684" y="291" font-size="15" font-weight="700" class="mono">implementer<tspan x="684" dy="18" font-size="11.5" font-weight="400" fill="#D93025" class="sans">fast coding &#183; diff for review</tspan></text>
+  <!-- 4 Personas (distributed across y=190..322 inside y=46..346) -->
+  <rect x="408" y="190" width="218" height="60" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/><g fill="#4285F4" shape-rendering="crispEdges"><rect x="430" y="206" width="4" height="2"/><rect x="428" y="208" width="8" height="2"/><rect x="428" y="210" width="8" height="2"/><rect x="430" y="212" width="4" height="2"/><rect x="428" y="216" width="8" height="2"/><rect x="426" y="218" width="12" height="2"/><rect x="424" y="220" width="16" height="2"/></g><text x="450" y="216" font-size="15" font-weight="700" class="mono">staffer<tspan x="450" dy="18" font-size="11" font-weight="400" fill="#5F6368" class="sans">any purpose &#183; any format</tspan></text>
+  <rect x="636" y="190" width="218" height="60" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/><g fill="#34A853" shape-rendering="crispEdges"><rect x="654" y="206" width="4" height="2"/><rect x="662" y="206" width="4" height="2"/><rect x="652" y="208" width="12" height="2"/><rect x="666" y="208" width="2" height="2"/><rect x="652" y="210" width="2" height="2"/><rect x="658" y="210" width="4" height="2"/><rect x="666" y="210" width="2" height="2"/><rect x="652" y="212" width="12" height="2"/><rect x="666" y="212" width="2" height="2"/><rect x="652" y="214" width="2" height="2"/><rect x="658" y="214" width="4" height="2"/><rect x="666" y="214" width="2" height="2"/><rect x="652" y="216" width="12" height="2"/><rect x="666" y="216" width="2" height="2"/><rect x="654" y="218" width="4" height="2"/><rect x="662" y="218" width="4" height="2"/><rect x="656" y="220" width="8" height="2"/></g><text x="678" y="216" font-size="15" font-weight="700" class="mono">researcher<tspan x="678" dy="18" font-size="11" font-weight="400" fill="#5F6368" class="sans">deep research &#183; cited sources</tspan></text>
+  <rect x="408" y="262" width="218" height="60" rx="8" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/><g fill="#9B72CB" shape-rendering="crispEdges"><rect x="426" y="278" width="8" height="2"/><rect x="424" y="280" width="2" height="2"/><rect x="434" y="280" width="2" height="2"/><rect x="424" y="282" width="2" height="2"/><rect x="434" y="282" width="2" height="2"/><rect x="424" y="284" width="2" height="2"/><rect x="434" y="284" width="2" height="2"/><rect x="426" y="286" width="8" height="2"/><rect x="432" y="288" width="4" height="2"/><rect x="434" y="290" width="4" height="2"/><rect x="436" y="292" width="4" height="2"/></g><text x="450" y="288" font-size="15" font-weight="700" class="mono">reviewer<tspan x="450" dy="18" font-size="11" font-weight="400" fill="#5F6368" class="sans">second opinions &#183; code &amp; plans</tspan></text>
+  <rect x="636" y="262" width="218" height="60" rx="8" fill="#FFFFFF" stroke="#D93025" stroke-width="1.8"/><g fill="#D93025" shape-rendering="crispEdges"><rect x="656" y="278" width="8" height="2"/><rect x="654" y="280" width="12" height="2"/><rect x="652" y="282" width="16" height="2"/><rect x="652" y="284" width="6" height="2"/><rect x="662" y="284" width="6" height="2"/><rect x="652" y="286" width="6" height="2"/><rect x="662" y="286" width="6" height="2"/><rect x="652" y="288" width="16" height="2"/><rect x="654" y="290" width="12" height="2"/><rect x="656" y="292" width="8" height="2"/></g><text x="678" y="288" font-size="15" font-weight="700" class="mono">implementer<tspan x="678" dy="18" font-size="11" font-weight="400" fill="#D93025" class="sans">fast coding &#183; diff for review</tspan></text>
 
-  <!-- Footer -->
+  <!-- Worker Footer -->
   <g stroke="#5F6368" stroke-width="1"><line x1="388" y1="362" x2="872" y2="362"/><line x1="388" y1="357" x2="388" y2="367"/><line x1="872" y1="357" x2="872" y2="367"/></g>
   <rect x="498" y="354" width="265" height="15" fill="#F8F9FA"/>
   <text x="630" y="366" font-size="10.5" text-anchor="middle" class="mono muted">delegate the grind &#183; save your quota</text>

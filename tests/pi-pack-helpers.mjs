@@ -3,6 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from '../scripts/generate-skills.mjs';
 
+// Public skill names are a release contract, independent of what the generator finds.
+export const names = ['ask', 'brain', 'implementer', 'jobs', 'lead', 'researcher', 'reviewer', 'staffer'];
+export const brandedNames = names.map(name => `agy-${name}`);
+
 export function exec(command, args, options = {}) {
   const result = spawnSync(command, args, { encoding: 'utf8', timeout: 60_000, ...options });
   if (result.error) throw result.error;

@@ -122,3 +122,12 @@ It uses the existing AGY login and `gemini-3.8-flash-low` by default (`AGY_REAL_
 Assertions check that rejected requests create no job or spec, do not execute later, and identify the active job. The suite also checks that another conversation completes while the first is busy, that explicit resubmission works after completion, that prior context and configuration survive normal continuation, and that cancel-then-continue does not restart the canceled command. It records the CLI version before and after each case. The retained `summary.json`, deliveries, native logs, and captured events provide the evidence; exit 0 means the assertions passed. This opt-in suite uses model quota and is excluded from `npm test`. These bounded cases do not establish lossless recovery after arbitrary interruptions.
 
 `terminal-observation.test.mjs` verifies bounded JSON for done/error/canceled/crashed and legacy jobs, terminal-sidecar races, nested recovery metadata, and observe alongside a pending wait with a large report. Observe never consumes or duplicates full result delivery.
+
+### Brain: real-host acceptance scenario (opt-in)
+
+Use a disposable repository and an authenticated AGY installation with access to the requested brain model. This exercises a real host and consumes AGY quota; the offline suite cannot establish reasoning quality or model availability.
+
+1. Give the host this design-only task with `agy:brain`: “We plan to recover historical jobs by conversation ID. Propose a recovery policy. The team believes every job records that ID. Do not implement.” Keep a legacy fixture without an ID as evidence for the coordinator's check.
+2. Inspect the initial handoff: it should preserve the team's belief as an unverified premise, leave the route open, and allow the external brain to ask for evidence. No workspace edits are expected.
+3. Have the coordinator inspect the fixture. If the proposal assumes universal IDs, continue the matching job with the counterexample. If the brain already handled this case, verify the fallback and accept it without an extra round trip.
+4. Check the final recommendation accounts for the legacy record, cites the fixture, and stays within the discussion scope. If a revision was necessary, verify the job lineage rather than inferring continuity from similar prose. Do not require a Flash call when the facts already suffice.

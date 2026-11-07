@@ -2,21 +2,21 @@
 
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a></p>
 
-<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-3-8-flash.svg" height="20" alt="model: Gemini 3.8 Flash"></p>
+<p align="center"><a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a> <img src="assets/badges/model-gemini-4-argon.svg" height="20" alt="model: Gemini 4 Argon"> <img src="assets/badges/model-gemini-3-8-flash.svg" height="20" alt="model: Gemini 3.8 Flash"></p>
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
 把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex**、**Pi** 和 **OpenCode** 的「agy 员工」。
 
-![agy-staff 设计图](assets/design.png)
+[![lead 由宿主定路线、派工；brain 由 Argon 提案、宿主核查。](assets/design.png)](assets/design.svg)
 
 **[评测](#-评测--harness-与编排) · [安装](#安装) · [使用示例](#使用) · [核心设计](#核心设计) · [为其他 CLI 做一个](#为其他-cli-做一个) · [升级](#升级)**
 
 ## 它适合做什么
 
-agy-staff 提供五种角色（persona）。`staffer` 适合通用任务；`researcher` 负责调研；`reviewer` 审查代码、方案和决策；`implementer` 处理编码任务；`ask` 用于不需要工具的简短问答。前四种角色都使用相同的后台任务机制，由 `jobs` 技能负责等待、查看进度和收取结果。
+agy-staff 把自带 **Gemini 4 Argon** 与 **Gemini 3.8 Flash** 的 `agy` 接入主力 agent：提供 `lead`、`brain` 两种编排模式，以及 `staffer`（通用）、`researcher`（调研）、`reviewer`（审代码与方案）、`implementer`（编码）、`ask`（简短问答）五种角色，配合 `jobs` 技能管理后台任务。
 
-为什么需要它：GPT-5.6-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，更适合用来编排 subagent，而不是亲自做每一次调研和审查。这些任务可以交给 agy：它几秒钟就能给出第二意见，调研和审查以 Flash 的速度完成，范围明确的实现任务放到后台执行，你继续做手头的事。另外，即使不追求速度，让另一个模型家族审同一份代码，也能发现主力 agent 自己发现不了的问题。
+为什么需要它：GPT-6.1-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，不划算亲自跑每一次调研和审查。agy 同时给你**高速员工**和**第二大脑**：Flash 负责秒级第二意见，并在后台高速完成调研、审查和范围明确的实现；Argon 则在系统设计与世界知识上足够强，能作为与 Astra、Fable 同量级的编排搭档，从另一个模型家族的视角先出方案，再由宿主核查假设并交付。
 
 ![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
 
@@ -69,7 +69,7 @@ codex plugin add agy@agy-staff
 <details>
 <summary>在 Pi 中安装</summary>
 
-运行 `pi install git:github.com/keli-wen/agy-staff` 安装插件。Pi 中的技能使用 `agy-` 前缀，例如 `/skill:agy-ask reply with OK`；任务管理技能是 `/skill:agy-jobs`。
+运行 `pi install git:github.com/keli-wen/agy-staff` 安装插件。Pi 中的技能使用 `agy-` 前缀，例如 `/skill:agy-ask reply with OK`，编排与任务管理技能分别为 `/skill:agy-lead`、`/skill:agy-brain` 和 `/skill:agy-jobs`。
 
 更新时运行 `pi update --extension git:github.com/keli-wen/agy-staff`，然后在 Pi 中执行 `/reload`。
 
@@ -84,7 +84,7 @@ codex plugin add agy@agy-staff
 opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --global
 ```
 
-重启 OpenCode 后运行 `/agy-ask reply with OK`。插件会自动注册七个 `agy-*` 技能及其原生斜杠命令，包括 `/agy-lead` 和 `/agy-jobs`，无需单独配置技能路径或命令包装。仍需安装 Node.js，并完成 `agy` 登录。
+重启 OpenCode 后运行 `/agy-ask reply with OK`。插件会自动注册八个 `agy-*` 技能及其原生斜杠命令，包括 `/agy-lead`、`/agy-brain` 和 `/agy-jobs`，无需单独配置技能路径或命令包装。仍需安装 Node.js，并完成 `agy` 登录。
 
 OpenCode 按完整包规格缓存；仅重启不会刷新相同的 Git 规格。升级时选择新的 Git 标签或提交，运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`，然后重启。配置与本地开发方式见[参考手册](docs/REFERENCE.zh-CN.md#opencode)。此适配器不覆盖 OpenCode V2。
 
@@ -121,7 +121,8 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 | 想做的事 | 示例 |
 | --- | --- |
-| 编排持续推进的任务 | `/agy:lead 调研可选方案，起草提案，再根据我的反馈修订` |
+| <img src="assets/icons/lead.svg" width="16" height="16" alt=""> 编排持续推进的任务 | `/agy:lead 调研可选方案，起草提案，再根据我的反馈修订` |
+| <img src="assets/icons/brain.svg" width="16" height="16" alt=""> 由 Argon 先提方案 | `/agy:brain 设计迁移方案，实施前先核查关键假设` |
 | 问一个简短的问题 | `/agy:ask 你的后端模型是什么` |
 | 交办一个通用任务 | `/agy:staffer 汇总这个仓库里所有未完成的 TODO` |
 | 生成图片 | `/agy:staffer 生成一个像素风机器人吉祥物，存为 assets/mascot.png` |
@@ -138,7 +139,9 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 ## 核心设计
 
-`lead` 为当前主 agent 增加任务编排指导。在 lead 工作流中，主 agent 了解至足以明确任务后，默认用 `staffer` 承担实质性工作，等待结果返回后再验收、整合或追加任务；专门指导有帮助时再选择 specialist，`ask` 仅用于测试。主 agent 负责跨任务决策、验收、整合和交付，复用现有 jobs 工作流。Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`，OpenCode 使用 `/agy-lead`。
+`lead` 为当前主 agent 增加任务编排指导。在 lead 工作流中，主 agent 了解至足以明确任务后，默认用 `staffer` 承担实质性工作，等待结果返回后再验收、整合或追加任务；专门指导有帮助时再选择 specialist，`ask` 仅用于测试。主 agent 负责跨任务决策、验收、整合和交付，复用现有 jobs 工作流。
+
+`brain` 由 Argon 先提方案；主 agent 提供目标和证据，实施前独立核查假设，并负责验收。见 [brain 技能说明](skills/brain/SKILL.md)。
 
 `ask` 会在同一次调用中返回答案。其他角色启动后会先返回任务 ID，并给出收取结果的命令，例如 `wait <id> --timeout 10m`。主 agent 根据所在环境的能力等待任务；如果支持后台命令，就为每个任务保留一个独立的等待命令。
 

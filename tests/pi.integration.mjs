@@ -6,7 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from '../scripts/generate-skills.mjs';
 import { sandbox, FAKE_AGY, jobIdOf } from './helpers.mjs';
-import { exec, pack } from './pi-pack-helpers.mjs';
+import { brandedNames as expected, exec, pack } from './pi-pack-helpers.mjs';
 
 function installedPi() {
   if (process.env.AGY_PI_PACKAGE_ROOT) return path.resolve(process.env.AGY_PI_PACKAGE_ROOT);
@@ -48,7 +48,6 @@ test('Pi: isolated local install, real discovery/expansion, collision coexistenc
   const unrelated = path.join(sb.root, 'unrelated');
   fs.mkdirSync(path.join(unrelated, 'reviewer'), { recursive: true });
   fs.writeFileSync(path.join(unrelated, 'reviewer', 'SKILL.md'), '---\nname: reviewer\ndescription: An unrelated review workflow.\n---\nNot agy.\n');
-  const expected = ['agy-ask', 'agy-implementer', 'agy-jobs', 'agy-lead', 'agy-researcher', 'agy-reviewer', 'agy-staffer'];
   for (const packageDir of [ROOT, packed]) {
     // This is Pi's -e local-package route. Disable ambient resource discovery
     // so global/shared skills cannot influence this test.

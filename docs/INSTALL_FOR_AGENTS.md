@@ -77,7 +77,7 @@ To upgrade an existing Git install:
 pi update --extension git:github.com/keli-wen/agy-staff
 ```
 
-Restart Pi or run `/reload` afterwards. Use `pi list` to verify the package is registered, then check Pi's skill picker for `agy-lead`, `agy-ask`, `agy-staffer`, `agy-researcher`, `agy-reviewer`, `agy-implementer`, and `agy-jobs`.
+Restart Pi or run `/reload` afterwards. Use `pi list` to verify the package is registered, then check Pi's skill picker for `agy-brain`, `agy-lead`, `agy-ask`, `agy-staffer`, `agy-researcher`, `agy-reviewer`, `agy-implementer`, and `agy-jobs`.
 
 ## 2d. OpenCode V1 — install / upgrade / local development
 
@@ -89,7 +89,7 @@ opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git' --glob
 
 This installs the full package and adds it to the `plugin` array in OpenCode's config, preserving other settings. Do not replace the user's config file. The plugin registers its bundled skills automatically; do not manually clone the repository or add `skills.paths` as an installation workaround. For an explicitly provided local checkout, use `opencode plugin /absolute/path/to/checkout --global`. Regenerate modified canonical skills with `npm run generate:skills` in that checkout.
 
-Restart OpenCode, then verify with `opencode debug skill`: expect `agy-ask`, `agy-staffer`, `agy-researcher`, `agy-reviewer`, `agy-implementer`, `agy-jobs`, and `agy-lead` alongside any other installed skills. OpenCode exposes these directly as `/agy-*` commands. Existing skill permissions remain in effect. Install the entire package, since its companion, templates and references are relative resources.
+Restart OpenCode, then verify with `opencode debug skill`: expect `agy-ask`, `agy-staffer`, `agy-researcher`, `agy-reviewer`, `agy-implementer`, `agy-jobs`, `agy-lead`, and `agy-brain` alongside any other installed skills. OpenCode exposes these directly as `/agy-*` commands. Existing skill permissions remain in effect. Install the entire package, since its companion, templates and references are relative resources.
 
 OpenCode 1.18.34 caches the full package spec. Restarting or reinstalling the same Git spec does not guarantee an update, even with `--force`. Select a newer tag or commit containing the adapter, replace the placeholder below, then restart:
 
