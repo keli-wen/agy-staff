@@ -119,7 +119,7 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 在 DeepSeek Harness 中打开右侧 `agy staff` 子代理协作面板，或使用 `/agy-*` 指令：
 
-![DeepSeek Harness 中的 agy staff 子代理协作侧边栏](assets/deepseek-harness-screenshot.jpg)
+![DeepSeek Harness 中的 agy staff 子代理协作侧边栏](assets/deepseek-harness-screenshot.png)
 
 下面的示例使用 Claude Code 的 `/agy:…` 写法。在 Codex 中把它换成 `$agy:…` 即可；Pi 使用 `/skill:agy-…`，OpenCode 使用 `/agy-…`。
 

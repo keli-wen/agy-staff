@@ -56,7 +56,7 @@ Same plugin in Codex, invoked with `$agy`:
 
 In DeepSeek Harness, with the visual `agy staff` subagent sidebar and `/agy-*` role cards:
 
-![the agy staff visual subagent sidebar in DeepSeek Harness](assets/deepseek-harness-screenshot.jpg)
+![the agy staff visual subagent sidebar in DeepSeek Harness](assets/deepseek-harness-screenshot.png)
 
 ### Install
 
