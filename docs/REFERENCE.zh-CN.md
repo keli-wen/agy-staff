@@ -381,6 +381,23 @@ Windows 为尽力支持，由 CI 的 `Tests (Windows)` 任务覆盖，尚未在�
 
 本地开发时运行 `opencode plugin /absolute/path/to/checkout --global`，修改源文件后运行 `npm run generate:skills` 并重启 OpenCode；本地安装直接读取检出目录。Git 安装按完整包规格缓存，仅重启或对相同规格使用 `--force` 不会刷新缓存。升级时选择新的标签或提交，运行 `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`，然后重启。所选引用必须包含此适配器。`--force` 替换配置中的插件条目，变更引用则提供新的缓存键。
 
+## DeepSeek Harness
+
+根目录 `package.json` 通过 `dsh.bundle` 指向 `dsh/cordis.patch.yml`，将 DeepSeek Harness 宿主插件与前端面板隔离在 `dsh/` 子包（`dsh/package.json`、`dsh/index.mjs`、`dsh/client.js`、`dsh/icon.svg`）中，避免污染根包面向 OpenCode V1 的 `opencode.mjs` 导出表。
+
+可在 **DeepSeek Harness** 桌面端左侧 **Plugins（插件）** 页面输入 `github:keli-wen/agy-staff` 安装，或在终端运行：
+
+```bash
+dsh plugin --profile desktop add github:keli-wen/agy-staff
+```
+
+本地开发时运行 `dsh plugin --profile desktop add /absolute/path/to/checkout`（Web 模式使用 `--profile web`）。需要安装 `pnpm`、Node.js，并在 PATH 中备好已登录的 `agy`。
+
+DSH 适配器包含三部分：
+- **原生 Cordis 工具（`dsh/index.mjs`）**：注册 `agy_brain`、`agy_worker`（支持 `job_id` 续接与可选 `restricted: true` 权限收紧）和 `agy_job`（`wait`、`observe`、`result`、`cancel`、`status`），在 DSH 命令沙箱外调用 `companion/agy-companion.mjs`，使 `agy` 能正常访问本机 language server 端口与钥匙串凭证。
+- **`/agy-*` 技能注入**：复用 `opencode-skills/agy-*/SKILL.md` 作为单一技能源，在注册时将 `<skill-dir>` 与 `<plugin-root>` 替换为真实绝对路径，并引导模型优先调用原生工具。
+- **右侧可视化子代理面板（`dsh/client.js`）**：通过 `workspaceFiles.read` 读取 `<repo>/.agy-staff/state.json`、`.spec.json`、运行中的 `.progress.json` 与 `.result.md`，并通过 `/agy-ctl` 执行任务取消。
+
 ## 升级
 
 Claude Code 和 Codex 按版本号缓存插件，例如 `cache/agy-staff/agy/0.4.0`。缓存是否需要更新取决于版本号，而不是仓库的最新提交。因此，准备发布时需要同步更新两个插件 manifest 和 `package.json` 中的版本。
@@ -400,6 +417,10 @@ Claude Code 和 Codex 按版本号缓存插件，例如 `cache/agy-staff/agy/0.4
 ### OpenCode
 
 使用带新 Git 标签或提交的原生插件安装命令，加上 `--force`，然后重启；详见 [OpenCode](#opencode)。
+
+### DeepSeek Harness
+
+运行 `dsh plugin --profile desktop add 'github:keli-wen/agy-staff#<tag-or-commit>'`（或在桌面端 **Plugins** 页面重新安装）；详见 [DeepSeek Harness](#deepseek-harness)。
 
 ### Pi
 
@@ -421,6 +442,7 @@ pi-skills/                    自动生成的 Pi 入口与参考文件，不应�
 templates/                    worker 提示词（含 brain.md）、共享角色规则与宿主兼容说明
 opencode-skills/              自动生成的 OpenCode 入口与参考文件，不应手动编辑
 opencode.mjs                  OpenCode V1 包入口，注册包内技能
+dsh/                          DeepSeek Harness Cordis 补丁、服务端工具/技能插件、右侧边栏前端与图标
 scripts/generate-skills.mjs   生成 Pi/OpenCode 技能并检查一致性
 .claude-plugin/               Claude Code 插件与插件市场配置
 .codex-plugin/plugin.json     Codex 插件配置

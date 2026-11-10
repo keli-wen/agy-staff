@@ -18,9 +18,10 @@ You normally know which product you are. If unsure, check:
 - **Codex** — you invoke skills with `$name` syntax, follow `AGENTS.md`, and plugins are managed through the `codex` CLI. → Follow section 2b.
 - **Pi** — you invoke skills with `/skill:name` and manage packages with `pi install`. → Follow section 2c.
 - **OpenCode V1** — you use `opencode`, its `plugin` config or `opencode plugin` installer, and native `/agy-*` commands. Verified with OpenCode 1.18.34; V2 is not covered. → Follow section 2d.
-- **Anything else** — this package documents Claude Code, Codex, Pi, and OpenCode V1. Report the unsupported harness and stop.
+- **DeepSeek Harness (`dsh`)** — you run in DeepSeek Harness (Desktop or Web profile), have `plugin_manager` or `dsh plugin`, and invoke skills as `/agy-*`. → Follow section 2e.
+- **Anything else** — this package documents Claude Code, Codex, Pi, OpenCode V1, and DeepSeek Harness. Report the unsupported harness and stop.
 
-Follow exactly one of the four sections below.
+Follow exactly one of the five sections below.
 
 ## 2a. Claude Code — install / upgrade
 
@@ -99,6 +100,37 @@ opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or
 
 Changing the ref creates a fresh cache key; `--force` replaces the configured plugin entry. Do not clear unrelated caches. This adapter covers V1, not V2.
 
+## 2e. DeepSeek Harness (`dsh`) — install / upgrade / local development
+
+If you have the native `plugin_manager` tool available in your DeepSeek Harness session, install the bundle directly:
+
+```json
+{
+  "action": "install_bundle",
+  "target": "github:keli-wen/agy-staff",
+  "enabled": true
+}
+```
+
+Or install from the shell using `dsh plugin` (use `--profile desktop` for the Desktop app, or `--profile web` for the Web profile; requires `pnpm` on `PATH`):
+
+```bash
+dsh plugin --profile desktop add github:keli-wen/agy-staff
+```
+
+For an explicitly provided local checkout during development, pass its absolute path (`dsh plugin --profile desktop add /absolute/path/to/checkout` or `target: "/absolute/path/to/checkout"`). `agy-staff` pre-commits `opencode-skills/` and `pi-skills/` and has no `prepare` build script, so `pnpm` installs it without requiring `allowBuilds` overrides.
+
+Once enabled, the bundle applies `dsh/cordis.patch.yml` to load `agy-staff/dsh`, registering:
+- Native Cordis tools: `agy_brain`, `agy_worker`, and `agy_job` (executing outside the DSH command sandbox so `agy` can reach its localhost language server and OAuth keychain).
+- Hydrated `/agy-*` skills: `/agy-brain`, `/agy-lead`, `/agy-staffer`, `/agy-researcher`, `/agy-reviewer`, `/agy-implementer`, `/agy-ask`, and `/agy-jobs`.
+- The **`agy staff`** right-sidebar visual subagent panel (`dsh/client.js`).
+
+To upgrade an existing Git install, install a newer tag or commit ref:
+
+```bash
+dsh plugin --profile desktop add 'github:keli-wen/agy-staff#<tag-or-commit>'
+```
+
 ## 3. Smoke test
 
 Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
@@ -107,6 +139,7 @@ Run the zero-setup ask mode — it needs no allowlist and answers in ~3 seconds:
 - Codex: `$agy:ask reply with OK`
 - Pi: `/skill:agy-ask reply with OK` — after restart or `/reload`
 - OpenCode: `/agy-ask reply with OK` — after restart
+- DeepSeek Harness: call `agy_worker` with `{"role":"ask","prompt":"reply with OK"}` or run `/agy-ask reply with OK`
 
 If you cannot restart the session, call the companion of the freshly installed copy directly from the shell. It is the same code path the skill takes, so a pass here means the install is sound:
 

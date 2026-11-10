@@ -1,6 +1,6 @@
 {
   "name": "agy",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "description": "Pair your coding agents with Google's Antigravity CLI (agy) - Gemini 4 Argon second brain (brain), host-led orchestration (lead), and five fast Gemini 3.8 Flash personas: staffer, researcher, reviewer, implementer, ask.",
   "author": {
     "name": "Keli Wen",

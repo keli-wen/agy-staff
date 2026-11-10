@@ -291,6 +291,23 @@ The plugin appends its absolute bundled `opencode-skills/` directory to `skills.
 
 For local development, run `opencode plugin /absolute/path/to/checkout --global`, generate skills with `npm run generate:skills`, and restart OpenCode. This reads the checkout directly. For Git installs, OpenCode 1.18.34 caches by the full package spec; restart or `--force` alone does not refresh an unchanged spec. Upgrade by choosing a newer tag or commit and running `opencode plugin 'agy-staff@git+https://github.com/keli-wen/agy-staff.git#<tag-or-commit>' --global --force`, then restart. The selected ref must contain this adapter. `--force` replaces the configured plugin entry; changing the ref gives the new install a distinct cache key.
 
+## DeepSeek Harness
+
+The root `package.json` declares a `dsh.bundle` manifest pointing to `dsh/cordis.patch.yml`, which mounts the isolated `dsh/` subpackage (`dsh/package.json`, `dsh/index.mjs`, `dsh/client.js`, `dsh/icon.svg`) without polluting the root OpenCode V1 entrypoint (`opencode.mjs`).
+
+Install in the **DeepSeek Harness** desktop app via **Plugins** (`github:keli-wen/agy-staff`), via the in-session `plugin_manager` tool (`install_bundle`), or from the CLI:
+
+```bash
+dsh plugin --profile desktop add github:keli-wen/agy-staff
+```
+
+For local development, run `dsh plugin --profile desktop add /absolute/path/to/checkout` (or `--profile web` for the Web profile). `pnpm`, Node.js, and an authenticated `agy` on `PATH` are required.
+
+The DSH plugin provides three layers:
+- **Native Cordis tools (`dsh/index.mjs`)**: `agy_brain`, `agy_worker` (with `job_id` continuation and opt-in `restricted: true` hardening), and `agy_job` (`wait`, `observe`, `result`, `cancel`, `status`). These invoke `companion/agy-companion.mjs` outside the DSH command sandbox so `agy` can access its localhost language server and OAuth credentials.
+- **Hydrated `/agy-*` skills**: Reuses `opencode-skills/agy-*/SKILL.md` as the single source of truth, resolving `<skill-dir>` / `<plugin-root>` at registration time and prepending guidance to prefer native `agy_brain` / `agy_worker` / `agy_job` tools over shell invocations.
+- **Visual subagent right-sidebar (`dsh/client.js`)**: Reads `<repo>/.agy-staff/state.json`, `.spec.json`, `.progress.json` (while running), and `.result.md` via `workspaceFiles.read`, and routes cancellation through `/agy-ctl`.
+
 ## Upgrading
 
 Claude Code and Codex cache the plugin under a per-**version** directory (e.g. `cache/agy-staff/agy/0.4.0`) and key "is it current?" on that version string, not on the commit. Bump their manifests and `package.json` together when preparing a release. Pi's Git source instead follows the configured ref; local sources read the checkout directly.
@@ -298,6 +315,7 @@ Claude Code and Codex cache the plugin under a per-**version** directory (e.g. `
 - **Claude Code** — `claude plugin marketplace update agy-staff` refreshes the marketplace clone, then `claude plugin update agy@agy-staff` re-copies it into the cache. `install` is **not** the upgrade command: on an already-installed plugin it answers "already installed" and does nothing, whatever the version. And `update` only moves if the version string changed — on an unchanged version it answers "already at the latest version" and leaves the old commit in place. Force the current commit in with `claude plugin uninstall agy@agy-staff && claude plugin install agy@agy-staff`. Restart Claude Code afterwards either way — skills are registered at session start.
 - **Codex** — bump the version, run `codex plugin marketplace upgrade` (or remove and re-add the marketplace entry), then restart the app.
 - **OpenCode** — use a newer Git tag/commit in the native plugin installer with `--force`, then restart; see [OpenCode](#opencode).
+- **DeepSeek Harness** — run `dsh plugin --profile desktop add 'github:keli-wen/agy-staff#<tag-or-commit>'` (or reinstall in the **Plugins** view); see [DeepSeek Harness](#deepseek-harness).
 - **Pi** — for an unpinned Git install, run `pi update --extension git:github.com/keli-wen/agy-staff`, then `/reload`. For local development, regenerate Pi skills (`npm run generate:pi`) and run `/reload`; no push is needed.
 
 You can check which commit is actually installed: the `gitCommitSha` in `~/.claude/plugins/installed_plugins.json`, versus `git -C ~/.claude/plugins/marketplaces/agy-staff log -1` for what the marketplace clone has fetched.
@@ -316,6 +334,7 @@ templates/                    worker prompts (including brain.md), shared person
 pi-skills/                    generated agy-* entrypoints/resources for Pi; do not hand-edit
 opencode-skills/              generated agy-* entrypoints/resources for OpenCode; do not hand-edit
 opencode.mjs                  OpenCode V1 package plugin; registers bundled skills
+dsh/                          DeepSeek Harness Cordis bundle patch, server tools/skills plugin, web sidebar client, and icon
 scripts/generate-skills.mjs   generates Pi/OpenCode skills and checks for drift
 package.json                  Pi manifest, OpenCode entrypoint, npm file allowlist, and verification commands
 skills/                       eight canonical skills: five personas, lead, brain, and jobs (Claude/Codex entrypoints;
