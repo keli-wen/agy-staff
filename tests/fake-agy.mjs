@@ -83,6 +83,65 @@ if (touch) {
 }
 
 const streaming = argv[argv.indexOf('--output-format') + 1] === 'stream-json';
+const modelFlagIndex = argv.indexOf('--model');
+const requestedModel = modelFlagIndex >= 0 ? argv[modelFlagIndex + 1] : '';
+
+function parseFailModels(raw) {
+  if (!raw) return {};
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    try { return JSON.parse(trimmed); } catch { return {}; }
+  }
+  const map = {};
+  for (const part of trimmed.split(',')) {
+    const idx = part.indexOf(':');
+    if (idx > 0) {
+      map[part.slice(0, idx).trim()] = part.slice(idx + 1).trim();
+    }
+  }
+  return map;
+}
+
+const failModels = parseFailModels(process.env.FAKE_AGY_FAIL_MODELS);
+const modelFailure = requestedModel ? failModels[requestedModel] : null;
+if (modelFailure) {
+  const kind = typeof modelFailure === 'object' ? modelFailure.kind : String(modelFailure);
+  if (kind === 'sandbox' || kind === 'eperm') {
+    process.stderr.write('Error: listen EPERM: operation not permitted 127.0.0.1\n');
+    process.exit(1);
+  }
+  if (kind === 'unsupported_no_json') {
+    process.stderr.write(`invalid model selection: unknown model ${requestedModel}\n`);
+    process.exit(1);
+  }
+  if (streaming) {
+    process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: `conv-dead-${requestedModel}` } }) + '\n');
+  }
+  let errorMsg = `unknown model: ${requestedModel}`;
+  if (kind === 'unsupported') {
+    errorMsg = `invalid model selection: model ${requestedModel} is not recognized as a known model`;
+  } else if (kind === 'quota' || kind === '429' || kind === 'resource_exhausted') {
+    process.stderr.write('AGY_ERROR: {"status":"RESOURCE_EXHAUSTED","error_code":429,"code_kind":"http","retryable":false,"error_id":"err-quota"}\n');
+    errorMsg = `429 Resource exhausted: quota exceeded for model ${requestedModel}`;
+  } else if (kind === 'entitlement' || kind === '403_model') {
+    process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"err-entitle"}\n');
+    errorMsg = `Permission denied: model ${requestedModel} is not available for your account`;
+  } else if (kind === 'auth' || kind === '401') {
+    process.stderr.write('AGY_ERROR: {"status":"UNAUTHENTICATED","error_code":401,"code_kind":"http","retryable":false,"error_id":"err-auth"}\n');
+    errorMsg = '401 Unauthorized: Invalid credentials';
+  }
+  const errPayload = {
+    status: 'ERROR',
+    response: '',
+    error: errorMsg,
+    duration_seconds: 0.1,
+    num_turns: 0,
+    usage: { input_tokens: 0, output_tokens: 0 },
+  };
+  await new Promise((resolve) => process.stdout.write(JSON.stringify(streaming ? { event: 'result', result: errPayload } : errPayload) + '\n', resolve));
+  process.exit(1);
+}
+
 if (streaming && !process.env.FAKE_AGY_NO_JSON) {
   process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: process.env.FAKE_AGY_CONVERSATION_ID ?? 'conv-1' } }) + '\n');
   if (process.env.FAKE_AGY_EVENTS) {

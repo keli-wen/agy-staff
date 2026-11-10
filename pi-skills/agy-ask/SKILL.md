@@ -32,7 +32,7 @@ node "<skill-dir>/../../companion/agy-companion.mjs" ask [flags] --prompt "quest
 ## Flags (all optional)
 
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the question, from exactly one of these three sources. Use file/stdin for a long question.
-- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-low`.
+- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-low`; `--model` also accepts family aliases `carbon` (`gemini-4-carbon`), `argon` (`gemini-4-argon`), `flash` (`gemini-3.8-flash`), and `pro` (`gemini-3.1-pro`).
 - `--timeout <dur>` — default 2m.
 
 For a follow-up to an earlier `ask` run, use `continue --job <id> --prompt "question"` with the `ask-...` job ID recorded on stderr (or listed by `status`). A continued `ask` job stays synchronous in the foreground.

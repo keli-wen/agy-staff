@@ -77,7 +77,13 @@ test("Item 4: root package.json, dsh/package.json, dead asset removal, and bundl
 
   // Key visual & interaction design requirements
   assert.ok(clientJs.includes('shapeRendering: "crispEdges"'), "client.js must use crispEdges SVGs");
+  assert.ok(clientJs.includes("PixelIconCarbon"), "client.js must define PixelIconCarbon");
+  assert.ok(clientJs.includes("PixelIconArgon"), "client.js must define PixelIconArgon");
+  assert.ok(clientJs.includes("Carbon · Argon · 3.8 Flash"), "client.js must show Carbon · Argon · 3.8 Flash");
   assert.ok(clientJs.includes("中 / EN"), "client.js must provide language toggle");
+  assert.ok(existsSync(join(repoRoot, "assets", "icons", "carbon.svg")), "assets/icons/carbon.svg must exist");
+  assert.ok(existsSync(join(repoRoot, "assets", "icons", "argon.svg")), "assets/icons/argon.svg must exist");
+  assert.ok(existsSync(join(repoRoot, "assets", "badges", "model-gemini-4-carbon.svg")), "model-gemini-4-carbon.svg must exist");
   assert.ok(clientJs.includes("flex-shrink: 0"), "client.js must prevent capability card shrinkage");
   assert.ok(clientJs.includes("DisclosureChevron"), "client.js must use dedicated SVG chevron");
   assert.ok(clientJs.includes("IconQueryBubble") && clientJs.includes("IconReplySheet"));
@@ -247,6 +253,42 @@ test("Items 1, 4, 6, 7: dsh/index.mjs skills hydration, lifecycle tools, and /ag
     "Check false defers to config",
   ]);
 
+  // Explicit model & effort forwarding on agy_brain (fresh and continue)
+  assert.ok(brainTool.parameters?.properties?.model, "agy_brain must expose model parameter");
+  assert.ok(brainTool.parameters?.properties?.effort, "agy_brain must expose effort parameter");
+  executedRunnerCalls.length = 0;
+  await brainTool.execute(
+    { prompt: "Explicit Argon brain", model: "argon", effort: "high" },
+    { agent: fakeAgentWithCwd }
+  );
+  assert.deepEqual(executedRunnerCalls[0].args, [
+    "staffer",
+    "--brain",
+    "--prompt",
+    "Explicit Argon brain",
+    "--model",
+    "argon",
+    "--effort",
+    "high",
+  ]);
+
+  executedRunnerCalls.length = 0;
+  await brainTool.execute(
+    { prompt: "Continue with Carbon", job_id: "staffer-test-123", model: "carbon", effort: "medium" },
+    { agent: fakeAgentWithCwd }
+  );
+  assert.deepEqual(executedRunnerCalls[0].args, [
+    "continue",
+    "--job",
+    "staffer-test-123",
+    "--prompt",
+    "Continue with Carbon",
+    "--model",
+    "carbon",
+    "--effort",
+    "medium",
+  ]);
+
   // 4. Verify agy_worker
   executedRunnerCalls.length = 0;
   runnerMockResponse = {
@@ -283,6 +325,24 @@ test("Items 1, 4, 6, 7: dsh/index.mjs skills hydration, lifecycle tools, and /ag
     "worker-research-999",
     "--prompt",
     "Continue deep-dive",
+  ]);
+
+  // Explicit model & effort forwarding on agy_worker
+  assert.ok(workerTool.parameters?.properties?.model, "agy_worker must expose model parameter");
+  assert.ok(workerTool.parameters?.properties?.effort, "agy_worker must expose effort parameter");
+  executedRunnerCalls.length = 0;
+  await workerTool.execute(
+    { role: "research", prompt: "Carbon research", model: "carbon", effort: "high" },
+    { agent: fakeAgentWithCwd }
+  );
+  assert.deepEqual(executedRunnerCalls[0].args, [
+    "research",
+    "--prompt",
+    "Carbon research",
+    "--model",
+    "carbon",
+    "--effort",
+    "high",
   ]);
 
   // Worker role: "ask" returns status: "done"
@@ -596,6 +656,7 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     let hasResultMd = false;
     let resultMdContent = "";
     let progressJsonAvailable = true;
+    let mockExtraJobs = [];
 
     const fileReadCounts = {
       state: 0,
@@ -640,6 +701,7 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
                         status: mockJobStatus,
                         started_at: "2026-11-06T14:21:48.845Z",
                       },
+                      ...mockExtraJobs,
                     ],
                   }),
                 },
@@ -748,6 +810,10 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
 
     const summaryBtn = findOne(tree, (n) => n.props?.className === "agy-subagent-summary");
     assert.ok(summaryBtn, "card summary button must exist");
+    assert.ok(
+      textContent(summaryBtn).includes("staffer · Argon"),
+      `worker job with explicit Argon model should render 'staffer · Argon', got: ${textContent(summaryBtn)}`
+    );
 
     // Click to expand card
     summaryBtn.props.onClick();
@@ -913,6 +979,70 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     assert.equal(
       StatusGraphicIcon({ status: "running" }).props.title,
       "Running / 运行中"
+    );
+
+    // Phase 6: Verify PixelIconCarbon, PixelIconArgon, and dynamic brain/worker role tags
+    mockExtraJobs = [
+      {
+        id: "staffer-brain-carbon-1",
+        mode: "staffer",
+        brain: true,
+        model: "gemini-4-carbon-medium",
+        status: "done",
+        task: "Carbon proposal",
+        started_at: "2026-11-07T10:00:00.000Z",
+      },
+      {
+        id: "staffer-brain-argon-2",
+        mode: "staffer",
+        brain: true,
+        model: "gemini-4-argon-medium",
+        status: "done",
+        task: "Argon fallback proposal",
+        started_at: "2026-11-07T10:01:00.000Z",
+      },
+      {
+        id: "staffer-brain-flash-3",
+        mode: "staffer",
+        brain: true,
+        model: "gemini-3.8-flash-medium",
+        status: "done",
+        task: "Flash fallback proposal",
+        started_at: "2026-11-07T10:02:00.000Z",
+      },
+      {
+        id: "research-carbon-4",
+        mode: "research",
+        model: "gemini-4-carbon-high",
+        status: "done",
+        task: "Explicit Carbon worker",
+        started_at: "2026-11-07T10:03:00.000Z",
+      },
+    ];
+    await refreshBtn.props.onClick();
+    tree = renderFrame(innerComp, innerProps);
+    assertValidReactNode(tree, "multi-model-cards");
+
+    const fullTreeText = textContent(tree);
+    for (const expectedRole of [
+      "brain · Carbon",
+      "brain · Argon",
+      "brain · Flash",
+      "researcher · Carbon",
+      "staffer · Argon",
+    ]) {
+      assert.ok(
+        fullTreeText.includes(expectedRole),
+        `sidebar should render '${expectedRole}', got: ${fullTreeText}`
+      );
+    }
+    assert.ok(
+      findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconCarbon"),
+      "PixelIconCarbon must render for Carbon brain card"
+    );
+    assert.ok(
+      findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconArgon"),
+      "PixelIconArgon must render for Argon brain card"
     );
   } finally {
     for (const c of cleanups) {

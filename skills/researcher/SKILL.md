@@ -33,7 +33,7 @@ The command returns a job id. Read `../jobs/SKILL.md` for result collection and 
 
 ## Flags (all optional)
 
-- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-high`.
+- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-high`; `--model` also accepts family aliases `carbon` (`gemini-4-carbon`), `argon` (`gemini-4-argon`), `flash` (`gemini-3.8-flash`), and `pro` (`gemini-3.1-pro`).
 - `--restricted` / `--unrestricted` — permission profile. research defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy runs without `--dangerously-skip-permissions` and may only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
 - `--timeout <dur>` — default 60m, maximum 120m hard execution limit.

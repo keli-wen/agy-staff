@@ -1,6 +1,6 @@
 {
   "name": "agy-staff",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Hire Google's Antigravity CLI (agy) as a fast Gemini staffer for Claude Code, OpenAI Codex, DeepSeek Harness, Pi, and OpenCode.",
   "keywords": [
     "pi-package",

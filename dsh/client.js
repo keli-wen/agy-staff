@@ -1243,7 +1243,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
     const I18N = {
       zh: {
         capSub: "子代理协作",
-        capModel: "Argon + 3.8 Flash",
+        capModel: "Carbon · Argon · 3.8 Flash",
         capHint: "点击任意角色，将指令填入下方输入框",
         brainDesc: "第二大脑 · 方案推演",
         leadDesc: "任务拆解 · 协同编排",
@@ -1283,7 +1283,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
         minsAgo: (m) => `${m} 分钟前`,
         todayAt: (hm) => `今天 ${hm}`,
         yesterdayAt: (hm) => `昨天 ${hm}`,
-        roleBrain: "brain · Argon",
+        roleBrain: "brain · Carbon",
         roleResearch: "researcher · Flash",
         roleReview: "reviewer · Flash",
         roleImplement: "implementer · Flash",
@@ -1292,9 +1292,9 @@ body[data-ds-dark-theme] .agy-section-glyph {
       },
       en: {
         capSub: "Subagents",
-        capModel: "Argon + 3.8 Flash",
+        capModel: "Carbon · Argon · 3.8 Flash",
         capHint: "Click any role to insert its command into the input box",
-        brainDesc: "Second brain · Argon",
+        brainDesc: "Second brain · Carbon",
         leadDesc: "Task orchestration",
         stafferDesc: "General subagent",
         researcherDesc: "Code & doc research",
@@ -1332,7 +1332,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
         minsAgo: (m) => `${m}m ago`,
         todayAt: (hm) => `Today ${hm}`,
         yesterdayAt: (hm) => `Yesterday ${hm}`,
-        roleBrain: "brain · Argon",
+        roleBrain: "brain · Carbon",
         roleResearch: "researcher · Flash",
         roleReview: "reviewer · Flash",
         roleImplement: "implementer · Flash",
@@ -1754,6 +1754,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
           id: latestTurn.id,
           brain: Boolean(latestTurn.brain || firstTurn.brain),
           mode: latestTurn.mode || firstTurn.mode || "staffer",
+          model: latestTurn.model || firstTurn.model || "",
           status: latestTurn.status || "done",
           startedAt: latestTurn.started_at || firstTurn.started_at || "",
           sortTime,
@@ -2352,6 +2353,95 @@ body[data-ds-dark-theme] .agy-section-glyph {
       });
     }
 
+    function PixelIconCarbon({ size = 16 }) {
+      return jsxs("svg", {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        shapeRendering: "crispEdges",
+        children: [
+          jsx("rect", { x: "7", y: "3", width: "10", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "5", y: "5", width: "2", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "7", y: "5", width: "4", height: "2", fill: "#E0F7FA" }),
+          jsx("rect", { x: "11", y: "5", width: "6", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "17", y: "5", width: "2", height: "2", fill: "#0097A7" }),
+          jsx("rect", { x: "3", y: "7", width: "2", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "5", y: "7", width: "4", height: "2", fill: "#80DEEA" }),
+          jsx("rect", { x: "9", y: "7", width: "6", height: "2", fill: "#00BCD4" }),
+          jsx("rect", { x: "15", y: "7", width: "4", height: "2", fill: "#0097A7" }),
+          jsx("rect", { x: "19", y: "7", width: "2", height: "2", fill: "#00838F" }),
+          jsx("rect", { x: "1", y: "9", width: "6", height: "2", fill: "#4DD0E1" }),
+          jsx("rect", { x: "7", y: "9", width: "10", height: "2", fill: "#00ACC1" }),
+          jsx("rect", { x: "17", y: "9", width: "6", height: "2", fill: "#00838F" }),
+          jsx("rect", { x: "3", y: "11", width: "4", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "7", y: "11", width: "8", height: "2", fill: "#0097A7" }),
+          jsx("rect", { x: "15", y: "11", width: "6", height: "2", fill: "#1A73E8" }),
+          jsx("rect", { x: "5", y: "13", width: "4", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "9", y: "13", width: "6", height: "2", fill: "#00838F" }),
+          jsx("rect", { x: "15", y: "13", width: "4", height: "2", fill: "#1A73E8" }),
+          jsx("rect", { x: "7", y: "15", width: "4", height: "2", fill: "#00ACC1" }),
+          jsx("rect", { x: "11", y: "15", width: "4", height: "2", fill: "#00838F" }),
+          jsx("rect", { x: "15", y: "15", width: "2", height: "2", fill: "#1A73E8" }),
+          jsx("rect", { x: "9", y: "17", width: "2", height: "2", fill: "#00ACC1" }),
+          jsx("rect", { x: "11", y: "17", width: "4", height: "2", fill: "#1A73E8" }),
+          jsx("rect", { x: "11", y: "19", width: "2", height: "2", fill: "#1A73E8" }),
+        ],
+      });
+    }
+
+    function PixelIconArgon({ size = 16 }) {
+      return jsxs("svg", {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        shapeRendering: "crispEdges",
+        children: [
+          jsxs("g", {
+            fill: "#9B72CB",
+            children: [
+              jsx("rect", { x: "9", y: "1", width: "2", height: "2" }),
+              jsx("rect", { x: "13", y: "1", width: "2", height: "2" }),
+              jsx("rect", { x: "7", y: "3", width: "2", height: "2" }),
+              jsx("rect", { x: "15", y: "3", width: "2", height: "2" }),
+              jsx("rect", { x: "3", y: "7", width: "2", height: "2" }),
+              jsx("rect", { x: "19", y: "7", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "9", width: "2", height: "2" }),
+              jsx("rect", { x: "21", y: "9", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "13", width: "2", height: "2" }),
+              jsx("rect", { x: "21", y: "13", width: "2", height: "2" }),
+              jsx("rect", { x: "3", y: "15", width: "2", height: "2" }),
+              jsx("rect", { x: "19", y: "15", width: "2", height: "2" }),
+              jsx("rect", { x: "7", y: "19", width: "2", height: "2" }),
+              jsx("rect", { x: "15", y: "19", width: "2", height: "2" }),
+              jsx("rect", { x: "9", y: "21", width: "2", height: "2" }),
+              jsx("rect", { x: "13", y: "21", width: "2", height: "2" }),
+            ],
+          }),
+          jsxs("g", {
+            fill: "#4285F4",
+            children: [
+              jsx("rect", { x: "11", y: "1", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "5", width: "2", height: "2" }),
+              jsx("rect", { x: "21", y: "11", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "11", y: "21", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "11", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "5", width: "2", height: "2" }),
+            ],
+          }),
+          jsxs("g", {
+            fill: "#6A3AB2",
+            children: [
+              jsx("rect", { x: "11", y: "9", width: "2", height: "6" }),
+              jsx("rect", { x: "9", y: "11", width: "6", height: "2" }),
+            ],
+          }),
+          jsx("rect", { x: "11", y: "11", width: "2", height: "2", fill: "#FBBC04" }),
+        ],
+      });
+    }
+
     function PixelIconLead({ size = 16 }) {
       return jsxs("svg", {
         width: size,
@@ -2474,8 +2564,26 @@ body[data-ds-dark-theme] .agy-section-glyph {
       });
     }
 
+    function shortModelTag(modelStr, isBrain) {
+      const lower = String(modelStr || "").toLowerCase();
+      if (lower.includes("carbon")) return "Carbon";
+      if (lower.includes("argon")) return "Argon";
+      if (lower.includes("flash")) return "Flash";
+      if (lower.includes("pro")) return "Pro";
+      if (lower.includes("opus")) return "Opus";
+      if (lower.includes("sonnet")) return "Sonnet";
+      return isBrain ? "Carbon" : "Flash";
+    }
+
     function renderSubagentIcon(sub) {
-      if (sub.brain) return jsx(PixelIconBrain, { size: 16 });
+      const modelLower = String(
+        sub.model || sub.latestTurn?.model || sub.firstTurn?.model || ""
+      ).toLowerCase();
+      if (sub.brain) {
+        if (modelLower.includes("carbon")) return jsx(PixelIconCarbon, { size: 16 });
+        if (modelLower.includes("argon")) return jsx(PixelIconArgon, { size: 16 });
+        return jsx(PixelIconBrain, { size: 16 });
+      }
       const m = sub.mode;
       switch (m) {
         case "research":
@@ -2489,20 +2597,30 @@ body[data-ds-dark-theme] .agy-section-glyph {
       }
     }
 
-    function formatSubagentRole(sub, t) {
-      if (sub.brain) return t.roleBrain;
+    function formatSubagentRole(sub, _t) {
+      const modelStr =
+        sub.model || sub.latestTurn?.model || sub.firstTurn?.model || "";
+      if (sub.brain) {
+        return `brain · ${shortModelTag(modelStr, true)}`;
+      }
+      let roleName = "staffer";
       switch (sub.mode) {
         case "ask":
-          return t.roleAsk;
+          roleName = "ask";
+          break;
         case "research":
-          return t.roleResearch;
+          roleName = "researcher";
+          break;
         case "review":
-          return t.roleReview;
+          roleName = "reviewer";
+          break;
         case "implement":
-          return t.roleImplement;
+          roleName = "implementer";
+          break;
         default:
-          return t.roleStaffer;
+          roleName = "staffer";
       }
+      return `${roleName} · ${shortModelTag(modelStr, false)}`;
     }
 
     function resolveContinuationCommand(sub) {
@@ -2707,12 +2825,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
             const recentSlice = sorted.slice(0, 32);
             const enriched = await Promise.all(
               recentSlice.map(async (job) => {
-                const isBrain = Boolean(
-                  job.brain ||
-                    String(job.model || "")
-                      .toLowerCase()
-                      .includes("argon")
-                );
+                const isBrain = Boolean(job.brain);
                 let next = {
                   ...job,
                   brain: isBrain,
@@ -4125,7 +4238,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
                 order: 25,
                 title: () => "agy staff",
                 description: () =>
-                  "子代理协作 · Gemini 4 Argon & 3.8 Flash",
+                  "子代理协作 · Gemini 4 Carbon, Argon & 3.8 Flash",
                 icon: GuideArtworkAgyStaff,
               },
             ],

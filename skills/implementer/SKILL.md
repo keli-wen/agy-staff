@@ -41,7 +41,7 @@ The command returns a job id. Read `../jobs/SKILL.md` for result collection and 
 ## Flags (all optional)
 
 - `--restricted` / `--unrestricted` — permission profile. implement defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it can usually only propose rather than edit, and it needs the setup flow's evidence-gathering allowlist to be useful.
-- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-high`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
+- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-high`; `--model` accepts aliases `carbon`, `argon`, `flash`, `pro`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
 
 ## Rules
