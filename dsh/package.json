@@ -1,0 +1,28 @@
+{
+  "name": "agy-staff-dsh",
+  "version": "0.9.0",
+  "private": true,
+  "description": "DeepSeek Harness sub-agency & visual sidebar plugin for agy-staff (Gemini 4 Argon Brain + Gemini 3.8 Flash Workers)",
+  "type": "module",
+  "main": "./index.mjs",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./client.js",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-workspace-files",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-api-remotes"
+      ]
+    }
+  }
+}

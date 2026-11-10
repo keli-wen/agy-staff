@@ -1,7 +1,7 @@
 {
   "name": "agy-staff",
-  "version": "0.8.2",
-  "description": "Pair your coding agents with Google's Antigravity CLI (agy): a Gemini 4 Argon second brain (brain) and fast Gemini 3.8 Flash workers (lead).",
+  "version": "0.9.0",
+  "description": "Hire Google's Antigravity CLI (agy) as a fast Gemini staffer for Claude Code, OpenAI Codex, DeepSeek Harness, Pi, and OpenCode.",
   "keywords": [
     "pi-package",
     "opencode-plugin"
@@ -18,6 +18,11 @@
     "pi-skills/",
     "opencode-skills/",
     "opencode.mjs",
+    "dsh/package.json",
+    "dsh/index.mjs",
+    "dsh/client.js",
+    "dsh/cordis.patch.yml",
+    "dsh/icon.svg",
     "companion/",
     "templates/",
     "scripts/generate-skills.mjs",
@@ -44,8 +49,25 @@
     ]
   },
   "main": "./opencode.mjs",
-  "exports": "./opencode.mjs",
+  "icon": "./dsh/icon.svg",
+  "exports": {
+    ".": "./opencode.mjs",
+    "./icon": "./dsh/icon.svg",
+    "./package.json": "./package.json"
+  },
   "engines": {
     "opencode": ">=1.18.34 <2"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./dsh/cordis.patch.yml",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "listedByDefault": true
+    }
   }
 }

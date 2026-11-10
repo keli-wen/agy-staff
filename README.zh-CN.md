@@ -6,7 +6,7 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex**、**Pi** 和 **OpenCode** 的「agy 员工」。
+把 Google 的 Antigravity CLI（`agy`）雇来当 **Claude Code**、**OpenAI Codex**、**DeepSeek Harness**、**Pi** 和 **OpenCode** 的「agy 员工」。
 
 [![lead 由宿主定路线、派工；brain 由 Argon 提案、宿主核查。](assets/design.png)](assets/design.svg)
 
@@ -116,6 +116,10 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 在 Codex 中输入 `$agy`，可以找到对应的技能：
 
 ![Codex 中的 $agy 技能选择器](assets/codex-desktop-screenshot.png)
+
+在 DeepSeek Harness 中打开右侧 `agy staff` 子代理协作面板，或使用 `/agy-*` 指令：
+
+![DeepSeek Harness 中的 agy staff 子代理协作侧边栏](assets/deepseek-harness-screenshot.jpg)
 
 下面的示例使用 Claude Code 的 `/agy:…` 写法。在 Codex 中把它换成 `$agy:…` 即可；Pi 使用 `/skill:agy-…`，OpenCode 使用 `/agy-…`。
 

@@ -6,7 +6,7 @@
 
 <p align="center"><a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a></p>
 
-Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI Codex**, **Pi**, and **OpenCode**.
+Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI Codex**, **DeepSeek Harness**, **Pi**, and **OpenCode**.
 
 [![With lead, the host directs workers; with brain, Argon proposes and the host verifies.](assets/design.png)](assets/design.svg)
 
@@ -53,6 +53,10 @@ Type `/agy:` in Claude Code and the orchestration modes and personas are right t
 Same plugin in Codex, invoked with `$agy`:
 
 ![the $agy skill picker in Codex](assets/codex-desktop-screenshot.png)
+
+In DeepSeek Harness, with the visual `agy staff` subagent sidebar and `/agy-*` role cards:
+
+![the agy staff visual subagent sidebar in DeepSeek Harness](assets/deepseek-harness-screenshot.jpg)
 
 ### Install
 

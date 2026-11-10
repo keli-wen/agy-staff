@@ -59,7 +59,11 @@ test('packed OpenCode plugin registers only bundled branded skills idempotently 
   for (const file of ['opencode.mjs', 'templates/harness-compatibility.md', 'templates/brain.md', 'skills/brain/SKILL.md', 'companion/agy-companion.mjs', 'docs/INSTALL_FOR_AGENTS.md']) assert.ok(packed.has(file), file);
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
   assert.equal(manifest.main, './opencode.mjs');
-  assert.equal(manifest.exports, './opencode.mjs');
+  assert.deepEqual(manifest.exports, {
+    '.': './opencode.mjs',
+    './icon': './dsh/icon.svg',
+    './package.json': './package.json',
+  });
   // Pacote invokes npm to prepare Git dependencies when any of these hooks
   // exist, even with ignoreScripts. OpenCode's compiled runtime cannot run
   // that nested npm; checked packing and prepublishOnly keep release checks.
