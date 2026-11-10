@@ -19,7 +19,7 @@ Read `../agy-jobs/SKILL.md` for execution boundaries, waiting and recovery. Reso
 node "<skill-dir>/../../companion/agy-companion.mjs" staffer --brain --prompt-file "<brief-path>"
 ```
 
-Pass `--model <carbon|argon|flash|id>` (and optional `--effort low|medium|high` when paired with `--model`) only when a specific model is requested. This background job defaults to Gemini 4 Carbon (`gemini-4-carbon-medium`), falling back automatically to Argon (`gemini-4-argon-medium`) and then Flash (`gemini-3.8-flash-medium`) if a default model is unavailable or out of quota. Honor explicit `--model`, `--effort`, `--timeout` and permission choices: when a model is explicitly requested, pass `--model` and surface any diagnostic without silently switching models or widening permissions. Keep the ID with the assignment and wait using jobs.
+Pass `--model <carbon|argon|flash|id>` (and optional `--effort low|medium|high` when paired with `--model`) when a specific model is requested; otherwise this background job defaults to Gemini 4 Carbon (`gemini-4-carbon-medium`). Honor explicit `--model`, `--effort`, `--timeout` and permission choices: if an explicitly requested model is unavailable, surface the diagnostic rather than silently switching models or widening permissions. Keep the ID with the assignment and wait using jobs.
 
 ## Challenge and deliver
 

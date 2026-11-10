@@ -8,7 +8,7 @@
 
 Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI Codex**, **DeepSeek Harness**, **Pi**, and **OpenCode**.
 
-[![With lead, the host directs workers; with brain, Carbon proposes and the host verifies.](assets/design.png)](assets/design.svg)
+[![With lead, the host directs workers; with brain, Carbon / Argon proposes and the host verifies.](assets/design.png)](assets/design.svg)
 
 **[Bench](#-bench--harness--orchestration) · [Install](#install) · [Examples](#cujs) · [Core design](#core-design) · [Build your own](#build-one-for-another-cli) · [Upgrade](#upgrade)**
 
@@ -16,7 +16,7 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 agy-staff pairs your senior agents with `agy`, which ships <img src="assets/icons/carbon.svg" width="16" height="16" alt=""> **Gemini 4 Carbon**, <img src="assets/icons/argon.svg" width="16" height="16" alt=""> **Gemini 4 Argon**, and fast **Gemini 3.8 Flash**. Two orchestration modes (`lead` and `brain`), five personas (`staffer`, `researcher`, `reviewer` for code **and** plans, `implementer`, `ask`), and a model-facing `jobs` skill. Claude Code uses `/agy:<skill>` and Codex uses `$agy:<skill>`.
 
-GPT-6.1-Sol is slow even with fast mode on; Claude Code is quicker, but Fable quota is too scarce to spend grinding through every survey and review. agy gives you both a **fast worker** and a **second brain**: Flash handles quick second opinions, research, reviews, and scoped implementation off to the side, while **Carbon** (with automatic **Carbon -> Argon -> Flash** fallback when unavailable or out of quota, plus explicit `--model carbon|argon|flash` selection) pairs with Astra or Fable as a peer orchestrator — proposing routes from a second model family while your host checks assumptions and delivers.
+GPT-6.1-Sol is slow even with fast mode on; Claude Code is quicker, but Fable quota is too scarce to spend grinding through every survey and review. agy gives you both a **fast worker** and a **second brain**: Flash handles quick second opinions, research, reviews, and scoped implementation off to the side, while **Carbon** and **Argon** are strong enough in design and world knowledge to pair with Astra or Fable as a peer orchestrator — proposing routes from a second model family while your host checks assumptions and delivers.
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
@@ -156,7 +156,7 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, in Pi `/sk
 | Use case | Invocation |
 |---|---|
 | <img src="assets/icons/lead.svg" width="16" height="16" alt=""> Lead an ongoing task | `/agy:lead investigate the options, draft a proposal, and revise it with my feedback` |
-| <img src="assets/icons/brain.svg" width="16" height="16" alt=""> Ask Carbon to propose the route | `/agy:brain design a migration; check the assumptions before implementing` |
+| <img src="assets/icons/brain.svg" width="16" height="16" alt=""> Ask Carbon / Argon to propose the route | `/agy:brain design a migration; check the assumptions before implementing` |
 | Quick second opinion | `/agy:ask what's your backend model` |
 | A general task | `/agy:staffer summarize the open TODOs in this repo` |
 | Generate an image | `/agy:staffer generate a pixel-art robot mascot, save it as assets/mascot.png` |
@@ -175,7 +175,7 @@ Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, in Pi `/sk
 
 `lead` adds task orchestration guidance for your current agent. Within lead, orient enough to frame the assignment, delegate substantive work to `staffer` by default, wait for the result, then assess it and integrate or follow up. Specialists provide dedicated guidance when useful, while `ask` is reserved for testing. The host owns cross-task decisions, acceptance, integration, and delivery, using the existing jobs workflow.
 
-With `brain`, <img src="assets/icons/carbon.svg" width="16" height="16" alt=""> **Gemini 4 Carbon** proposes the route first (automatically stepping down to <img src="assets/icons/argon.svg" width="16" height="16" alt=""> **Argon** and then **Flash** if a default model is unavailable or out of quota, while honoring explicit `--model carbon|argon|flash` requests without silent fallback). The host supplies the goal and evidence, challenges assumptions before execution, and owns verification. See the [brain skill](skills/brain/SKILL.md).
+With `brain`, <img src="assets/icons/carbon.svg" width="16" height="16" alt=""> **Carbon** (or <img src="assets/icons/argon.svg" width="16" height="16" alt=""> **Argon** via `--model argon`) proposes the route first. The host supplies the goal and evidence, challenges assumptions before execution, and owns verification. See the [brain skill](skills/brain/SKILL.md).
 
 `ask` answers in the same call. The other personas return a job id and a collection command, such as `wait <id> --timeout 10m`. Your agent waits using the host's available capabilities, with one independent background wait per job where supported.
 

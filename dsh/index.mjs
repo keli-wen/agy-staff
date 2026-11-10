@@ -268,7 +268,7 @@ export function apply(ctx, options = {}) {
     toolCtx.tools.register({
       name: "agy_brain",
       description:
-        "Consult the AGY Second Brain (Gemini 4 Carbon default with automatic Carbon -> Argon -> Flash fallback via `staffer --brain`, or an explicit model selection) to propose an implementation route, challenge assumptions, or stress-test a design while the host retains final authority. Executes agy-companion outside the DSH command sandbox.",
+        "Consult the AGY Second Brain (Gemini 4 Carbon / Argon via `staffer --brain`) to propose an implementation route, challenge assumptions, or stress-test a design while the host retains final authority. Executes agy-companion outside the DSH command sandbox.",
       parameters: {
         type: "object",
         additionalProperties: false,
@@ -286,7 +286,7 @@ export function apply(ctx, options = {}) {
           model: {
             type: "string",
             description:
-              "Optional model id or family alias (\"carbon\", \"argon\", \"flash\", \"pro\", or full id such as \"gemini-4-argon-high\"). Omit to use the default Carbon -> Argon -> Flash chain.",
+              "Optional model id or family alias (\"carbon\", \"argon\", \"flash\", \"pro\", or effort-suffixed id such as \"gemini-4-argon-high\"). Defaults to Gemini 4 Carbon.",
           },
           effort: {
             type: "string",

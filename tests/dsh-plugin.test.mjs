@@ -79,7 +79,8 @@ test("Item 4: root package.json, dsh/package.json, dead asset removal, and bundl
   assert.ok(clientJs.includes('shapeRendering: "crispEdges"'), "client.js must use crispEdges SVGs");
   assert.ok(clientJs.includes("PixelIconCarbon"), "client.js must define PixelIconCarbon");
   assert.ok(clientJs.includes("PixelIconArgon"), "client.js must define PixelIconArgon");
-  assert.ok(clientJs.includes("Carbon · Argon · 3.8 Flash"), "client.js must show Carbon · Argon · 3.8 Flash");
+  assert.ok(clientJs.includes("Carbon / Argon + 3.8 Flash"), "client.js must show Carbon / Argon + 3.8 Flash");
+  assert.ok(!clientJs.includes("roleBrain:"), "client.js must remove dead roleBrain I18N keys");
   assert.ok(clientJs.includes("中 / EN"), "client.js must provide language toggle");
   assert.ok(existsSync(join(repoRoot, "assets", "icons", "carbon.svg")), "assets/icons/carbon.svg must exist");
   assert.ok(existsSync(join(repoRoot, "assets", "icons", "argon.svg")), "assets/icons/argon.svg must exist");
@@ -781,13 +782,24 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     const GuideIcon = registeredTab.guide[0].icon;
     const iconNode = GuideIcon({ size: 26 });
     assert.equal(iconNode.type, "svg", "GuideArtworkAgyStaff must render a transparent <svg> directly");
+    assert.equal(
+      registeredTab.guide[0].description(),
+      "子代理协作 · Gemini 4 Carbon / Argon & 3.8 Flash",
+      "Guide description must reflect Gemini 4 Carbon / Argon & 3.8 Flash"
+    );
 
     const SidebarBody = registeredSlots.get("sidebar.right.pane.tab:agy-staff-dsh");
     assert.equal(typeof SidebarBody, "function");
 
+    const insertedDrafts = [];
     const wrapperNode = SidebarBody({
       sessionId: "test-session",
       useSessions: () => "/Users/wenkeli/OpenSource/agy-staff",
+      inputActions: {
+        setDraft(draft) {
+          insertedDrafts.push(draft);
+        },
+      },
     });
     const innerComp = wrapperNode.props.children.type;
     const innerProps = wrapperNode.props.children.props;
@@ -1044,6 +1056,138 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
       findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconArgon"),
       "PixelIconArgon must render for Argon brain card"
     );
+
+    // Phase 7: Verify /agy-brain [Carbon] & [Argon] quick-chips, no nested <button>, and multi-turn model tags
+    function assertNoNestedButtons(node, insideButton = false) {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        for (const child of node) assertNoNestedButtons(child, insideButton);
+        return;
+      }
+      if (typeof node.type === "function") {
+        assertNoNestedButtons(node.type(node.props || {}), insideButton);
+        return;
+      }
+      const isBtn = node.type === "button";
+      if (isBtn && insideButton) {
+        assert.fail("Invalid DOM nesting: <button> nested inside <button>");
+      }
+      if (node.props && "children" in node.props) {
+        assertNoNestedButtons(node.props.children, insideButton || isBtn);
+      }
+    }
+    assertNoNestedButtons(tree);
+
+    const brainCapCard = findOne(
+      tree,
+      (n) =>
+        n.props?.className === "agy-cap-item" &&
+        n.props?.["data-has-chips"] === "true" &&
+        textContent(n).includes("/agy-brain")
+    );
+    assert.ok(brainCapCard, "/agy-brain capability card with quick-chips must exist");
+    assert.equal(brainCapCard.type, "div", "/agy-brain card with sub-chips must be a div[role=button]");
+    assert.equal(brainCapCard.props.role, "button");
+
+    const carbonChip = findOne(
+      brainCapCard,
+      (n) =>
+        n.type === "button" &&
+        n.props?.className?.includes("agy-cap-model-chip") &&
+        n.props?.["data-model"] === "carbon"
+    );
+    const argonChip = findOne(
+      brainCapCard,
+      (n) =>
+        n.type === "button" &&
+        n.props?.className?.includes("agy-cap-model-chip") &&
+        n.props?.["data-model"] === "argon"
+    );
+    assert.ok(carbonChip, "Carbon quick-chip must exist inside /agy-brain card");
+    assert.ok(argonChip, "Argon quick-chip must exist inside /agy-brain card");
+    assert.ok(
+      findOne(carbonChip, (n) => typeof n.type === "function" && n.type.name === "PixelIconCarbon"),
+      "Carbon quick-chip must render PixelIconCarbon"
+    );
+    assert.ok(
+      findOne(argonChip, (n) => typeof n.type === "function" && n.type.name === "PixelIconArgon"),
+      "Argon quick-chip must render PixelIconArgon"
+    );
+
+    insertedDrafts.length = 0;
+    await brainCapCard.props.onClick({ stopPropagation() {} });
+    assert.deepEqual(insertedDrafts, ["/agy-brain "], "clicking /agy-brain card inserts '/agy-brain '");
+
+    insertedDrafts.length = 0;
+    let carbonStopped = false;
+    await carbonChip.props.onClick({
+      stopPropagation() {
+        carbonStopped = true;
+      },
+    });
+    assert.equal(carbonStopped, true, "Carbon chip onClick must call stopPropagation()");
+    assert.deepEqual(
+      insertedDrafts,
+      ["/agy-brain --model carbon "],
+      "clicking Carbon chip inserts '/agy-brain --model carbon '"
+    );
+
+    insertedDrafts.length = 0;
+    let argonStopped = false;
+    await argonChip.props.onClick({
+      stopPropagation() {
+        argonStopped = true;
+      },
+    });
+    assert.equal(argonStopped, true, "Argon chip onClick must call stopPropagation()");
+    assert.deepEqual(
+      insertedDrafts,
+      ["/agy-brain --model argon "],
+      "clicking Argon chip inserts '/agy-brain --model argon '"
+    );
+
+    // Multi-turn thread where turn 1 used Carbon and turn 2 switched to Argon
+    mockExtraJobs = [
+      {
+        id: "staffer-brain-t1",
+        mode: "staffer",
+        brain: true,
+        conversation_id: "conv-multi-model",
+        model: "gemini-4-carbon-medium",
+        status: "done",
+        task: "Initial Carbon design",
+        started_at: "2026-11-07T10:10:00.000Z",
+      },
+      {
+        id: "staffer-brain-t2",
+        mode: "staffer",
+        brain: true,
+        conversation_id: "conv-multi-model",
+        continued_from_job_id: "staffer-brain-t1",
+        model: "gemini-4-argon-high",
+        status: "done",
+        task: "Follow-up Argon stress test",
+        started_at: "2026-11-07T10:12:00.000Z",
+      },
+    ];
+    await refreshBtn.props.onClick();
+    tree = renderFrame(innerComp, innerProps);
+    const multiSummary = findOne(
+      tree,
+      (n) =>
+        n.props?.className === "agy-subagent-summary" &&
+        textContent(n).includes("Follow-up Argon stress test")
+    );
+    assert.ok(multiSummary, "multi-turn thread summary must exist");
+    await multiSummary.props.onClick();
+    tree = renderFrame(innerComp, innerProps);
+    assertValidReactNode(tree, "multi-turn-mixed-models");
+    const turnModelPill = findOne(
+      tree,
+      (n) => n.props?.className?.includes("agy-turn-model-pill")
+    );
+    assert.ok(turnModelPill, "turn with differing model must display .agy-turn-model-pill");
+    assert.equal(textContent(turnModelPill), "Carbon");
   } finally {
     for (const c of cleanups) {
       if (typeof c === "function") {

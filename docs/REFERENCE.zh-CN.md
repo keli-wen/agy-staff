@@ -16,7 +16,7 @@
 
 `lead` 为当前主 agent 提供任务编排指导，复用现有 companion 模式，没有自己的运行模式；Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`，OpenCode 使用 `/agy-lead`。
 
-`brain` 让外部 AGY 先提出方案，由主 agent 检验关键假设、执行并交付。Claude Code 使用 `/agy:brain`，Codex 使用 `$agy:brain`，Pi 使用 `/skill:agy-brain`，DeepSeek Harness 与 OpenCode 使用 `/agy-brain`。技能通过 `staffer --brain` 启动后台任务，默认模型为 `gemini-4-carbon-medium`，当默认模型不可用或配额耗尽时按 `gemini-4-carbon-medium -> gemini-4-argon-medium -> gemini-3.8-flash-medium` 自动降级（在任务状态记录 `fallback_from` 并输出 `[agy-staff] brain model fallback: ...`）；显式指定 `--model` 时禁用自动降级，直接返回诊断错误。
+`brain` 让外部 AGY 推理主脑（Gemini 4 Carbon / Argon）先提出方案，由主 agent 检验关键假设、执行并交付。Claude Code 使用 `/agy:brain`，Codex 使用 `$agy:brain`，Pi 使用 `/skill:agy-brain`，DeepSeek Harness 与 OpenCode 使用 `/agy-brain`。技能通过 `staffer --brain` 启动后台任务，默认模型为 `gemini-4-carbon-medium`，支持通过 `--model`（如 `carbon`、`argon`、`flash`、`pro` 或完整模型 ID）与 `--effort` 显式指定模型；显式指定的模型不可用时直接返回诊断信息，不会静默切换模型。
 
 `staffer` 不预设专业分工或固定的报告格式，但仍遵守共享的操作约定。`reviewer` 会根据对象选择审查方式：代码问题按严重程度列出，并附上 `file:line` 位置；方案和决策审查则检查假设、风险和取舍。`implementer` 可以直接修改工作区，也可以完成任务明确要求的提交、推送或 PR 操作。
 
@@ -115,7 +115,7 @@ agy 还有与 `--project` 体系关联的项目级权限规则，可以将权限
 | 参数 | 含义 |
 | --- | --- |
 | `--job <id>` | 仅用于 `continue`，继续指定任务对应的 AGY 会话，并沿用原任务的角色、模型与权限配置 |
-| `--brain` | 新建 `staffer` 任务时使用 brain 咨询模板及其默认模型链（`gemini-4-carbon-medium -> gemini-4-argon-medium -> gemini-3.8-flash-medium`）；续接与重启时沿用已解析的任务配置 |
+| `--brain` | 新建 `staffer` 任务时使用 brain 咨询模板（默认模型为 `gemini-4-carbon-medium`）；续接与重启时沿用已解析的任务配置 |
 | `--model <id>` | 指定模型，可用 `agy models` 查看可用 ID。模型 ID 带有推理强度后缀，如 `gemini-4-carbon-medium`、`gemini-4-argon-high`、`gemini-3.8-flash-low`；companion 也能补全模型系列名与 `carbon`、`argon`、`flash`、`pro` 别名，未知 ID 会在启动前报错，显式指定的模型不会静默替换 |
 | `--effort low\|medium\|high` | 指定推理强度，是 `gemini-3.8-flash-<effort>` 的简写 |
 | `--restricted` / `--unrestricted` | 覆盖本次运行的权限配置；`ask` 会忽略这两个参数 |
@@ -394,7 +394,7 @@ dsh plugin --profile desktop add github:keli-wen/agy-staff
 本地开发时运行 `dsh plugin --profile desktop add /absolute/path/to/checkout`（Web 模式使用 `--profile web`）。需要安装 `pnpm`、Node.js，并在 PATH 中备好已登录的 `agy`。
 
 DSH 适配器包含三部分：
-- **原生 Cordis 工具（`dsh/index.mjs`）**：注册 `agy_brain`（默认启用 `Carbon -> Argon -> Flash` 模型链，支持可选 `model` 与 `effort`）、`agy_worker`（支持 `job_id` 续接、可选 `model` 与 `effort` 以及 `restricted: true` 权限收紧）和 `agy_job`（`wait`、`observe`、`result`、`cancel`、`status`），在 DSH 命令沙箱外调用 `companion/agy-companion.mjs`，使 `agy` 能正常访问本机 language server 端口与钥匙串凭证。
+- **原生 Cordis 工具（`dsh/index.mjs`）**：注册 `agy_brain`（通过 `staffer --brain` 调用 Gemini 4 Carbon / Argon，默认使用 Gemini 4 Carbon，支持可选 `model` 与 `effort`）、`agy_worker`（支持 `job_id` 续接、可选 `model` 与 `effort` 以及 `restricted: true` 权限收紧）和 `agy_job`（`wait`、`observe`、`result`、`cancel`、`status`），在 DSH 命令沙箱外调用 `companion/agy-companion.mjs`，使 `agy` 能正常访问本机 language server 端口与钥匙串凭证。
 - **`/agy-*` 技能注入**：复用 `opencode-skills/agy-*/SKILL.md` 作为单一技能源，在注册时将 `<skill-dir>` 与 `<plugin-root>` 替换为真实绝对路径，并引导模型优先调用原生工具。
 - **右侧可视化子代理面板（`dsh/client.js`）**：通过 `workspaceFiles.read` 读取 `<repo>/.agy-staff/state.json`、`.spec.json`、运行中的 `.progress.json` 与 `.result.md`，并通过 `/agy-ctl` 执行任务取消。
 

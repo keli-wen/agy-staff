@@ -14,7 +14,7 @@ Back to the [README](../README.md). See the [Chinese reference](REFERENCE.zh-CN.
 
 `lead` provides task orchestration guidance for the current agent, reusing the existing companion modes without adding a mode of its own; invoke `/agy:lead` in Claude Code, `$agy:lead` in Codex, `/skill:agy-lead` in Pi, or `/agy-lead` in OpenCode.
 
-`brain` asks an external AGY reasoning lead to make the first proposal; the host challenges its assumptions and owns execution and delivery. Invoke `/agy:brain` in Claude Code, `$agy:brain` in Codex, `/skill:agy-brain` in Pi, or `/agy-brain` in DeepSeek Harness and OpenCode. The skill launches `staffer --brain`, a background job that defaults to `gemini-4-carbon-medium` and automatically falls back through `gemini-4-carbon-medium -> gemini-4-argon-medium -> gemini-3.8-flash-medium` when a default model is unavailable or out of quota (recording `fallback_from` on the job and logging `[agy-staff] brain model fallback: ...`). Passing an explicit `--model` disables automatic fallback so any error surfaces directly.
+`brain` asks an external AGY reasoning lead (Gemini 4 Carbon / Argon) to make the first proposal; the host challenges its assumptions and owns execution and delivery. Invoke `/agy:brain` in Claude Code, `$agy:brain` in Codex, `/skill:agy-brain` in Pi, or `/agy-brain` in DeepSeek Harness and OpenCode. The skill launches `staffer --brain`, a background job that defaults to `gemini-4-carbon-medium` and accepts explicit `--model` (`carbon`, `argon`, `flash`, `pro`, or a full model id) and `--effort` overrides; if an explicitly requested model is unavailable, the diagnostic surfaces directly rather than silently switching models.
 
 Execution style is fixed per mode and cannot be overridden by a flag. `continue` inherits the resolved mode's style (continuing an `ask` stays synchronous; continuing the others returns a job id).
 
@@ -110,7 +110,7 @@ Caveat, stated plainly: **the exact project-settings file path is undocumented a
 | Flag | Meaning |
 |---|---|
 | `--job <id>` | (`continue` only) resume a specific recorded job's conversation with its original persona, model, and permission profile |
-| `--brain` | on a fresh `staffer` job, use the advisory brain template and its default fallback chain (`gemini-4-carbon-medium -> gemini-4-argon-medium -> gemini-3.8-flash-medium`); continuation and restart inherit the resolved job configuration |
+| `--brain` | on a fresh `staffer` job, use the advisory brain template (defaulting to `gemini-4-carbon-medium`); continuation and restart inherit the resolved job configuration |
 | `--model <id>` | explicit agy model (see `agy models`). Ids are effort-suffixed (`gemini-4-carbon-medium`, `gemini-4-argon-high`, `gemini-3.8-flash-low`); the companion normalizes bare families (`gemini-4-carbon`, `gemini-4-argon`, `gemini-3.8-flash`, `claude-opus-5-5`, `claude-sonnet-5-5` + `--effort`) and the aliases `carbon`/`argon`/`flash`/`pro`, rejects unknown ids pre-flight, and never silently switches an explicit model |
 | `--effort low\|medium\|high` | shorthand for `gemini-3.8-flash-<effort>` |
 | `--restricted` / `--unrestricted` | permission profile override (ignored by `ask`). `unrestricted` is the default for `staffer`/`research`/`review`/`implement`, so `--restricted` is the flag you actually reach for |
@@ -304,7 +304,7 @@ dsh plugin --profile desktop add github:keli-wen/agy-staff
 For local development, run `dsh plugin --profile desktop add /absolute/path/to/checkout` (or `--profile web` for the Web profile). `pnpm`, Node.js, and an authenticated `agy` on `PATH` are required.
 
 The DSH plugin provides three layers:
-- **Native Cordis tools (`dsh/index.mjs`)**: `agy_brain` (defaulting to the `Carbon -> Argon -> Flash` chain, with optional `model` and `effort`), `agy_worker` (with `job_id` continuation, optional `model` and `effort`, and opt-in `restricted: true` hardening), and `agy_job` (`wait`, `observe`, `result`, `cancel`, `status`). These invoke `companion/agy-companion.mjs` outside the DSH command sandbox so `agy` can access its localhost language server and OAuth credentials.
+- **Native Cordis tools (`dsh/index.mjs`)**: `agy_brain` (Gemini 4 Carbon / Argon via `staffer --brain`, defaulting to Gemini 4 Carbon with optional `model` and `effort`), `agy_worker` (with `job_id` continuation, optional `model` and `effort`, and opt-in `restricted: true` hardening), and `agy_job` (`wait`, `observe`, `result`, `cancel`, `status`). These invoke `companion/agy-companion.mjs` outside the DSH command sandbox so `agy` can access its localhost language server and OAuth credentials.
 - **Hydrated `/agy-*` skills**: Reuses `opencode-skills/agy-*/SKILL.md` as the single source of truth, resolving `<skill-dir>` / `<plugin-root>` at registration time and prepending guidance to prefer native `agy_brain` / `agy_worker` / `agy_job` tools over shell invocations.
 - **Visual subagent right-sidebar (`dsh/client.js`)**: Reads `<repo>/.agy-staff/state.json`, `.spec.json`, `.progress.json` (while running), and `.result.md` via `workspaceFiles.read`, and routes cancellation through `/agy-ctl`.
 
