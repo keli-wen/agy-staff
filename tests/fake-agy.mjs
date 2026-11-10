@@ -121,8 +121,47 @@ if (modelFailure) {
     }
   }
   let errorMsg = `unknown model: ${requestedModel}`;
+  let finishedReason;
   if (kind === 'unsupported') {
     errorMsg = `invalid model selection: model ${requestedModel} is not recognized as a known model`;
+  } else if (kind === 'pro_unlisted') {
+    // Exact verbatim output structure produced by agy 1.5.4 when the signed-in Pro
+    // account's dynamic model list omits Ultra-only Carbon.
+    const availableBlock = [
+      'Available models:',
+      '  gemini-4-argon-medium',
+      '  gemini-4-argon-high',
+      '  gemini-4-argon-low',
+      '  gemini-3.8-flash-high',
+      '  gemini-3.8-flash-medium',
+      '  gemini-3.8-flash-low',
+      '  claude-opus-5-5-medium',
+      '  custom-auth-proxy-4030',
+    ].join('\n');
+    errorMsg = `invalid model selection (--model "${requestedModel}" --effort ""): model ${requestedModel} is not recognized as a known model or custom model in settings\n${availableBlock}`;
+    process.stderr.write(`error: ${errorMsg}\n`);
+    finishedReason = 'error';
+  } else if (kind === 'flash_only_unlisted') {
+    const availableBlock = [
+      'Available models:',
+      '  gemini-3.8-flash-high',
+      '  gemini-3.8-flash-medium',
+      '  gemini-3.8-flash-low',
+    ].join('\n');
+    errorMsg = `invalid model selection (--model "${requestedModel}" --effort ""): model ${requestedModel} is not recognized as a known model or custom model in settings\n${availableBlock}`;
+    process.stderr.write(`error: ${errorMsg}\n`);
+    finishedReason = 'error';
+  } else if (kind === 'ultra_only_403') {
+    process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"req-a403b-14290"}\n');
+    errorMsg = 'Gemini 4 Carbon is only available to Google AI Ultra subscribers.';
+    finishedReason = 'error';
+  } else if (kind === 'ultra_precondition') {
+    process.stderr.write('AGY_ERROR: {"status":"FAILED_PRECONDITION","error_code":400,"code_kind":"http","retryable":false,"error_id":"req-precond-99"}\n');
+    errorMsg = `Model ${requestedModel} requires a Google AI Ultra subscription. Upgrade your plan to use this model.`;
+    finishedReason = 'error';
+  } else if (kind === 'unsupported_uuid_digits') {
+    process.stderr.write('request_id=trace-a403b-14290-x401z\n');
+    errorMsg = `unknown model: ${requestedModel}`;
   } else if (kind === 'quota' || kind === '429' || kind === 'resource_exhausted') {
     process.stderr.write('AGY_ERROR: {"status":"RESOURCE_EXHAUSTED","error_code":429,"code_kind":"http","retryable":false,"error_id":"err-quota"}\n');
     errorMsg = `429 Resource exhausted: quota exceeded for model ${requestedModel}`;
@@ -143,12 +182,14 @@ if (modelFailure) {
     errorMsg = '401 Unauthorized: Invalid credentials';
   }
   const errPayload = {
+    conversation_id: '',
     status: 'ERROR',
     response: '',
     error: errorMsg,
-    duration_seconds: 0.1,
+    duration_seconds: 0,
     num_turns: 0,
     usage: { input_tokens: 0, output_tokens: 0 },
+    ...(finishedReason ? { finished_reason: finishedReason } : {}),
   };
   await new Promise((resolve) => process.stdout.write(JSON.stringify(streaming ? { event: 'result', result: errPayload } : errPayload) + '\n', resolve));
   process.exit(1);

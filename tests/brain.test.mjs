@@ -246,6 +246,56 @@ test('mid-stream tool or text progress before a 429 error blocks fallback and pr
   }
 });
 
+test('Pro-account Carbon gating (agy 1.5.4 unlisted model, Ultra 403/FAILED_PRECONDITION, UUID digit substrings) falls back to Argon and caches unavailability without caching 429', () => {
+  for (const kind of ['pro_unlisted', 'ultra_only_403', 'ultra_precondition', 'unsupported_uuid_digits']) {
+    const sb = sandbox(`brain-pro-tier-${kind}`);
+    const env = { FAKE_AGY_FAIL_MODELS: `${carbon}:${kind}` };
+
+    // 1st brain call: optimistically tries Carbon, steps down to Argon, and caches Carbon unavailability.
+    const first = complete(sb, ['staffer', '--brain', '--prompt', 'First Pro brain run'], env);
+    assert.equal(agyCalls(sb).length, 2, `1st run for ${kind} should try Carbon then Argon`);
+    assert.equal(agyCalls(sb)[0][agyCalls(sb)[0].indexOf('--model') + 1], carbon);
+    assert.equal(agyCalls(sb)[1][agyCalls(sb)[1].indexOf('--model') + 1], argon);
+    assert.equal(readState(sb).jobs.find((j) => j.id === first.id).model, argon);
+
+    // 2nd independent brain call in the same HOME: warm negative cache skips Carbon immediately at dispatch!
+    const secondStart = run(sb, ['staffer', '--brain', '--prompt', 'Second Pro brain run'], env);
+    assert.equal(secondStart.code, 0, secondStart.stderr);
+    assert.match(secondStart.stdout, /model:\s+gemini-4-argon-medium/, 'dispatch stdout must report Argon immediately when Carbon is cached unavailable');
+    const secondId = jobIdOf(secondStart.stdout);
+    const secondWait = run(sb, ['wait', secondId], env);
+    assert.equal(secondWait.code, 0, secondWait.stdout + secondWait.stderr);
+    assert.equal(agyCalls(sb).length, 3, `2nd run for ${kind} must spawn only Argon (0 wasted Carbon spawns)`);
+    assert.equal(agyCalls(sb)[2][agyCalls(sb)[2].indexOf('--model') + 1], argon);
+
+    // If user upgrades to Ultra and explicitly runs `--model carbon`, it bypasses and clears the negative cache!
+    const upgraded = complete(sb, ['staffer', '--brain', '--model', 'carbon', '--prompt', 'Explicit Carbon after Ultra upgrade']);
+    assert.equal(upgraded.argv[upgraded.argv.indexOf('--model') + 1], carbon);
+
+    const third = complete(sb, ['staffer', '--brain', '--prompt', 'Third brain run after Ultra upgrade']);
+    assert.equal(third.argv[third.argv.indexOf('--model') + 1], carbon, 'successful Carbon run must clear negative cache');
+  }
+
+  // Transient 429 quota exhaustion is NEVER cached: next fresh brain job tries Carbon again!
+  const sbQuota = sandbox('brain-quota-never-cached');
+  const quotaEnv = { FAKE_AGY_FAIL_MODELS: `${carbon}:quota` };
+  complete(sbQuota, ['staffer', '--brain', '--prompt', 'Quota hit run 1'], quotaEnv);
+  assert.equal(agyCalls(sbQuota).length, 2);
+  const afterQuotaRecovery = complete(sbQuota, ['staffer', '--brain', '--prompt', 'Quota recovered run 2']);
+  assert.equal(afterQuotaRecovery.argv[afterQuotaRecovery.argv.indexOf('--model') + 1], carbon, '429 quota fallback must never cache Carbon as unavailable');
+
+  // Available models list in agy 1.5.4 error skips missing Argon directly to Flash in 2 calls instead of 3!
+  const sbFlashOnly = sandbox('brain-available-models-skip');
+  const flashOnlyEnv = { FAKE_AGY_FAIL_MODELS: `${carbon}:flash_only_unlisted,${argon}:flash_only_unlisted` };
+  const skipped = complete(sbFlashOnly, ['staffer', '--brain', '--prompt', 'Direct skip to Flash'], flashOnlyEnv);
+  assert.equal(agyCalls(sbFlashOnly).length, 2, 'Available models parser should jump directly Carbon -> Flash');
+  assert.deepEqual(
+    agyCalls(sbFlashOnly).map((c) => c[c.indexOf('--model') + 1]),
+    [carbon, flash]
+  );
+  assert.equal(readState(sbFlashOnly).jobs.find((j) => j.id === skipped.id).model, flash);
+});
+
 test('brain rejects effort alone, including on an inherited follow-up', () => {
   const sb = sandbox('brain-effort');
   const first = complete(sb, ['staffer', '--brain', '--prompt', 'Assess the plan']);
