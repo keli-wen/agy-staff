@@ -81,6 +81,21 @@ codex plugin add agy@agy-staff
 ```
 
 <details>
+<summary>Using DeepSeek Harness?</summary>
+
+Install in the **DeepSeek Harness** desktop app (**Plugins** in the left sidebar → install from package spec `github:keli-wen/agy-staff`), or from the terminal:
+
+```bash
+dsh plugin --profile desktop add github:keli-wen/agy-staff
+```
+
+For a local checkout during development, run `dsh plugin --profile desktop add /absolute/path/to/agy-staff` (use `--profile web` if running the web profile). `pnpm`, Node.js, and an authenticated `agy` on `PATH` are required.
+
+Once enabled, the plugin mounts the **`agy staff`** visual subagent right-sidebar, native Cordis tools (`agy_brain`, `agy_worker`, `agy_job`), and all eight `/agy-*` skills (`/agy-brain`, `/agy-lead`, `/agy-staffer`, `/agy-researcher`, `/agy-reviewer`, `/agy-implementer`, `/agy-ask`, `/agy-jobs`). Upgrade with `dsh plugin --profile desktop add 'github:keli-wen/agy-staff#<tag-or-commit>'`.
+
+</details>
+
+<details>
 <summary>Using Pi?</summary>
 
 Install: `pi install git:github.com/keli-wen/agy-staff`.
@@ -136,7 +151,7 @@ Claude Code and Codex cache per version directory, so an upgrade lands only if t
 
 ### CUJs
 
-Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, in Pi `/skill:agy-…`, and in OpenCode `/agy-…`.
+Examples below use Claude Code's `/agy:…`; in Codex use `$agy:…`, in Pi `/skill:agy-…`, and in DeepSeek Harness or OpenCode `/agy-…`.
 
 | Use case | Invocation |
 |---|---|

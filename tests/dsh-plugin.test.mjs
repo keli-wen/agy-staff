@@ -237,15 +237,14 @@ test("Items 1, 4, 6, 7: dsh/index.mjs skills hydration, lifecycle tools, and /ag
 
   executedRunnerCalls.length = 0;
   await brainTool.execute(
-    { prompt: "Check unrestricted", restricted: false },
+    { prompt: "Check false defers to config", restricted: false },
     { agent: fakeAgentWithCwd }
   );
   assert.deepEqual(executedRunnerCalls[0].args, [
     "staffer",
     "--brain",
     "--prompt",
-    "Check unrestricted",
-    "--unrestricted",
+    "Check false defers to config",
   ]);
 
   // 4. Verify agy_worker
@@ -670,6 +669,15 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
                     job_id: jobId,
                     status: "running",
                     recent_activities: [
+                      // 3 chunked reads of the same file (oldest) must collapse to one "×3" pill
+                      ...[98, 99, 100].map((step_index) => ({
+                        step_index,
+                        tool: "read_file",
+                        status: "done",
+                        input_preview: JSON.stringify({
+                          Path: "/Users/wenkeli/OpenSource/agy-staff/dsh/client.js",
+                        }),
+                      })),
                       {
                         step_index: 101,
                         tool: "edit_file",
@@ -772,6 +780,25 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
       !liveText.includes("[object Object]"),
       "live strip must NEVER contain [object Object]"
     );
+
+    // Consecutive duplicates collapse; newest step is first and marked current
+    const pills = findAll(
+      liveStrip,
+      (n) => typeof n.props?.className === "string" && n.props.className.split(" ").includes("agy-step-pill")
+    );
+    assert.equal(pills.length, 2, `duplicate activities must collapse into 2 pills, got ${pills.length}`);
+    assert.ok(pills[0].props.className.includes("is-current"), "newest pill must be marked is-current");
+    assert.ok(textContent(pills[0]).includes("edit_file: design.svg"), "newest activity must be first");
+    const olderText = textContent(pills[1]);
+    assert.ok(
+      olderText.includes("read_file: client.js") && olderText.includes("×3"),
+      `repeated reads must collapse into one ×3 pill, got: ${olderText}`
+    );
+
+    // Strip is locked to a single non-wrapping row so it never changes height
+    const stripCss = clientCode.match(/\.agy-live-strip \{[^}]*\}/)?.[0] || "";
+    assert.ok(stripCss.includes("flex-wrap: nowrap"), ".agy-live-strip must not wrap");
+    assert.ok(/\bheight: 20px/.test(stripCss), ".agy-live-strip must have a fixed height");
 
     // Verify renderTurnQA shows live latest_text summary
     const replyViewport = findOne(

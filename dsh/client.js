@@ -732,21 +732,65 @@ body[data-ds-dark-theme] .agy-section-glyph {
   user-select: text;
 }
 
-/* Live activities strip for running tasks */
+/* Live activities strip for running tasks.
+   Locked to exactly one 20px row for the whole running lifecycle so the
+   Query / Reply cards below never shift: newest step first, consecutive
+   duplicates collapsed to "xN", older steps clipped behind a fade. */
 .agy-live-strip {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
 }
 
 .agy-step-pill {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  max-width: 100%;
   font-size: 10.5px;
-  padding: 2px 7px;
+  line-height: 1;
+  padding: 0 7px;
   border-radius: 5px;
   background: var(--agy-surface);
   border: 1px solid var(--agy-border);
+  color: var(--agy-muted);
+  overflow: hidden;
+}
+
+.agy-step-pill-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.agy-step-pill.is-current {
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--agy-secondary);
+  border-color: var(--agy-border-strong);
+}
+
+.agy-step-pill.is-placeholder {
+  border-style: dashed;
+  background: transparent;
+}
+
+.agy-step-pill-count {
+  flex: 0 0 auto;
+  margin-left: 4px;
+  opacity: 0.65;
 }
 
 /* Turn Accordion Card (Multi-turn progressive disclosure) */
@@ -1227,6 +1271,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
         insertedInline: "已填入",
         loadingDetail: "正在读取记录…",
         noReplyYet: "正在等待子代理输出…",
+        liveWaiting: "等待首个工具调用…",
         continueBtn: "继续追问 · 填入输入框",
         cancelBtn: "停止任务",
         archiveBtn: "隐藏",
@@ -1275,6 +1320,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
         insertedInline: "Inserted",
         loadingDetail: "Loading record…",
         noReplyYet: "Waiting for subagent output…",
+        liveWaiting: "Waiting for first tool call…",
         continueBtn: "Continue in input",
         cancelBtn: "Cancel",
         archiveBtn: "Hide",
@@ -1382,6 +1428,23 @@ body[data-ds-dark-theme] .agy-section-glyph {
         return detail ? `${tool}: ${detail}` : tool;
       }
       return String(act);
+    }
+
+    // Collapse the 5-item recent_activities window for the single-line live
+    // strip: format each step, merge consecutive identical labels into one
+    // entry with a count, and return newest-first so the current step is
+    // always the visible (leftmost) pill.
+    function collapseActivities(list) {
+      if (!Array.isArray(list)) return [];
+      const out = [];
+      for (const act of list) {
+        const label = formatActivityItem(act);
+        if (!label) continue;
+        const prev = out[out.length - 1];
+        if (prev && prev.label === label) prev.count += 1;
+        else out.push({ label, count: 1 });
+      }
+      return out.reverse();
     }
 
     function extractCleanQueryFromSpec(spec, fallbackTask = "") {
@@ -3658,28 +3721,67 @@ body[data-ds-dark-theme] .agy-section-glyph {
                                     ? jsxs("div", {
                                         className: "agy-subagent-detail",
                                         children: [
-                                          isRunning &&
-                                          Array.isArray(sub.recentActivities) &&
-                                          sub.recentActivities.length > 0
-                                            ? jsx("div", {
-                                                className: "agy-live-strip",
-                                                children:
-                                                  sub.recentActivities.map(
-                                                    (act, i) =>
-                                                      jsx(
-                                                        "span",
-                                                        {
+                                          // Always mounted while running (placeholder
+                                          // before the first tool call) and locked to a
+                                          // single row, so it never jumps 0 -> 1 -> 2 rows.
+                                          isRunning
+                                            ? (() => {
+                                                const steps =
+                                                  collapseActivities(
+                                                    sub.recentActivities
+                                                  );
+                                                return jsx("div", {
+                                                  className: "agy-live-strip",
+                                                  "aria-live": "polite",
+                                                  children:
+                                                    steps.length === 0
+                                                      ? jsx("span", {
                                                           className:
-                                                            "agy-step-pill agy-mono",
-                                                          children:
-                                                            formatActivityItem(
-                                                              act
-                                                            ),
-                                                        },
-                                                        i
-                                                      )
-                                                  ),
-                                              })
+                                                            "agy-step-pill agy-mono is-placeholder",
+                                                          children: jsx(
+                                                            "span",
+                                                            {
+                                                              className:
+                                                                "agy-step-pill-label",
+                                                              children:
+                                                                t.liveWaiting,
+                                                            }
+                                                          ),
+                                                        })
+                                                      : steps.map((step, i) =>
+                                                          jsxs(
+                                                            "span",
+                                                            {
+                                                              className:
+                                                                "agy-step-pill agy-mono" +
+                                                                (i === 0
+                                                                  ? " is-current"
+                                                                  : ""),
+                                                              title:
+                                                                step.count > 1
+                                                                  ? `${step.label} ×${step.count}`
+                                                                  : step.label,
+                                                              children: [
+                                                                jsx("span", {
+                                                                  className:
+                                                                    "agy-step-pill-label",
+                                                                  children:
+                                                                    step.label,
+                                                                }),
+                                                                step.count > 1
+                                                                  ? jsx("span", {
+                                                                      className:
+                                                                        "agy-step-pill-count",
+                                                                      children: `×${step.count}`,
+                                                                    })
+                                                                  : null,
+                                                              ],
+                                                            },
+                                                            `${i}:${step.label}`
+                                                          )
+                                                        ),
+                                                });
+                                              })()
                                             : null,
 
                                           sub.turns.length === 1

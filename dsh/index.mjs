@@ -286,7 +286,7 @@ export function apply(ctx, options = {}) {
           restricted: {
             type: "boolean",
             description:
-              "Optional sandbox override: true for --restricted, false for --unrestricted. Omit to defer to .agy-staff/config.json.",
+              "Optional hardening override: set true to pass --restricted. Omit (or false) to defer to .agy-staff/config.json.",
           },
         },
         required: ["prompt"],
@@ -320,8 +320,6 @@ export function apply(ctx, options = {}) {
           : ["staffer", "--brain", "--prompt", args.prompt];
         if (args.restricted === true) {
           cliArgs.push("--restricted");
-        } else if (args.restricted === false) {
-          cliArgs.push("--unrestricted");
         }
 
         const res = await execCompanion(cliArgs, {
@@ -363,7 +361,7 @@ export function apply(ctx, options = {}) {
           restricted: {
             type: "boolean",
             description:
-              "Optional sandbox override: true for --restricted, false for --unrestricted. Omit to defer to .agy-staff/config.json.",
+              "Optional hardening override: set true to pass --restricted. Omit (or false) to defer to .agy-staff/config.json.",
           },
         },
         required: ["role", "prompt"],
@@ -400,8 +398,6 @@ export function apply(ctx, options = {}) {
           : [role, "--prompt", args.prompt];
         if (args.restricted === true) {
           cliArgs.push("--restricted");
-        } else if (args.restricted === false) {
-          cliArgs.push("--unrestricted");
         }
 
         const res = await execCompanion(cliArgs, {
