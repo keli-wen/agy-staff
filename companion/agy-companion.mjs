@@ -32,8 +32,8 @@
  *
  * Uniform flags:
  *   --job <id>            (continue) continue a specific job with its original persona/configuration
- *   --brain               (staffer) use the brain template and default to Argon Medium
- *   --model <id>          explicit agy model id (overrides --effort)
+ *   --brain               (staffer) use the brain template and default to Carbon Medium (falling back to Argon -> Flash)
+ *   --model <id>          explicit agy model id or alias (carbon, argon, flash, pro; overrides --effort)
  *   --effort <l|m|h>      Flash shorthand; brain jobs require an explicit --model with --effort
  *   --restricted          hardening opt-in: keep agy's permission enforcement
  *                         on (wants setup's evidence-gathering allowlist)
@@ -109,6 +109,86 @@ function agyCommand(args) {
   return { cmd: AGY_BIN, args };
 }
 const AGY_SETTINGS = path.join(os.homedir(), '.gemini', 'antigravity-cli', 'settings.json');
+const DEFAULT_MODEL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function modelCachePath() {
+  return path.join(os.homedir(), '.gemini', 'agy-staff', 'model-cache.json');
+}
+
+function modelCacheTtlMs() {
+  const raw = process.env.AGY_STAFF_MODEL_CACHE_TTL_MS;
+  if (raw !== undefined && raw !== '') {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  return DEFAULT_MODEL_CACHE_TTL_MS;
+}
+
+function readUnavailableModels(now = Date.now()) {
+  const ttl = modelCacheTtlMs();
+  if (ttl <= 0) return new Set();
+  try {
+    const data = JSON.parse(fs.readFileSync(modelCachePath(), 'utf8'));
+    if (!data || data.agy_bin !== AGY_BIN || typeof data.unavailable !== 'object' || !data.unavailable) {
+      return new Set();
+    }
+    const unavailable = new Set();
+    for (const [modelId, entry] of Object.entries(data.unavailable)) {
+      const recordedAt = Number(entry?.recorded_at);
+      if (Number.isFinite(recordedAt) && now - recordedAt >= 0 && now - recordedAt < ttl) {
+        unavailable.add(modelId);
+      }
+    }
+    return unavailable;
+  } catch {
+    return new Set();
+  }
+}
+
+function updateModelCache({ markUnavailable = [], markAvailable = [] } = {}, now = Date.now()) {
+  if (!markUnavailable.length && !markAvailable.length) return;
+  const ttl = modelCacheTtlMs();
+  const file = modelCachePath();
+  try {
+    const existing = {};
+    try {
+      const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (parsed && parsed.agy_bin === AGY_BIN && typeof parsed.unavailable === 'object' && parsed.unavailable) {
+        for (const [id, entry] of Object.entries(parsed.unavailable)) {
+          const recordedAt = Number(entry?.recorded_at);
+          if (Number.isFinite(recordedAt) && now - recordedAt >= 0 && (ttl <= 0 || now - recordedAt < ttl)) {
+            existing[id] = entry;
+          }
+        }
+      }
+    } catch {}
+    let changed = false;
+    for (const id of markAvailable) {
+      if (id && Object.prototype.hasOwnProperty.call(existing, id)) {
+        delete existing[id];
+        changed = true;
+      }
+    }
+    if (ttl > 0) {
+      for (const item of markUnavailable) {
+        if (!item?.model) continue;
+        existing[item.model] = { reason: item.reason || 'unsupported_model', recorded_at: now };
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    if (Object.keys(existing).length === 0) {
+      try { fs.unlinkSync(file); } catch {}
+      return;
+    }
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    atomicJSON(file, { version: 1, agy_bin: AGY_BIN, unavailable: existing });
+  } catch {}
+}
+
+function clearModelCache() {
+  try { fs.unlinkSync(modelCachePath()); } catch {}
+}
 
 const MODES = ['staffer', 'research', 'review', 'implement', 'ask'];
 
@@ -139,23 +219,41 @@ const DEFAULTS = {
 
 // agy only accepts effort-suffixed model ids; bare family names are rejected
 // with status ERROR ("--model gemini-3.8-flash requires --effort").
-// Known ids from `agy models` (v1.1.13):
+// Known ids from `agy models`:
 const KNOWN_MODELS = new Set([
+  'gemini-4-carbon-high', 'gemini-4-carbon-medium', 'gemini-4-carbon-low',
+  'gemini-4-argon-high', 'gemini-4-argon-medium', 'gemini-4-argon-low',
   'gemini-3.8-flash-high', 'gemini-3.8-flash-medium', 'gemini-3.8-flash-low',
   'gemini-3.7-flash-high', 'gemini-3.7-flash-medium', 'gemini-3.7-flash-low',
   'gemini-3.6-flash-high', 'gemini-3.6-flash-medium', 'gemini-3.6-flash-low',
   'gemini-3.5-flash-high', 'gemini-3.5-flash-medium', 'gemini-3.5-flash-low',
   'gemini-3.1-pro-high', 'gemini-3.1-pro-low',
+  'claude-opus-5-5-low', 'claude-opus-5-5-medium', 'claude-opus-5-5-high',
+  'claude-sonnet-5-5-low', 'claude-sonnet-5-5-medium', 'claude-sonnet-5-5-high',
   'claude-sonnet-4-6', 'claude-opus-4-6-thinking', 'gpt-oss-120b-medium',
 ]);
 const MODEL_FAMILIES = {
+  'gemini-4-carbon': ['low', 'medium', 'high'],
+  'gemini-4-argon': ['low', 'medium', 'high'],
   'gemini-3.8-flash': ['low', 'medium', 'high'],
   'gemini-3.7-flash': ['low', 'medium', 'high'],
   'gemini-3.6-flash': ['low', 'medium', 'high'],
   'gemini-3.5-flash': ['low', 'medium', 'high'],
   'gemini-3.1-pro': ['low', 'high'],
+  'claude-opus-5-5': ['low', 'medium', 'high'],
+  'claude-sonnet-5-5': ['low', 'medium', 'high'],
 };
-const MODEL_ALIASES = { flash: 'gemini-3.8-flash', pro: 'gemini-3.1-pro' };
+const MODEL_ALIASES = {
+  carbon: 'gemini-4-carbon',
+  argon: 'gemini-4-argon',
+  flash: 'gemini-3.8-flash',
+  pro: 'gemini-3.1-pro',
+};
+const BRAIN_FALLBACK_CHAIN = [
+  'gemini-4-carbon-medium',
+  'gemini-4-argon-medium',
+  'gemini-3.8-flash-medium',
+];
 
 /** Normalize a user-supplied --model value to an id agy accepts, or die
  *  pre-flight with a helpful message. Never lets a bare family reach agy. */
@@ -177,8 +275,8 @@ function normalizeModel(raw, effort) {
   if (/-(low|medium|high|thinking)$/.test(name)) return name;
   die(
     `unknown model id "${raw}". agy needs effort-suffixed ids, e.g. ` +
-      `gemini-3.8-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
-      `Aliases accepted here: "flash" (gemini-3.8-flash), "pro" (gemini-3.1-pro), ` +
+      `gemini-4-carbon-low|medium|high, gemini-4-argon-low|medium|high, gemini-3.8-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
+      `Aliases accepted here: "carbon" (gemini-4-carbon), "argon" (gemini-4-argon), "flash" (gemini-3.8-flash), "pro" (gemini-3.1-pro), ` +
       `optionally combined with --effort. Run \`agy models\` for the full list.`
   );
 }
@@ -608,10 +706,10 @@ function queryAgyModels() {
     if (!stdout) {
       return { ok: false, error: 'empty output from `agy models`' };
     }
-    const lines = stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+    const lines = stdout.split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
     const models = [];
     for (const line of lines) {
-      if (/^fetching/i.test(line)) continue;
+      if (/^(?:[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s*)?fetching\b/i.test(line)) continue;
       const parts = line.split(/\s+/);
       const id = parts[0];
       const desc = parts.slice(1).join(' ');
@@ -631,17 +729,19 @@ function queryAgyModels() {
 function recommendCompatibleModel(requestedModel, availableModelIds) {
   const effortMatch = requestedModel ? requestedModel.match(/-(low|medium|high)$/) : null;
   const effort = effortMatch ? effortMatch[1] : null;
+  const isFourSeries = /^gemini-4-(carbon|argon)-/.test(requestedModel || '');
 
   if (effort) {
     const sameEffort = availableModelIds.filter((id) => id.endsWith(`-${effort}`));
     if (sameEffort.length > 0) {
-      const flashOrder = [
+      const preferredOrder = [
+        ...(isFourSeries ? [`gemini-4-carbon-${effort}`, `gemini-4-argon-${effort}`] : []),
         `gemini-3.8-flash-${effort}`,
         `gemini-3.7-flash-${effort}`,
         `gemini-3.6-flash-${effort}`,
         `gemini-3.5-flash-${effort}`,
       ];
-      for (const candidate of flashOrder) {
+      for (const candidate of preferredOrder) {
         if (sameEffort.includes(candidate) && candidate !== requestedModel) {
           return candidate;
         }
@@ -660,6 +760,13 @@ function recommendCompatibleModel(requestedModel, availableModelIds) {
     }
   }
 
+  if (isFourSeries) {
+    for (const prefix of ['gemini-4-carbon-', 'gemini-4-argon-']) {
+      const match = availableModelIds.find((id) => id.startsWith(prefix) && id !== requestedModel);
+      if (match) return match;
+    }
+  }
+
   const anyFlash = availableModelIds.find((id) => id.includes('flash') && id !== requestedModel);
   if (anyFlash) return anyFlash;
 
@@ -668,16 +775,18 @@ function recommendCompatibleModel(requestedModel, availableModelIds) {
 
 function isUnsupportedModelError(errText) {
   if (!errText) return false;
-  if (/auth|login|credential|unauthorized|401|403/i.test(errText)) return false;
-  if (/quota|rate.?limit|resource.?exhausted|429/i.test(errText)) return false;
-  if (/network|econnrefused|enotfound|fetch failed|socket|eai_again/i.test(errText)) return false;
-  if (/requires --effort/i.test(errText)) return false;
+  const header = errText.replace(/\n\s*Available models:[\s\S]*$/i, '');
+  if (/invalid model selection[^\n]*is not recognized as a known model/i.test(header)) return true;
+  if (/\b(?:auth|login|credential|unauthorized|401|403)\b/i.test(header)) return false;
+  if (/\b(?:quota|429)\b|rate.?limit|resource.?exhausted/i.test(header)) return false;
+  if (/network|econnrefused|enotfound|fetch failed|socket|eai_again/i.test(header)) return false;
+  if (/requires --effort/i.test(header)) return false;
   return (
-    /not recognized as a known model/i.test(errText) ||
-    /unknown model/i.test(errText) ||
-    /unsupported model/i.test(errText) ||
-    /invalid model selection/i.test(errText) ||
-    /model .* (not found|is not supported|is not available|is not recognized)/i.test(errText)
+    /not recognized as a known model/i.test(header) ||
+    /unknown model/i.test(header) ||
+    /unsupported model/i.test(header) ||
+    /invalid model selection/i.test(header) ||
+    /model .* (not found|is not supported|is not available|is not recognized)/i.test(header)
   );
 }
 
@@ -781,7 +890,7 @@ function runAgy(invoke) {
     }
     if (!payload) {
       const errText = `${stdout}\n${stderr}`;
-      if (!nativeErrors.snapshot().errors?.length && isUnsupportedModelError(errText)) {
+      if (!invoke.allowModelFallback && !nativeErrors.snapshot().errors?.length && isUnsupportedModelError(errText)) {
         handleUnsupportedModel({
           requestedModel: model,
           errText,
@@ -803,7 +912,15 @@ function runAgy(invoke) {
           'agy cannot run inside a sandbox — it needs a localhost port and its OAuth token file, which sandboxes typically hide. ' +
           'Run this companion command unsandboxed: in Codex, grant the workspace full access or approve the command with escalated permissions.';
       }
-      die(msg);
+      if (invoke.allowModelFallback) {
+        throw Object.assign(new Error(msg), { reason: 'missing_result', diagnosticText: errText });
+      }
+      try {
+        die(msg);
+      } catch (died) {
+        died.diagnosticText = errText;
+        throw died;
+      }
     }
     return { payload, stderr, exit: r.status ?? 0, agy: nativeResult(payload, nativeErrors.snapshot(), r.status) };
   } catch (error) {
@@ -836,7 +953,7 @@ function isResponseTimeout(payload, native) {
  *                                    --restricted run gets the setup hint
  *                                    (unrestricted runs have no rules to fix).
  */
-function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSource, requestedModel, jobId = null) {
+function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSource, requestedModel, jobId = null, { allowModelFallback = false } = {}) {
   const status = (payload.status || '').toUpperCase();
   const response = (payload.response || '').trim();
   const convNote = payload.conversation_id
@@ -862,7 +979,7 @@ function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSour
       return response;
     }
     const errText = `${payload.error || ''}\n${stderr}`;
-    if (!agy.errors?.length && isUnsupportedModelError(errText)) {
+    if (!allowModelFallback && !agy.errors?.length && isUnsupportedModelError(errText)) {
       handleUnsupportedModel({
         requestedModel: requestedModel || DEFAULTS.model[mode],
         errText,
@@ -886,6 +1003,7 @@ function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSour
       hints.push('exhausted quota');
     }
     if (hints.length) msg += `\nLikely cause: ${hints.join('; ')}.`;
+    if (allowModelFallback) throw new Error(msg + convNote);
     die(msg + convNote);
   }
 
@@ -992,12 +1110,17 @@ function resolveRun(mode, opts, priorJob = null) {
     die('--effort must be low|medium|high');
   }
   let model;
+  let modelFallbackChain = null;
   if (opts.model) {
     model = normalizeModel(opts.model, opts.effort);
   } else if (priorJob?.model && !opts.effort) {
     model = priorJob.model;
   } else if (brain) {
-    model = 'gemini-4-argon-medium';
+    const unavailable = readUnavailableModels();
+    const filtered = BRAIN_FALLBACK_CHAIN.filter((m) => !unavailable.has(m));
+    const chain = filtered.length > 0 ? filtered : [...BRAIN_FALLBACK_CHAIN];
+    model = chain[0];
+    if (chain.length > 1) modelFallbackChain = chain;
   } else if (opts.effort) {
     model = `gemini-3.8-flash-${opts.effort}`;
   } else {
@@ -1038,7 +1161,7 @@ function resolveRun(mode, opts, priorJob = null) {
     if (!opts.restricted && !opts.unrestricted && priorJob.profile) { profile = priorJob.profile; profileSource = 'inherited'; }
   }
   if (profileSource === 'project') process.stderr.write(`agy-staff: profile=${profile} set by project policy (${configPath()})\n`);
-  return { mode, ...(brain && { brain: true }), model, profile, profileSource, background, timeout, conversation, parentJobId: priorJob?.id || null, originalCwd: priorJob?.cwd || null };
+  return { mode, ...(brain && { brain: true }), model, ...(modelFallbackChain && { modelFallbackChain }), profile, profileSource, background, timeout, conversation, parentJobId: priorJob?.id || null, originalCwd: priorJob?.cwd || null };
 }
 
 /** Task text comes from exactly one source: --prompt, --prompt-file, or
@@ -1194,65 +1317,264 @@ function treeDeltaReport(mode, before, after) {
   );
 }
 
+function extractBrainDiag(error, result) {
+  const payloadError = typeof result?.payload?.error === 'string' ? result.payload.error : '';
+  const stderrText = typeof result?.stderr === 'string' ? result.stderr : '';
+  const diagExtra = typeof error?.diagnosticText === 'string' ? error.diagnosticText : '';
+  const errMsg = typeof error?.message === 'string' ? error.message : '';
+  const rawDiag = [payloadError, stderrText, diagExtra].filter(Boolean).join('\n') || errMsg;
+  const agyErrors = error?.agy?.errors || result?.agy?.errors || [];
+  const statuses = agyErrors.map((e) => String(e?.status || '').toUpperCase()).filter(Boolean);
+  return { rawDiag, errMsg, statuses };
+}
+
+const MODEL_TOKEN_RE = '(?:\\bmodel\\b|(?:gemini|claude|gpt)-[\\w.-]+|\\b(?:carbon|argon|opus|sonnet|flash)\\b)';
+const ENTITLEMENT_PHRASE_RE = '(?:not (?:available|supported|enabled|allowed|found|recognized|entitled|included)|only available (?:to|on|for|with|in)|(?:no|not have|without) access|access denied|does not include|requires[^\\n]{0,50}\\b(?:ultra|pro|subscription|plan|upgrade|tier|allowlist)\\b|\\b(?:ultra|subscription|plan|upgrade|tier|allowlist)\\b[^\\n]{0,50}\\b(?:only|required|needed|subscribers?|members?|users?|accounts?|plans?|tiers?)\\b|\\b(?:allowlist|tier|entitlement)\\b|upgrade[^\\n]{0,25}\\b(?:plan|subscription|to ultra)\\b)';
+const MODEL_ENTITLEMENT_RE = new RegExp(
+  `${MODEL_TOKEN_RE}[^\\n]{0,80}${ENTITLEMENT_PHRASE_RE}|${ENTITLEMENT_PHRASE_RE}[^\\n]{0,80}${MODEL_TOKEN_RE}`,
+  'i'
+);
+
+function parseAvailableModelsFromError(rawDiag) {
+  if (!rawDiag) return null;
+  const match = /(?:^|\n)\s*Available models:\s*\n((?:[ \t]+\S+[^\n]*(?:\n|$))+)/i.exec(rawDiag);
+  if (!match) return null;
+  const ids = new Set();
+  for (const line of match[1].split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const id = trimmed.split(/\s+/)[0];
+    if (id && /^[a-z0-9][\w.-]*$/i.test(id)) ids.add(id);
+  }
+  return ids.size > 0 ? ids : null;
+}
+
+function isBrainFallbackEligibleError(error, result) {
+  if (typeof result?.payload?.response === 'string' && result.payload.response.trim()) return false;
+  if (result?.hadProgress || error?.hadProgress || Number(result?.payload?.num_turns) > 1) return false;
+  if (['canceled', 'hard_timeout', 'response_timeout', 'launch_error', 'stream_error'].includes(error?.reason)) return false;
+  if (result?.payload && isResponseTimeout(result.payload, result.agy || {})) return false;
+  const { rawDiag, errMsg, statuses } = extractBrainDiag(error, result);
+  if (/operation not permitted/i.test(rawDiag) || /operation not permitted/i.test(errMsg)) return false;
+  if (
+    statuses.includes('UNAUTHENTICATED') ||
+    /\b(unauthenticated|unauthorized|invalid.?credential|re-login|expired auth|401)\b/i.test(rawDiag) ||
+    /authentication failed|invalid.?token|token[^\n]{0,30}revoked|login required/i.test(rawDiag)
+  ) {
+    return false;
+  }
+  if (/context (?:window|length)|prompt[^\n]{0,40}(?:too long|exceeds)|max(?:imum)? tokens/i.test(rawDiag)) {
+    return false;
+  }
+
+  const unsupported = isUnsupportedModelError(rawDiag);
+  const mentionsModelEntitlement = MODEL_ENTITLEMENT_RE.test(rawDiag);
+  if (statuses.includes('PERMISSION_DENIED') && !mentionsModelEntitlement && !unsupported) return false;
+  if (statuses.includes('INVALID_ARGUMENT') && !mentionsModelEntitlement && !unsupported) return false;
+  if (statuses.includes('FAILED_PRECONDITION') && !mentionsModelEntitlement && !unsupported) return false;
+
+  if (unsupported) return true;
+  if (statuses.some((s) => s === 'RESOURCE_EXHAUSTED' || s === 'NOT_FOUND')) return true;
+  if (statuses.some((s) => s === 'INVALID_ARGUMENT' || s === 'PERMISSION_DENIED' || s === 'FAILED_PRECONDITION') && mentionsModelEntitlement) return true;
+  if (/quota|rate.?limit|resource.?exhausted|\b429\b/i.test(rawDiag)) return true;
+  if (mentionsModelEntitlement) return true;
+  return false;
+}
+
+function shortFallbackReason(error, result) {
+  const { rawDiag, statuses } = extractBrainDiag(error, result);
+  if (statuses.includes('RESOURCE_EXHAUSTED') || /quota|rate.?limit|resource.?exhausted|\b429\b/i.test(rawDiag)) return 'quota_exhausted';
+  if (isUnsupportedModelError(rawDiag) || statuses.includes('NOT_FOUND')) return 'unsupported_model';
+  if (statuses.includes('PERMISSION_DENIED') || statuses.includes('FAILED_PRECONDITION') || MODEL_ENTITLEMENT_RE.test(rawDiag)) return 'model_entitlement';
+  return 'model_unavailable';
+}
+
+function updateSpecModel(specFile, model, remainingChain) {
+  if (!specFile) return;
+  try {
+    const specData = JSON.parse(fs.readFileSync(specFile, 'utf8'));
+    if (specData?.resolved) {
+      specData.resolved.model = model;
+      if (Array.isArray(remainingChain) && remainingChain.length > 1) {
+        specData.resolved.modelFallbackChain = [...remainingChain];
+      } else {
+        delete specData.resolved.modelFallbackChain;
+      }
+      atomicJSON(specFile, specData);
+    }
+  } catch {}
+}
+
+function commitFallbackModel(opts, candidateModel, initialModel, candidates, index, attemptedModels = null) {
+  if (candidateModel === initialModel) return;
+  const remainingChain = candidates.slice(index);
+  if (opts.jobId) {
+    updateState((state) => {
+      const job = state.jobs?.find((j) => j.id === opts.jobId);
+      if (job) {
+        job.model = candidateModel;
+        job.fallback_from = initialModel;
+        job.attempted_models = attemptedModels || candidates.slice(0, index + 1);
+      }
+    });
+  }
+  updateSpecModel(opts.specFile, candidateModel, remainingChain);
+}
+
 async function executeRun(resolved, prompt, opts, execution = null) {
   const workspaceBefore = resolved.mode === 'ask' ? null : porcelainSnapshot();
   const implementBefore = implementGuardApplies(resolved) ? workspaceBefore : null;
   const treeBefore = treeReportApplies(resolved) ? workspaceBefore : null;
 
-  const invoke = {
-    prompt,
-    workspace: repoRoot(),
-    model: resolved.model,
-    timeout: resolved.timeout,
-    conversation: resolved.conversation,
-    unrestricted: resolved.profile === 'unrestricted',
-    jsonSchema: opts.json && resolved.mode === 'review' ? REVIEW_JSON_SCHEMA : null,
-  };
+  const candidates = Array.isArray(resolved.modelFallbackChain) && resolved.modelFallbackChain.length > 1
+    ? [...resolved.modelFallbackChain]
+    : [resolved.model];
+  const initialModel = candidates[0];
+  const initialConversation = resolved.conversation || null;
+  const pendingUnavailable = [];
+  const attemptedModels = [];
+
   let result, response;
-  try {
-    result = execution ? await execution(invoke) : runAgy(invoke);
-    opts.agy = result.agy;
-    rememberConversation(resolved, result.payload.conversation_id, opts.jobId);
-    response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model, opts.jobId);
-    if (hasNativeWarnings(result.agy)) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(result.agy)}\n`);
-  } catch (error) {
-    error.agy ||= result?.agy;
-    // A provider's structured API error can quote flag-like user content.
-    // Native evidence outranks prose heuristics for CLI compatibility too.
-    const hint = error.agy?.errors?.length ? null : unsupportedCliHint(`${error.message}\n${error.diagnosticText || ''}`);
-    if (hint) {
-      error.message += `\n${hint}`;
-      if (error.alreadyPrinted) process.stderr.write(`${hint}\n`);
-    }
-    if (error.agy) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(error.agy)}\n`);
-    error.workspace = {
-      before: excerpt(workspaceBefore?.join('\n') ?? 'Git status unavailable', 3000),
-      after: excerpt(porcelainSnapshot()?.join('\n') ?? 'Git status unavailable', 3000),
-      note: 'Inspect git status --short, git diff and git diff --cached. Status cannot detect further edits to already dirty files; no workspace rollback was performed.' };
-    if (error.reason === 'response_timeout' && !resolved.background) {
-      const conversation = result.payload.conversation_id;
-      const recovery = timeoutRecovery({
-        id: opts.jobId || null,
-        mode: resolved.mode,
-        timeout: resolved.timeout,
-        conversation_id: conversation,
-        spec_file: opts.specFile || null,
-      });
-      try {
-        die(`${error.message}\n${JSON.stringify({
-          status: conversation ? 'attention' : 'error', reason: error.reason,
-          job_id: opts.jobId || null,
-          conversation_id: conversation || null, mode: resolved.mode, model: resolved.model,
-          profile: resolved.profile, recovery, agy: error.agy,
-        }, null, 2)}`, conversation ? 5 : 1);
-      } catch (died) {
-        died.reason = error.reason;
-        died.agy = error.agy;
-        died.workspace = error.workspace;
-        throw died;
+  for (let i = 0; i < candidates.length; i++) {
+    const candidateModel = candidates[i];
+    const hasNextCandidate = i < candidates.length - 1;
+    attemptedModels.push(candidateModel);
+    resolved.model = candidateModel;
+    const invoke = {
+      prompt,
+      workspace: repoRoot(),
+      model: candidateModel,
+      timeout: resolved.timeout,
+      conversation: resolved.conversation,
+      unrestricted: resolved.profile === 'unrestricted',
+      jsonSchema: opts.json && resolved.mode === 'review' ? REVIEW_JSON_SCHEMA : null,
+      allowModelFallback: hasNextCandidate,
+    };
+    result = undefined;
+    try {
+      result = execution ? await execution(invoke) : runAgy(invoke);
+      opts.agy = result.agy;
+      rememberConversation(resolved, result.payload.conversation_id, opts.jobId);
+      response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model, opts.jobId, { allowModelFallback: hasNextCandidate });
+      commitFallbackModel(opts, candidateModel, initialModel, candidates, i, [...attemptedModels]);
+      updateModelCache({ markUnavailable: pendingUnavailable, markAvailable: [candidateModel] });
+      if (hasNativeWarnings(result.agy)) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(result.agy)}\n`);
+      break;
+    } catch (error) {
+      error.agy ||= result?.agy;
+      error.hadProgress ||= result?.hadProgress;
+      const eligible = isBrainFallbackEligibleError(error, result);
+      if (hasNextCandidate && eligible) {
+        const shortReason = shortFallbackReason(error, result);
+        if (shortReason === 'unsupported_model' || shortReason === 'model_entitlement') {
+          pendingUnavailable.push({ model: candidateModel, reason: shortReason });
+        }
+        let nextIndex = i + 1;
+        if (shortReason === 'unsupported_model') {
+          const availableFromErr = parseAvailableModelsFromError(extractBrainDiag(error, result).rawDiag);
+          if (availableFromErr) {
+            const viableIdx = candidates.findIndex((m, idx) => idx > i && availableFromErr.has(m));
+            if (viableIdx > nextIndex) {
+              for (let skipped = nextIndex; skipped < viableIdx; skipped++) {
+                pendingUnavailable.push({ model: candidates[skipped], reason: 'unsupported_model' });
+              }
+              nextIndex = viableIdx;
+            }
+          }
+        }
+        const nextModel = candidates[nextIndex];
+        const fallbackLine = `[agy-staff] brain model fallback: ${candidateModel} -> ${nextModel} (${shortReason})\n`;
+        process.stderr.write(fallbackLine);
+        if (!resolved.background && opts.logFile) {
+          try { fs.appendFileSync(opts.logFile, fallbackLine); } catch {}
+        }
+        resolved.conversation = initialConversation;
+        resolved.model = nextModel;
+        opts.agy = undefined;
+        if (opts.jobId) {
+          updateState((state) => {
+            const job = state.jobs?.find((j) => j.id === opts.jobId);
+            const failedConv = !initialConversation ? job?.conversation_id : null;
+            if (job) {
+              job.conversation_id = initialConversation;
+            }
+            if (failedConv) {
+              if (state.conversations?.[resolved.mode] === failedConv) delete state.conversations[resolved.mode];
+              if (state.last?.id === failedConv) state.last = null;
+              if (state.conversation_configs?.[failedConv]) delete state.conversation_configs[failedConv];
+            }
+          });
+        }
+        if (opts.eventsFile) {
+          try { fs.writeFileSync(opts.eventsFile, ''); } catch {}
+        }
+        i = nextIndex - 1;
+        continue;
       }
+      if (!hasNextCandidate && candidates.length > 1 && eligible) {
+        resolved.model = initialModel;
+        if (opts.jobId) {
+          updateState((state) => {
+            const job = state.jobs?.find((j) => j.id === opts.jobId);
+            const failedConv = !initialConversation ? job?.conversation_id : null;
+            if (job) {
+              job.model = initialModel;
+              delete job.fallback_from;
+              job.attempted_models = [...attemptedModels];
+              job.conversation_id = initialConversation;
+            }
+            if (failedConv) {
+              if (state.conversations?.[resolved.mode] === failedConv) delete state.conversations[resolved.mode];
+              if (state.last?.id === failedConv) state.last = null;
+              if (state.conversation_configs?.[failedConv]) delete state.conversation_configs[failedConv];
+            }
+          });
+        }
+      } else if (i > 0) {
+        commitFallbackModel(opts, candidateModel, initialModel, candidates, i, [...attemptedModels]);
+      }
+      if (hasNextCandidate && !inWorker && !error.alreadyPrinted) {
+        process.stderr.write(`agy-staff error: ${error.message}\n`);
+        error.alreadyPrinted = true;
+        error.exitCode ||= 1;
+      }
+      // A provider's structured API error can quote flag-like user content.
+      // Native evidence outranks prose heuristics for CLI compatibility too.
+      const hint = error.agy?.errors?.length ? null : unsupportedCliHint(`${error.message}\n${error.diagnosticText || ''}`);
+      if (hint) {
+        error.message += `\n${hint}`;
+        if (error.alreadyPrinted) process.stderr.write(`${hint}\n`);
+      }
+      if (error.agy) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(error.agy)}\n`);
+      error.workspace = {
+        before: excerpt(workspaceBefore?.join('\n') ?? 'Git status unavailable', 3000),
+        after: excerpt(porcelainSnapshot()?.join('\n') ?? 'Git status unavailable', 3000),
+        note: 'Inspect git status --short, git diff and git diff --cached. Status cannot detect further edits to already dirty files; no workspace rollback was performed.' };
+      if (error.reason === 'response_timeout' && !resolved.background) {
+        const conversation = result.payload.conversation_id;
+        const recovery = timeoutRecovery({
+          id: opts.jobId || null,
+          mode: resolved.mode,
+          timeout: resolved.timeout,
+          conversation_id: conversation,
+          spec_file: opts.specFile || null,
+        });
+        try {
+          die(`${error.message}\n${JSON.stringify({
+            status: conversation ? 'attention' : 'error', reason: error.reason,
+            job_id: opts.jobId || null,
+            conversation_id: conversation || null, mode: resolved.mode, model: resolved.model,
+            profile: resolved.profile, recovery, agy: error.agy,
+          }, null, 2)}`, conversation ? 5 : 1);
+        } catch (died) {
+          died.reason = error.reason;
+          died.agy = error.agy;
+          died.workspace = error.workspace;
+          throw died;
+        }
+      }
+      throw error;
     }
-    throw error;
   }
   const payload = result.payload;
   const treeAfter = treeBefore ? porcelainSnapshot() : null;
@@ -1396,7 +1718,7 @@ async function workerMain(jobId) {
     cancelTimer = setInterval(checkCancellation, 100);
     if (controller.signal.aborted) throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled' });
     const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
-    const opts = { ...spec.opts, jobId };
+    const opts = { ...spec.opts, jobId, eventsFile: job.events_file, specFile: job.spec_file };
     const output = await executeRun(spec.resolved, spec.prompt, opts, (invoke) => {
       const agy = agyCommand(agyArgs(invoke, 'stream-json'));
       return runStreaming({ binary: agy.cmd, args: agy.args, job,
@@ -1404,10 +1726,10 @@ async function workerMain(jobId) {
         update: (fields) => updateJob(jobId, fields),
         conversation: (id) => rememberConversation(spec.resolved, id, jobId),
       }).catch((error) => {
-        if (error.reason === 'missing_result' && isUnsupportedModelError(error.diagnosticText || '')) {
+        if (!invoke.allowModelFallback && error.reason === 'missing_result' && isUnsupportedModelError(error.diagnosticText || '')) {
           if (!error.agy?.errors?.length) {
             try { handleUnsupportedModel({ requestedModel: invoke.model, errText: error.diagnosticText, originalError: error.diagnosticText }); }
-            catch (diagnostic) { diagnostic.agy = error.agy; throw diagnostic; }
+            catch (diagnostic) { diagnostic.agy = error.agy; diagnostic.diagnosticText = error.diagnosticText; diagnostic.hadProgress = error.hadProgress; throw diagnostic; }
           }
         }
         throw error;
@@ -1821,7 +2143,18 @@ function cmdRestart(opts) {
     die('restart uses the recorded brain model; omit --model and --effort, or start a new staffer --brain job with --model.');
   }
   enterOriginalWorkspace(spec.cwd);
-  const resolved = { ...spec.resolved, conversation: null, timeout: DEFAULTS.timeout[job.mode] };
+  const recordedModel = job.model || spec.resolved.model;
+  const resolved = { ...spec.resolved, model: recordedModel, conversation: null, timeout: DEFAULTS.timeout[job.mode] };
+  if (Array.isArray(resolved.modelFallbackChain)) {
+    const idx = resolved.modelFallbackChain.indexOf(recordedModel);
+    if (idx >= 0) {
+      const tail = resolved.modelFallbackChain.slice(idx);
+      if (tail.length > 1) resolved.modelFallbackChain = tail;
+      else delete resolved.modelFallbackChain;
+    } else {
+      delete resolved.modelFallbackChain;
+    }
+  }
   if (opts.timeout) {
     resolved.timeout = resolveRun(job.mode, { ...opts, model: resolved.model, [resolved.profile]: true }).timeout;
   }
@@ -1924,6 +2257,7 @@ function cmdSetup(opts) {
   process.stdout.write(`Project policy (${configPath()}): ${policyLine}\n`);
   process.stdout.write(`Global settings file: ${AGY_SETTINGS} ${exists ? '(exists)' : '(will be created)'}\n\n`);
   if (!missing.length && !missingDeny.length) {
+    if (opts.apply) clearModelCache();
     process.stdout.write('The evidence-gathering allow/deny rules are already installed. Nothing to do.\n');
     printSetupNotes();
     return;
@@ -1967,6 +2301,7 @@ function cmdSetup(opts) {
   } else {
     fs.mkdirSync(path.dirname(AGY_SETTINGS), { recursive: true });
   }
+  clearModelCache();
 
   settings.permissions = settings.permissions || {};
   settings.permissions.allow = [...current, ...missing];

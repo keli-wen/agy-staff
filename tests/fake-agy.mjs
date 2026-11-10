@@ -83,6 +83,118 @@ if (touch) {
 }
 
 const streaming = argv[argv.indexOf('--output-format') + 1] === 'stream-json';
+const modelFlagIndex = argv.indexOf('--model');
+const requestedModel = modelFlagIndex >= 0 ? argv[modelFlagIndex + 1] : '';
+
+function parseFailModels(raw) {
+  if (!raw) return {};
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('{')) {
+    try { return JSON.parse(trimmed); } catch { return {}; }
+  }
+  const map = {};
+  for (const part of trimmed.split(',')) {
+    const idx = part.indexOf(':');
+    if (idx > 0) {
+      map[part.slice(0, idx).trim()] = part.slice(idx + 1).trim();
+    }
+  }
+  return map;
+}
+
+const failModels = parseFailModels(process.env.FAKE_AGY_FAIL_MODELS);
+const modelFailure = requestedModel ? failModels[requestedModel] : null;
+if (modelFailure) {
+  const kind = typeof modelFailure === 'object' ? modelFailure.kind : String(modelFailure);
+  if (kind === 'sandbox' || kind === 'eperm') {
+    process.stderr.write('Error: listen EPERM: operation not permitted 127.0.0.1\n');
+    process.exit(1);
+  }
+  if (kind === 'unsupported_no_json') {
+    process.stderr.write(`invalid model selection: unknown model ${requestedModel}\n`);
+    process.exit(1);
+  }
+  if (streaming) {
+    process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: `conv-dead-${requestedModel}` } }) + '\n');
+    if (process.env.FAKE_AGY_EVENTS) {
+      for (const event of JSON.parse(process.env.FAKE_AGY_EVENTS)) process.stdout.write(JSON.stringify(event) + '\n');
+    }
+  }
+  let errorMsg = `unknown model: ${requestedModel}`;
+  let finishedReason;
+  if (kind === 'unsupported') {
+    errorMsg = `invalid model selection: model ${requestedModel} is not recognized as a known model`;
+  } else if (kind === 'pro_unlisted') {
+    // Exact verbatim output structure produced by agy 1.5.4 when the signed-in Pro
+    // account's dynamic model list omits Ultra-only Carbon.
+    const availableBlock = [
+      'Available models:',
+      '  gemini-4-argon-medium',
+      '  gemini-4-argon-high',
+      '  gemini-4-argon-low',
+      '  gemini-3.8-flash-high',
+      '  gemini-3.8-flash-medium',
+      '  gemini-3.8-flash-low',
+      '  claude-opus-5-5-medium',
+      '  custom-auth-proxy-4030',
+    ].join('\n');
+    errorMsg = `invalid model selection (--model "${requestedModel}" --effort ""): model ${requestedModel} is not recognized as a known model or custom model in settings\n${availableBlock}`;
+    process.stderr.write(`error: ${errorMsg}\n`);
+    finishedReason = 'error';
+  } else if (kind === 'flash_only_unlisted') {
+    const availableBlock = [
+      'Available models:',
+      '  gemini-3.8-flash-high',
+      '  gemini-3.8-flash-medium',
+      '  gemini-3.8-flash-low',
+    ].join('\n');
+    errorMsg = `invalid model selection (--model "${requestedModel}" --effort ""): model ${requestedModel} is not recognized as a known model or custom model in settings\n${availableBlock}`;
+    process.stderr.write(`error: ${errorMsg}\n`);
+    finishedReason = 'error';
+  } else if (kind === 'ultra_only_403') {
+    process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"req-a403b-14290"}\n');
+    errorMsg = 'Gemini 4 Carbon is only available to Google AI Ultra subscribers.';
+    finishedReason = 'error';
+  } else if (kind === 'ultra_precondition') {
+    process.stderr.write('AGY_ERROR: {"status":"FAILED_PRECONDITION","error_code":400,"code_kind":"http","retryable":false,"error_id":"req-precond-99"}\n');
+    errorMsg = `Model ${requestedModel} requires a Google AI Ultra subscription. Upgrade your plan to use this model.`;
+    finishedReason = 'error';
+  } else if (kind === 'unsupported_uuid_digits') {
+    process.stderr.write('request_id=trace-a403b-14290-x401z\n');
+    errorMsg = `unknown model: ${requestedModel}`;
+  } else if (kind === 'quota' || kind === '429' || kind === 'resource_exhausted') {
+    process.stderr.write('AGY_ERROR: {"status":"RESOURCE_EXHAUSTED","error_code":429,"code_kind":"http","retryable":false,"error_id":"err-quota"}\n');
+    errorMsg = `429 Resource exhausted: quota exceeded for model ${requestedModel}`;
+  } else if (kind === 'entitlement' || kind === '403_model') {
+    process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"err-entitle"}\n');
+    errorMsg = `Permission denied: model ${requestedModel} is not available for your account`;
+  } else if (kind === '403_workspace') {
+    process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"err-perm"}\n');
+    errorMsg = 'Permission denied: caller does not have access to workspace';
+  } else if (kind === 'token_revoked') {
+    process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"err-tok"}\n');
+    errorMsg = 'Authentication failed: token access revoked';
+  } else if (kind === 'context_window') {
+    process.stderr.write('AGY_ERROR: {"status":"INVALID_ARGUMENT","error_code":400,"code_kind":"http","retryable":false,"error_id":"err-ctx"}\n');
+    errorMsg = 'Invalid argument: prompt exceeds model context window';
+  } else if (kind === 'auth' || kind === '401') {
+    process.stderr.write('AGY_ERROR: {"status":"UNAUTHENTICATED","error_code":401,"code_kind":"http","retryable":false,"error_id":"err-auth"}\n');
+    errorMsg = '401 Unauthorized: Invalid credentials';
+  }
+  const errPayload = {
+    conversation_id: '',
+    status: 'ERROR',
+    response: '',
+    error: errorMsg,
+    duration_seconds: 0,
+    num_turns: 0,
+    usage: { input_tokens: 0, output_tokens: 0 },
+    ...(finishedReason ? { finished_reason: finishedReason } : {}),
+  };
+  await new Promise((resolve) => process.stdout.write(JSON.stringify(streaming ? { event: 'result', result: errPayload } : errPayload) + '\n', resolve));
+  process.exit(1);
+}
+
 if (streaming && !process.env.FAKE_AGY_NO_JSON) {
   process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: process.env.FAKE_AGY_CONVERSATION_ID ?? 'conv-1' } }) + '\n');
   if (process.env.FAKE_AGY_EVENTS) {

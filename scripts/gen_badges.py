@@ -130,6 +130,7 @@ EDGE = "#BDC1C6"     # Google grey 400
 BLUE = "#4285F4"     # Google / Gemini blue
 PURPLE = "#9B72CB"   # Gemini heritage gradient purple
 VIOLET = "#6A3AB2"   # Deep royal purple from design.svg (/agy:brain)
+CARBON_TEAL = "#00838F"  # Gemini 4 Carbon diamond teal
 YELLOW = "#FBBC04"   # Google yellow
 ARCH_APEX = "#DB863D"  # sampled from the official Antigravity mark (apex)
 ARCH_LEGS = "#3289FC"  # sampled from the official Antigravity mark (legs)
@@ -160,6 +161,79 @@ SPARKLE = (  # four-point Gemini sparkle
     "...XXX...",
     "....X....",
     "....X....",
+)
+
+DIAMOND_TOP = (
+    "..XXXXX..",
+    ".XXXXXXX.",
+    "XXXXXXXXX",
+    ".........",
+    ".........",
+    ".........",
+    ".........",
+)
+DIAMOND_BOT = (
+    ".........",
+    ".........",
+    ".........",
+    ".XXXXXXX.",
+    "..XXXXX..",
+    "...XXX...",
+    "....X....",
+)
+DIAMOND_GLEAM = (
+    ".........",
+    "..XX.....",
+    ".XX......",
+    ".........",
+    ".........",
+    ".........",
+    ".........",
+)
+
+ARGON_RING = (
+    "...X.X...",
+    "..X...X..",
+    ".........",
+    "X.......X",
+    ".........",
+    "X.......X",
+    ".........",
+    "..X...X..",
+    "...X.X...",
+)
+ARGON_ELEC = (
+    "....X....",
+    ".........",
+    ".X.....X.",
+    ".........",
+    "X.......X",
+    ".........",
+    ".X.....X.",
+    ".........",
+    "....X....",
+)
+ARGON_CORE = (
+    ".........",
+    ".........",
+    ".........",
+    "....X....",
+    "...XXX...",
+    "....X....",
+    ".........",
+    ".........",
+    ".........",
+)
+ARGON_CENTER = (
+    ".........",
+    ".........",
+    ".........",
+    ".........",
+    "....X....",
+    ".........",
+    ".........",
+    ".........",
+    ".........",
 )
 
 
@@ -227,8 +301,16 @@ SPECS = [
     ("model-gemini-3-8-flash", "MODEL", "GEMINI 3.8 FLASH", PURPLE, PAPER,
      [(SPARKLE, BLUE, 2, None)],
      "model: Gemini 3.8 Flash", True),
+    ("model-gemini-4-carbon", "MODEL", "GEMINI 4 CARBON", CARBON_TEAL, PAPER,
+     [(DIAMOND_TOP, "#4DD0E1", 2, None),
+      (DIAMOND_BOT, "#00ACC1", 2, None),
+      (DIAMOND_GLEAM, "#E8F0FE", 2, None)],
+     "model: Gemini 4 Carbon", True),
     ("model-gemini-4-argon", "MODEL", "GEMINI 4 ARGON", VIOLET, PAPER,
-     [(SPARKLE, BLUE, 2, None)],
+     [(ARGON_RING, PURPLE, 2, None),
+      (ARGON_ELEC, "#669DF6", 2, None),
+      (ARGON_CORE, "#B388FF", 2, None),
+      (ARGON_CENTER, YELLOW, 2, None)],
      "model: Gemini 4 Argon", True),
     ("claude-code-plugin", "CLAUDE CODE", "PLUGIN", CLAUDE, PAPER, [],
      "Claude Code: plugin", True),

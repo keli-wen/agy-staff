@@ -77,7 +77,14 @@ test("Item 4: root package.json, dsh/package.json, dead asset removal, and bundl
 
   // Key visual & interaction design requirements
   assert.ok(clientJs.includes('shapeRendering: "crispEdges"'), "client.js must use crispEdges SVGs");
+  assert.ok(clientJs.includes("PixelIconCarbon"), "client.js must define PixelIconCarbon");
+  assert.ok(clientJs.includes("PixelIconArgon"), "client.js must define PixelIconArgon");
+  assert.ok(clientJs.includes("Carbon / Argon + 3.8 Flash"), "client.js must show Carbon / Argon + 3.8 Flash");
+  assert.ok(!clientJs.includes("roleBrain:"), "client.js must remove dead roleBrain I18N keys");
   assert.ok(clientJs.includes("中 / EN"), "client.js must provide language toggle");
+  assert.ok(existsSync(join(repoRoot, "assets", "icons", "carbon.svg")), "assets/icons/carbon.svg must exist");
+  assert.ok(existsSync(join(repoRoot, "assets", "icons", "argon.svg")), "assets/icons/argon.svg must exist");
+  assert.ok(existsSync(join(repoRoot, "assets", "badges", "model-gemini-4-carbon.svg")), "model-gemini-4-carbon.svg must exist");
   assert.ok(clientJs.includes("flex-shrink: 0"), "client.js must prevent capability card shrinkage");
   assert.ok(clientJs.includes("DisclosureChevron"), "client.js must use dedicated SVG chevron");
   assert.ok(clientJs.includes("IconQueryBubble") && clientJs.includes("IconReplySheet"));
@@ -247,6 +254,42 @@ test("Items 1, 4, 6, 7: dsh/index.mjs skills hydration, lifecycle tools, and /ag
     "Check false defers to config",
   ]);
 
+  // Explicit model & effort forwarding on agy_brain (fresh and continue)
+  assert.ok(brainTool.parameters?.properties?.model, "agy_brain must expose model parameter");
+  assert.ok(brainTool.parameters?.properties?.effort, "agy_brain must expose effort parameter");
+  executedRunnerCalls.length = 0;
+  await brainTool.execute(
+    { prompt: "Explicit Argon brain", model: "argon", effort: "high" },
+    { agent: fakeAgentWithCwd }
+  );
+  assert.deepEqual(executedRunnerCalls[0].args, [
+    "staffer",
+    "--brain",
+    "--prompt",
+    "Explicit Argon brain",
+    "--model",
+    "argon",
+    "--effort",
+    "high",
+  ]);
+
+  executedRunnerCalls.length = 0;
+  await brainTool.execute(
+    { prompt: "Continue with Carbon", job_id: "staffer-test-123", model: "carbon", effort: "medium" },
+    { agent: fakeAgentWithCwd }
+  );
+  assert.deepEqual(executedRunnerCalls[0].args, [
+    "continue",
+    "--job",
+    "staffer-test-123",
+    "--prompt",
+    "Continue with Carbon",
+    "--model",
+    "carbon",
+    "--effort",
+    "medium",
+  ]);
+
   // 4. Verify agy_worker
   executedRunnerCalls.length = 0;
   runnerMockResponse = {
@@ -283,6 +326,24 @@ test("Items 1, 4, 6, 7: dsh/index.mjs skills hydration, lifecycle tools, and /ag
     "worker-research-999",
     "--prompt",
     "Continue deep-dive",
+  ]);
+
+  // Explicit model & effort forwarding on agy_worker
+  assert.ok(workerTool.parameters?.properties?.model, "agy_worker must expose model parameter");
+  assert.ok(workerTool.parameters?.properties?.effort, "agy_worker must expose effort parameter");
+  executedRunnerCalls.length = 0;
+  await workerTool.execute(
+    { role: "research", prompt: "Carbon research", model: "carbon", effort: "high" },
+    { agent: fakeAgentWithCwd }
+  );
+  assert.deepEqual(executedRunnerCalls[0].args, [
+    "research",
+    "--prompt",
+    "Carbon research",
+    "--model",
+    "carbon",
+    "--effort",
+    "high",
   ]);
 
   // Worker role: "ask" returns status: "done"
@@ -596,6 +657,7 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     let hasResultMd = false;
     let resultMdContent = "";
     let progressJsonAvailable = true;
+    let mockExtraJobs = [];
 
     const fileReadCounts = {
       state: 0,
@@ -640,6 +702,7 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
                         status: mockJobStatus,
                         started_at: "2026-11-06T14:21:48.845Z",
                       },
+                      ...mockExtraJobs,
                     ],
                   }),
                 },
@@ -719,13 +782,24 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     const GuideIcon = registeredTab.guide[0].icon;
     const iconNode = GuideIcon({ size: 26 });
     assert.equal(iconNode.type, "svg", "GuideArtworkAgyStaff must render a transparent <svg> directly");
+    assert.equal(
+      registeredTab.guide[0].description(),
+      "子代理协作 · Gemini 4 Carbon / Argon & 3.8 Flash",
+      "Guide description must reflect Gemini 4 Carbon / Argon & 3.8 Flash"
+    );
 
     const SidebarBody = registeredSlots.get("sidebar.right.pane.tab:agy-staff-dsh");
     assert.equal(typeof SidebarBody, "function");
 
+    const insertedDrafts = [];
     const wrapperNode = SidebarBody({
       sessionId: "test-session",
       useSessions: () => "/Users/wenkeli/OpenSource/agy-staff",
+      inputActions: {
+        setDraft(draft) {
+          insertedDrafts.push(draft);
+        },
+      },
     });
     const innerComp = wrapperNode.props.children.type;
     const innerProps = wrapperNode.props.children.props;
@@ -748,6 +822,10 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
 
     const summaryBtn = findOne(tree, (n) => n.props?.className === "agy-subagent-summary");
     assert.ok(summaryBtn, "card summary button must exist");
+    assert.ok(
+      textContent(summaryBtn).includes("staffer · Argon"),
+      `worker job with explicit Argon model should render 'staffer · Argon', got: ${textContent(summaryBtn)}`
+    );
 
     // Click to expand card
     summaryBtn.props.onClick();
@@ -914,6 +992,202 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
       StatusGraphicIcon({ status: "running" }).props.title,
       "Running / 运行中"
     );
+
+    // Phase 6: Verify PixelIconCarbon, PixelIconArgon, and dynamic brain/worker role tags
+    mockExtraJobs = [
+      {
+        id: "staffer-brain-carbon-1",
+        mode: "staffer",
+        brain: true,
+        model: "gemini-4-carbon-medium",
+        status: "done",
+        task: "Carbon proposal",
+        started_at: "2026-11-07T10:00:00.000Z",
+      },
+      {
+        id: "staffer-brain-argon-2",
+        mode: "staffer",
+        brain: true,
+        model: "gemini-4-argon-medium",
+        status: "done",
+        task: "Argon fallback proposal",
+        started_at: "2026-11-07T10:01:00.000Z",
+      },
+      {
+        id: "staffer-brain-flash-3",
+        mode: "staffer",
+        brain: true,
+        model: "gemini-3.8-flash-medium",
+        status: "done",
+        task: "Flash fallback proposal",
+        started_at: "2026-11-07T10:02:00.000Z",
+      },
+      {
+        id: "research-carbon-4",
+        mode: "research",
+        model: "gemini-4-carbon-high",
+        status: "done",
+        task: "Explicit Carbon worker",
+        started_at: "2026-11-07T10:03:00.000Z",
+      },
+    ];
+    await refreshBtn.props.onClick();
+    tree = renderFrame(innerComp, innerProps);
+    assertValidReactNode(tree, "multi-model-cards");
+
+    const fullTreeText = textContent(tree);
+    for (const expectedRole of [
+      "brain · Carbon",
+      "brain · Argon",
+      "brain · Flash",
+      "researcher · Carbon",
+      "staffer · Argon",
+    ]) {
+      assert.ok(
+        fullTreeText.includes(expectedRole),
+        `sidebar should render '${expectedRole}', got: ${fullTreeText}`
+      );
+    }
+    assert.ok(
+      findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconCarbon"),
+      "PixelIconCarbon must render for Carbon brain card"
+    );
+    assert.ok(
+      findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconArgon"),
+      "PixelIconArgon must render for Argon brain card"
+    );
+
+    // Phase 7: Verify /agy-brain [Carbon] & [Argon] quick-chips, no nested <button>, and multi-turn model tags
+    function assertNoNestedButtons(node, insideButton = false) {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) {
+        for (const child of node) assertNoNestedButtons(child, insideButton);
+        return;
+      }
+      if (typeof node.type === "function") {
+        assertNoNestedButtons(node.type(node.props || {}), insideButton);
+        return;
+      }
+      const isBtn = node.type === "button";
+      if (isBtn && insideButton) {
+        assert.fail("Invalid DOM nesting: <button> nested inside <button>");
+      }
+      if (node.props && "children" in node.props) {
+        assertNoNestedButtons(node.props.children, insideButton || isBtn);
+      }
+    }
+    assertNoNestedButtons(tree);
+
+    const brainCapCard = findOne(
+      tree,
+      (n) =>
+        n.props?.className === "agy-cap-item" &&
+        n.props?.["data-has-chips"] === "true" &&
+        textContent(n).includes("/agy-brain")
+    );
+    assert.ok(brainCapCard, "/agy-brain capability card with quick-chips must exist");
+    assert.equal(brainCapCard.type, "div", "/agy-brain card with sub-chips must be a div[role=button]");
+    assert.equal(brainCapCard.props.role, "button");
+
+    const carbonChip = findOne(
+      brainCapCard,
+      (n) =>
+        n.type === "button" &&
+        n.props?.className?.includes("agy-cap-model-chip") &&
+        n.props?.["data-model"] === "carbon"
+    );
+    const argonChip = findOne(
+      brainCapCard,
+      (n) =>
+        n.type === "button" &&
+        n.props?.className?.includes("agy-cap-model-chip") &&
+        n.props?.["data-model"] === "argon"
+    );
+    assert.ok(carbonChip, "Carbon quick-chip must exist inside /agy-brain card");
+    assert.ok(argonChip, "Argon quick-chip must exist inside /agy-brain card");
+    assert.ok(
+      findOne(carbonChip, (n) => typeof n.type === "function" && n.type.name === "PixelIconCarbon"),
+      "Carbon quick-chip must render PixelIconCarbon"
+    );
+    assert.ok(
+      findOne(argonChip, (n) => typeof n.type === "function" && n.type.name === "PixelIconArgon"),
+      "Argon quick-chip must render PixelIconArgon"
+    );
+
+    insertedDrafts.length = 0;
+    await brainCapCard.props.onClick({ stopPropagation() {} });
+    assert.deepEqual(insertedDrafts, ["/agy-brain "], "clicking /agy-brain card inserts '/agy-brain '");
+
+    insertedDrafts.length = 0;
+    let carbonStopped = false;
+    await carbonChip.props.onClick({
+      stopPropagation() {
+        carbonStopped = true;
+      },
+    });
+    assert.equal(carbonStopped, true, "Carbon chip onClick must call stopPropagation()");
+    assert.deepEqual(
+      insertedDrafts,
+      ["/agy-brain --model carbon "],
+      "clicking Carbon chip inserts '/agy-brain --model carbon '"
+    );
+
+    insertedDrafts.length = 0;
+    let argonStopped = false;
+    await argonChip.props.onClick({
+      stopPropagation() {
+        argonStopped = true;
+      },
+    });
+    assert.equal(argonStopped, true, "Argon chip onClick must call stopPropagation()");
+    assert.deepEqual(
+      insertedDrafts,
+      ["/agy-brain --model argon "],
+      "clicking Argon chip inserts '/agy-brain --model argon '"
+    );
+
+    // Multi-turn thread where turn 1 used Carbon and turn 2 switched to Argon
+    mockExtraJobs = [
+      {
+        id: "staffer-brain-t1",
+        mode: "staffer",
+        brain: true,
+        conversation_id: "conv-multi-model",
+        model: "gemini-4-carbon-medium",
+        status: "done",
+        task: "Initial Carbon design",
+        started_at: "2026-11-07T10:10:00.000Z",
+      },
+      {
+        id: "staffer-brain-t2",
+        mode: "staffer",
+        brain: true,
+        conversation_id: "conv-multi-model",
+        continued_from_job_id: "staffer-brain-t1",
+        model: "gemini-4-argon-high",
+        status: "done",
+        task: "Follow-up Argon stress test",
+        started_at: "2026-11-07T10:12:00.000Z",
+      },
+    ];
+    await refreshBtn.props.onClick();
+    tree = renderFrame(innerComp, innerProps);
+    const multiSummary = findOne(
+      tree,
+      (n) =>
+        n.props?.className === "agy-subagent-summary" &&
+        textContent(n).includes("Follow-up Argon stress test")
+    );
+    assert.ok(multiSummary, "multi-turn thread summary must exist");
+    await multiSummary.props.onClick();
+    tree = renderFrame(innerComp, innerProps);
+    assertValidReactNode(tree, "multi-turn-mixed-models");
+    const turnModelPill = findOne(
+      tree,
+      (n) => n.props?.className?.includes("agy-turn-model-pill")
+    );
+    assert.ok(turnModelPill, "turn with differing model must display .agy-turn-model-pill");
+    assert.equal(textContent(turnModelPill), "Carbon");
   } finally {
     for (const c of cleanups) {
       if (typeof c === "function") {

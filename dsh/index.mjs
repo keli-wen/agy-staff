@@ -268,7 +268,7 @@ export function apply(ctx, options = {}) {
     toolCtx.tools.register({
       name: "agy_brain",
       description:
-        "Consult the AGY Second Brain (Gemini 4 Argon via `staffer --brain`) to propose an implementation route, challenge assumptions, or stress-test a design while the host retains final authority. Executes agy-companion outside the DSH command sandbox.",
+        "Consult the AGY Second Brain (Gemini 4 Carbon / Argon via `staffer --brain`) to propose an implementation route, challenge assumptions, or stress-test a design while the host retains final authority. Executes agy-companion outside the DSH command sandbox.",
       parameters: {
         type: "object",
         additionalProperties: false,
@@ -282,6 +282,17 @@ export function apply(ctx, options = {}) {
             type: "string",
             description:
               "Optional existing brain job_id to continue in the same thread (`continue --job <id>`).",
+          },
+          model: {
+            type: "string",
+            description:
+              "Optional model id or family alias (\"carbon\", \"argon\", \"flash\", \"pro\", or effort-suffixed id such as \"gemini-4-argon-high\"). Defaults to Gemini 4 Carbon.",
+          },
+          effort: {
+            type: "string",
+            enum: ["low", "medium", "high"],
+            description:
+              "Optional reasoning effort level when model is a bare family or alias (requires model on brain runs; an effort-suffixed model id already fixes its effort).",
           },
           restricted: {
             type: "boolean",
@@ -318,6 +329,12 @@ export function apply(ctx, options = {}) {
         const cliArgs = args.job_id
           ? ["continue", "--job", args.job_id, "--prompt", args.prompt]
           : ["staffer", "--brain", "--prompt", args.prompt];
+        if (args.model && String(args.model).trim()) {
+          cliArgs.push("--model", String(args.model).trim());
+        }
+        if (args.effort && String(args.effort).trim()) {
+          cliArgs.push("--effort", String(args.effort).trim());
+        }
         if (args.restricted === true) {
           cliArgs.push("--restricted");
         }
@@ -339,7 +356,7 @@ export function apply(ctx, options = {}) {
     toolCtx.tools.register({
       name: "agy_worker",
       description:
-        "Dispatch an AGY Worker sub-agency (Gemini 3.8 Flash) for research, review, implement, staffer, or ask, executing outside the DSH command sandbox (implement and unrestricted roles can write directly to the workspace).",
+        "Dispatch an AGY Worker sub-agency (Gemini 3.8 Flash default, or explicit model/effort) for research, review, implement, staffer, or ask, executing outside the DSH command sandbox (implement and unrestricted roles can write directly to the workspace).",
       parameters: {
         type: "object",
         additionalProperties: false,
@@ -357,6 +374,17 @@ export function apply(ctx, options = {}) {
             type: "string",
             description:
               "Optional existing worker job_id to continue in the same thread (`continue --job <id>`).",
+          },
+          model: {
+            type: "string",
+            description:
+              "Optional model id or family alias (\"carbon\", \"argon\", \"flash\", \"pro\", or effort-suffixed id).",
+          },
+          effort: {
+            type: "string",
+            enum: ["low", "medium", "high"],
+            description:
+              "Optional reasoning effort level when model is omitted or is a bare family/alias (an effort-suffixed model id already fixes its effort).",
           },
           restricted: {
             type: "boolean",
@@ -396,6 +424,12 @@ export function apply(ctx, options = {}) {
         const cliArgs = args.job_id
           ? ["continue", "--job", args.job_id, "--prompt", args.prompt]
           : [role, "--prompt", args.prompt];
+        if (args.model && String(args.model).trim()) {
+          cliArgs.push("--model", String(args.model).trim());
+        }
+        if (args.effort && String(args.effort).trim()) {
+          cliArgs.push("--effort", String(args.effort).trim());
+        }
         if (args.restricted === true) {
           cliArgs.push("--restricted");
         }

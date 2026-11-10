@@ -38,7 +38,7 @@ The command returns a job id. Read `../jobs/SKILL.md` for result collection and 
 ## Flags (all optional)
 
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts instead of shell quoting.
-- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-medium`.
+- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-medium`; `--model` also accepts family aliases `carbon` (`gemini-4-carbon`), `argon` (`gemini-4-argon`), `flash` (`gemini-3.8-flash`), and `pro` (`gemini-3.1-pro`).
 - `--restricted` / `--unrestricted` — permission profile; staffer defaults to unrestricted like the other tool-using personas, `--restricted` is the opt-in hardening path.
 - `--timeout <dur>` — default 60m, maximum 120m hard execution limit.
 

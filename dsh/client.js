@@ -326,6 +326,11 @@ body[data-ds-dark-theme] .agy-root {
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
+.agy-cap-item[data-has-chips="true"] {
+  padding: 0 8px;
+  gap: 7px;
+}
+
 .agy-cap-item:hover {
   background: var(--agy-surface-hover);
   border-color: var(--agy-border-strong);
@@ -334,6 +339,46 @@ body[data-ds-dark-theme] .agy-root {
 .agy-cap-item[data-copied="true"] {
   border-color: var(--agy-green);
   background: var(--agy-green-tint);
+}
+
+.agy-cap-model-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  min-width: 0;
+}
+
+.agy-cap-model-chip {
+  box-sizing: border-box;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--agy-border);
+  background: var(--agy-surface-subtle);
+  color: var(--agy-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.agy-cap-model-chip:hover {
+  background: var(--agy-surface);
+  border-color: var(--agy-border-strong);
+  color: var(--agy-ink);
+}
+
+.agy-cap-model-chip[data-copied="true"] {
+  border-color: var(--agy-green);
+  background: var(--agy-green-tint);
+  color: var(--agy-green-ink);
 }
 
 .agy-cap-icon {
@@ -830,6 +875,18 @@ body[data-ds-dark-theme] .agy-section-glyph {
   flex: none;
 }
 
+.agy-turn-model-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--agy-border);
+  background: var(--agy-surface-subtle);
+  color: var(--agy-muted);
+  flex: none;
+  white-space: nowrap;
+}
+
 .agy-turn-preview {
   flex: 1;
   min-width: 0;
@@ -1243,7 +1300,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
     const I18N = {
       zh: {
         capSub: "子代理协作",
-        capModel: "Argon + 3.8 Flash",
+        capModel: "Carbon / Argon + 3.8 Flash",
         capHint: "点击任意角色，将指令填入下方输入框",
         brainDesc: "第二大脑 · 方案推演",
         leadDesc: "任务拆解 · 协同编排",
@@ -1283,18 +1340,12 @@ body[data-ds-dark-theme] .agy-section-glyph {
         minsAgo: (m) => `${m} 分钟前`,
         todayAt: (hm) => `今天 ${hm}`,
         yesterdayAt: (hm) => `昨天 ${hm}`,
-        roleBrain: "brain · Argon",
-        roleResearch: "researcher · Flash",
-        roleReview: "reviewer · Flash",
-        roleImplement: "implementer · Flash",
-        roleStaffer: "staffer · Flash",
-        roleAsk: "ask · Flash",
       },
       en: {
         capSub: "Subagents",
-        capModel: "Argon + 3.8 Flash",
+        capModel: "Carbon / Argon + 3.8 Flash",
         capHint: "Click any role to insert its command into the input box",
-        brainDesc: "Second brain · Argon",
+        brainDesc: "Second brain · Carbon / Argon",
         leadDesc: "Task orchestration",
         stafferDesc: "General subagent",
         researcherDesc: "Code & doc research",
@@ -1332,12 +1383,6 @@ body[data-ds-dark-theme] .agy-section-glyph {
         minsAgo: (m) => `${m}m ago`,
         todayAt: (hm) => `Today ${hm}`,
         yesterdayAt: (hm) => `Yesterday ${hm}`,
-        roleBrain: "brain · Argon",
-        roleResearch: "researcher · Flash",
-        roleReview: "reviewer · Flash",
-        roleImplement: "implementer · Flash",
-        roleStaffer: "staffer · Flash",
-        roleAsk: "ask · Flash",
       },
     };
 
@@ -1754,6 +1799,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
           id: latestTurn.id,
           brain: Boolean(latestTurn.brain || firstTurn.brain),
           mode: latestTurn.mode || firstTurn.mode || "staffer",
+          model: latestTurn.model || firstTurn.model || "",
           status: latestTurn.status || "done",
           startedAt: latestTurn.started_at || firstTurn.started_at || "",
           sortTime,
@@ -2352,6 +2398,95 @@ body[data-ds-dark-theme] .agy-section-glyph {
       });
     }
 
+    function PixelIconCarbon({ size = 16 }) {
+      return jsxs("svg", {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        shapeRendering: "crispEdges",
+        children: [
+          jsx("rect", { x: "7", y: "3", width: "10", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "5", y: "5", width: "2", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "7", y: "5", width: "4", height: "2", fill: "#E0F7FA" }),
+          jsx("rect", { x: "11", y: "5", width: "6", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "17", y: "5", width: "2", height: "2", fill: "#0097A7" }),
+          jsx("rect", { x: "3", y: "7", width: "2", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "5", y: "7", width: "4", height: "2", fill: "#80DEEA" }),
+          jsx("rect", { x: "9", y: "7", width: "6", height: "2", fill: "#00BCD4" }),
+          jsx("rect", { x: "15", y: "7", width: "4", height: "2", fill: "#0097A7" }),
+          jsx("rect", { x: "19", y: "7", width: "2", height: "2", fill: "#00838F" }),
+          jsx("rect", { x: "1", y: "9", width: "6", height: "2", fill: "#4DD0E1" }),
+          jsx("rect", { x: "7", y: "9", width: "10", height: "2", fill: "#00ACC1" }),
+          jsx("rect", { x: "17", y: "9", width: "6", height: "2", fill: "#00838F" }),
+          jsx("rect", { x: "3", y: "11", width: "4", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "7", y: "11", width: "8", height: "2", fill: "#0097A7" }),
+          jsx("rect", { x: "15", y: "11", width: "6", height: "2", fill: "#1A73E8" }),
+          jsx("rect", { x: "5", y: "13", width: "4", height: "2", fill: "#26C6DA" }),
+          jsx("rect", { x: "9", y: "13", width: "6", height: "2", fill: "#00838F" }),
+          jsx("rect", { x: "15", y: "13", width: "4", height: "2", fill: "#1A73E8" }),
+          jsx("rect", { x: "7", y: "15", width: "4", height: "2", fill: "#00ACC1" }),
+          jsx("rect", { x: "11", y: "15", width: "4", height: "2", fill: "#00838F" }),
+          jsx("rect", { x: "15", y: "15", width: "2", height: "2", fill: "#1A73E8" }),
+          jsx("rect", { x: "9", y: "17", width: "2", height: "2", fill: "#00ACC1" }),
+          jsx("rect", { x: "11", y: "17", width: "4", height: "2", fill: "#1A73E8" }),
+          jsx("rect", { x: "11", y: "19", width: "2", height: "2", fill: "#1A73E8" }),
+        ],
+      });
+    }
+
+    function PixelIconArgon({ size = 16 }) {
+      return jsxs("svg", {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        shapeRendering: "crispEdges",
+        children: [
+          jsxs("g", {
+            fill: "#9B72CB",
+            children: [
+              jsx("rect", { x: "9", y: "1", width: "2", height: "2" }),
+              jsx("rect", { x: "13", y: "1", width: "2", height: "2" }),
+              jsx("rect", { x: "7", y: "3", width: "2", height: "2" }),
+              jsx("rect", { x: "15", y: "3", width: "2", height: "2" }),
+              jsx("rect", { x: "3", y: "7", width: "2", height: "2" }),
+              jsx("rect", { x: "19", y: "7", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "9", width: "2", height: "2" }),
+              jsx("rect", { x: "21", y: "9", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "13", width: "2", height: "2" }),
+              jsx("rect", { x: "21", y: "13", width: "2", height: "2" }),
+              jsx("rect", { x: "3", y: "15", width: "2", height: "2" }),
+              jsx("rect", { x: "19", y: "15", width: "2", height: "2" }),
+              jsx("rect", { x: "7", y: "19", width: "2", height: "2" }),
+              jsx("rect", { x: "15", y: "19", width: "2", height: "2" }),
+              jsx("rect", { x: "9", y: "21", width: "2", height: "2" }),
+              jsx("rect", { x: "13", y: "21", width: "2", height: "2" }),
+            ],
+          }),
+          jsxs("g", {
+            fill: "#4285F4",
+            children: [
+              jsx("rect", { x: "11", y: "1", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "5", width: "2", height: "2" }),
+              jsx("rect", { x: "21", y: "11", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "11", y: "21", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "11", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "5", width: "2", height: "2" }),
+            ],
+          }),
+          jsxs("g", {
+            fill: "#6A3AB2",
+            children: [
+              jsx("rect", { x: "11", y: "9", width: "2", height: "6" }),
+              jsx("rect", { x: "9", y: "11", width: "6", height: "2" }),
+            ],
+          }),
+          jsx("rect", { x: "11", y: "11", width: "2", height: "2", fill: "#FBBC04" }),
+        ],
+      });
+    }
+
     function PixelIconLead({ size = 16 }) {
       return jsxs("svg", {
         width: size,
@@ -2474,8 +2609,26 @@ body[data-ds-dark-theme] .agy-section-glyph {
       });
     }
 
+    function shortModelTag(modelStr, isBrain) {
+      const lower = String(modelStr || "").toLowerCase();
+      if (lower.includes("carbon")) return "Carbon";
+      if (lower.includes("argon")) return "Argon";
+      if (lower.includes("flash")) return "Flash";
+      if (lower.includes("pro")) return "Pro";
+      if (lower.includes("opus")) return "Opus";
+      if (lower.includes("sonnet")) return "Sonnet";
+      return isBrain ? "Carbon" : "Flash";
+    }
+
     function renderSubagentIcon(sub) {
-      if (sub.brain) return jsx(PixelIconBrain, { size: 16 });
+      const modelLower = String(
+        sub.model || sub.latestTurn?.model || sub.firstTurn?.model || ""
+      ).toLowerCase();
+      if (sub.brain) {
+        if (modelLower.includes("carbon")) return jsx(PixelIconCarbon, { size: 16 });
+        if (modelLower.includes("argon")) return jsx(PixelIconArgon, { size: 16 });
+        return jsx(PixelIconBrain, { size: 16 });
+      }
       const m = sub.mode;
       switch (m) {
         case "research":
@@ -2489,20 +2642,30 @@ body[data-ds-dark-theme] .agy-section-glyph {
       }
     }
 
-    function formatSubagentRole(sub, t) {
-      if (sub.brain) return t.roleBrain;
+    function formatSubagentRole(sub, _t) {
+      const modelStr =
+        sub.model || sub.latestTurn?.model || sub.firstTurn?.model || "";
+      if (sub.brain) {
+        return `brain · ${shortModelTag(modelStr, true)}`;
+      }
+      let roleName = "staffer";
       switch (sub.mode) {
         case "ask":
-          return t.roleAsk;
+          roleName = "ask";
+          break;
         case "research":
-          return t.roleResearch;
+          roleName = "researcher";
+          break;
         case "review":
-          return t.roleReview;
+          roleName = "reviewer";
+          break;
         case "implement":
-          return t.roleImplement;
+          roleName = "implementer";
+          break;
         default:
-          return t.roleStaffer;
+          roleName = "staffer";
       }
+      return `${roleName} · ${shortModelTag(modelStr, false)}`;
     }
 
     function resolveContinuationCommand(sub) {
@@ -2707,12 +2870,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
             const recentSlice = sorted.slice(0, 32);
             const enriched = await Promise.all(
               recentSlice.map(async (job) => {
-                const isBrain = Boolean(
-                  job.brain ||
-                    String(job.model || "")
-                      .toLowerCase()
-                      .includes("argon")
-                );
+                const isBrain = Boolean(job.brain);
                 let next = {
                   ...job,
                   brain: isBrain,
@@ -3098,6 +3256,20 @@ body[data-ds-dark-theme] .agy-section-glyph {
             cmd: "/agy-brain",
             desc: t.brainDesc,
             icon: jsx(PixelIconBrain, { size: 15 }),
+            modelChips: [
+              {
+                id: "carbon",
+                label: "Carbon",
+                draft: "/agy-brain --model carbon ",
+                icon: jsx(PixelIconCarbon, { size: 11 }),
+              },
+              {
+                id: "argon",
+                label: "Argon",
+                draft: "/agy-brain --model argon ",
+                icon: jsx(PixelIconArgon, { size: 11 }),
+              },
+            ],
           },
           {
             cmd: "/agy-lead",
@@ -3379,6 +3551,118 @@ body[data-ds-dark-theme] .agy-section-glyph {
                               children: capabilities.map((cap) => {
                                 const capCopyKey = `cap:${cap.cmd}`;
                                 const capCopied = Boolean(copiedKeys[capCopyKey]);
+                                const hasChips =
+                                  Array.isArray(cap.modelChips) &&
+                                  cap.modelChips.length > 0;
+                                const capChildren = [
+                                  jsx("div", {
+                                    className: "agy-cap-icon",
+                                    children: cap.icon,
+                                  }),
+                                  jsxs("div", {
+                                    className: "agy-cap-text",
+                                    children: [
+                                      jsxs("div", {
+                                        className: "agy-cap-cmd agy-mono",
+                                        children: [
+                                          jsx("span", { children: cap.cmd }),
+                                          capCopied
+                                            ? jsx(InlineCheckIcon, { size: 12 })
+                                            : null,
+                                        ],
+                                      }),
+                                      hasChips
+                                        ? jsx("div", {
+                                            className: "agy-cap-model-chips",
+                                            children: cap.modelChips.map(
+                                              (chip) => {
+                                                const chipKey = `cap:${cap.cmd}:${chip.id}`;
+                                                const chipCopied = Boolean(
+                                                  copiedKeys[chipKey]
+                                                );
+                                                return jsxs(
+                                                  "button",
+                                                  {
+                                                    type: "button",
+                                                    className:
+                                                      "agy-cap-model-chip agy-mono",
+                                                    "data-model": chip.id,
+                                                    "data-copied":
+                                                      String(chipCopied),
+                                                    onClick: (e) => {
+                                                      if (
+                                                        e &&
+                                                        e.stopPropagation
+                                                      ) {
+                                                        e.stopPropagation();
+                                                      }
+                                                      return prefillInput(
+                                                        chip.draft,
+                                                        chipKey,
+                                                        e
+                                                      );
+                                                    },
+                                                    children: [
+                                                      chipCopied
+                                                        ? jsx(InlineCheckIcon, {
+                                                            size: 10,
+                                                          })
+                                                        : chip.icon,
+                                                      jsx("span", {
+                                                        children: chip.label,
+                                                      }),
+                                                    ],
+                                                  },
+                                                  chip.id
+                                                );
+                                              }
+                                            ),
+                                          })
+                                        : jsx("div", {
+                                            className: "agy-cap-desc",
+                                            children: capCopied
+                                              ? t.insertedInline
+                                              : cap.desc,
+                                          }),
+                                    ],
+                                  }),
+                                ];
+                                if (hasChips) {
+                                  return jsxs(
+                                    "div",
+                                    {
+                                      role: "button",
+                                      tabIndex: 0,
+                                      className: "agy-cap-item",
+                                      "data-has-chips": "true",
+                                      "data-copied": String(capCopied),
+                                      title: cap.desc,
+                                      onClick: (e) =>
+                                        prefillInput(
+                                          `${cap.cmd} `,
+                                          capCopyKey,
+                                          e
+                                        ),
+                                      onKeyDown: (e) => {
+                                        if (
+                                          e.target === e.currentTarget &&
+                                          (e.key === "Enter" || e.key === " ")
+                                        ) {
+                                          if (e.preventDefault) {
+                                            e.preventDefault();
+                                          }
+                                          prefillInput(
+                                            `${cap.cmd} `,
+                                            capCopyKey,
+                                            e
+                                          );
+                                        }
+                                      },
+                                      children: capChildren,
+                                    },
+                                    cap.cmd
+                                  );
+                                }
                                 return jsxs(
                                   "button",
                                   {
@@ -3391,32 +3675,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
                                         capCopyKey,
                                         e
                                       ),
-                                    children: [
-                                      jsx("div", {
-                                        className: "agy-cap-icon",
-                                        children: cap.icon,
-                                      }),
-                                      jsxs("div", {
-                                        className: "agy-cap-text",
-                                        children: [
-                                          jsxs("div", {
-                                            className: "agy-cap-cmd agy-mono",
-                                            children: [
-                                              jsx("span", { children: cap.cmd }),
-                                              capCopied
-                                                ? jsx(InlineCheckIcon, { size: 12 })
-                                                : null,
-                                            ],
-                                          }),
-                                          jsx("div", {
-                                            className: "agy-cap-desc",
-                                            children: capCopied
-                                              ? t.insertedInline
-                                              : cap.desc,
-                                          }),
-                                        ],
-                                      }),
-                                    ],
+                                    children: capChildren,
                                   },
                                   cap.cmd
                                 );
@@ -3806,6 +4065,24 @@ body[data-ds-dark-theme] .agy-section-glyph {
                                                     turn.started_at,
                                                   t
                                                 );
+                                                const subModelTag =
+                                                  shortModelTag(
+                                                    sub.model ||
+                                                      sub.latestTurn?.model ||
+                                                      sub.firstTurn?.model ||
+                                                      "",
+                                                    sub.brain
+                                                  );
+                                                const turnModelTag = turn.model
+                                                  ? shortModelTag(
+                                                      turn.model,
+                                                      sub.brain
+                                                    )
+                                                  : null;
+                                                const showTurnModel = Boolean(
+                                                  turnModelTag &&
+                                                    turnModelTag !== subModelTag
+                                                );
                                                 return jsxs(
                                                   "div",
                                                   {
@@ -3835,6 +4112,14 @@ body[data-ds-dark-theme] .agy-section-glyph {
                                                                 idx + 1
                                                               ),
                                                           }),
+                                                          showTurnModel
+                                                            ? jsx("span", {
+                                                                className:
+                                                                  "agy-turn-model-pill agy-mono",
+                                                                children:
+                                                                  turnModelTag,
+                                                              })
+                                                            : null,
                                                           jsx("span", {
                                                             className:
                                                               "agy-turn-preview",
@@ -4125,7 +4410,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
                 order: 25,
                 title: () => "agy staff",
                 description: () =>
-                  "子代理协作 · Gemini 4 Argon & 3.8 Flash",
+                  "子代理协作 · Gemini 4 Carbon / Argon & 3.8 Flash",
                 icon: GuideArtworkAgyStaff,
               },
             ],

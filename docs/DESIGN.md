@@ -123,7 +123,7 @@ Every state other than running is final for that job. Continue and restart never
 - **Preserve the worker's own error.** Add a hint only when the error matches a known pattern, such as an unknown model, an expired login or a sandbox restriction.
 - **Classify narrowly.** Only an explicit response timeout counts as a timeout. Tool, network, authentication and quota failures keep their own classes.
 - **A response that arrived still counts.** If the worker reports an error after producing a response, deliver the response with a warning and let the host assess it.
-- **Never substitute silently.** An unknown model fails before launch and lists valid alternatives. A removed flag fails with its replacement spelled out.
+- **Never substitute silently.** An unknown model fails before launch and lists valid alternatives; an explicit `--model` selection never switches silently. A removed flag fails with its replacement spelled out.
 - **Crash reports are actionable and safe.** They include the launch record, the process id, whether the log exists and its size, and the next commands to run. They never include the full prompt or the environment.
 
 ## 9. State and processes

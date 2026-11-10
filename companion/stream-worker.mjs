@@ -355,11 +355,15 @@ export async function runStreaming({ binary, args, job, budget, signal, update, 
       if (/operation not permitted/i.test(stderr)) message += '\nThis looks like a harness command sandbox blocking agy. Run this companion command unsandboxed (escalated permissions).';
       throw Object.assign(new Error(message), { reason: 'missing_result', diagnosticText: `${stdoutTail}\n${stderr}` });
     }
-    return { payload, stderr, exit: outcome.exit ?? 1, observationWarnings: projection.snapshot().warnings,
+    const snap = projection.snapshot();
+    const hadProgress = Boolean(snap.recent_activities?.length || snap.latest_text || snap.latest_response_excerpt);
+    return { payload, stderr, exit: outcome.exit ?? 1, observationWarnings: snap.warnings, hadProgress,
       agy: nativeResult(payload, nativeErrors.snapshot(), exitCode) };
   } catch (error) {
     if (!stopping && child?.pid) await cleanup();
     nativeErrors.end();
+    const snap = projection.snapshot();
+    error.hadProgress = Boolean(snap.recent_activities?.length || snap.latest_text || snap.latest_response_excerpt);
     error.agy = nativeResult(payload, nativeErrors.snapshot(), exitCode);
     throw error;
   } finally {

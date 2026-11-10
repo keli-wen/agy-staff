@@ -1,8 +1,8 @@
 {
   "name": "agy-staff-dsh",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
-  "description": "DeepSeek Harness sub-agency & visual sidebar plugin for agy-staff (Gemini 4 Argon Brain + Gemini 3.8 Flash Workers)",
+  "description": "DeepSeek Harness sub-agency & visual sidebar plugin for agy-staff (Gemini 4 Carbon / Argon Brain + Gemini 3.8 Flash Workers)",
   "type": "module",
   "main": "./index.mjs",
   "icon": "./icon.svg",
