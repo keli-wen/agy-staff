@@ -116,6 +116,9 @@ if (modelFailure) {
   }
   if (streaming) {
     process.stdout.write(JSON.stringify({ event: 'init', init: { conversation_id: `conv-dead-${requestedModel}` } }) + '\n');
+    if (process.env.FAKE_AGY_EVENTS) {
+      for (const event of JSON.parse(process.env.FAKE_AGY_EVENTS)) process.stdout.write(JSON.stringify(event) + '\n');
+    }
   }
   let errorMsg = `unknown model: ${requestedModel}`;
   if (kind === 'unsupported') {
@@ -126,6 +129,15 @@ if (modelFailure) {
   } else if (kind === 'entitlement' || kind === '403_model') {
     process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"err-entitle"}\n');
     errorMsg = `Permission denied: model ${requestedModel} is not available for your account`;
+  } else if (kind === '403_workspace') {
+    process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"err-perm"}\n');
+    errorMsg = 'Permission denied: caller does not have access to workspace';
+  } else if (kind === 'token_revoked') {
+    process.stderr.write('AGY_ERROR: {"status":"PERMISSION_DENIED","error_code":403,"code_kind":"http","retryable":false,"error_id":"err-tok"}\n');
+    errorMsg = 'Authentication failed: token access revoked';
+  } else if (kind === 'context_window') {
+    process.stderr.write('AGY_ERROR: {"status":"INVALID_ARGUMENT","error_code":400,"code_kind":"http","retryable":false,"error_id":"err-ctx"}\n');
+    errorMsg = 'Invalid argument: prompt exceeds model context window';
   } else if (kind === 'auth' || kind === '401') {
     process.stderr.write('AGY_ERROR: {"status":"UNAUTHENTICATED","error_code":401,"code_kind":"http","retryable":false,"error_id":"err-auth"}\n');
     errorMsg = '401 Unauthorized: Invalid credentials';

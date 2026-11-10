@@ -292,7 +292,7 @@ export function apply(ctx, options = {}) {
             type: "string",
             enum: ["low", "medium", "high"],
             description:
-              "Optional reasoning effort level (requires model on brain runs).",
+              "Optional reasoning effort level when model is a bare family or alias (requires model on brain runs; an effort-suffixed model id already fixes its effort).",
           },
           restricted: {
             type: "boolean",
@@ -383,7 +383,8 @@ export function apply(ctx, options = {}) {
           effort: {
             type: "string",
             enum: ["low", "medium", "high"],
-            description: "Optional reasoning effort level.",
+            description:
+              "Optional reasoning effort level when model is omitted or is a bare family/alias (an effort-suffixed model id already fixes its effort).",
           },
           restricted: {
             type: "boolean",

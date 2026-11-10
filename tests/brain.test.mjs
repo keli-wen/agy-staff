@@ -140,8 +140,8 @@ test('explicit --model carbon or --model argon on staffer --brain never falls ba
   }
 });
 
-test('non-model errors (sandbox EPERM and UNAUTHENTICATED) on implicit brain fail immediately without retrying Argon or Flash', () => {
-  for (const kind of ['sandbox', 'auth']) {
+test('non-model errors (sandbox EPERM, UNAUTHENTICATED, generic 403 workspace/token, and context-window INVALID_ARGUMENT) fail immediately without fallback', () => {
+  for (const kind of ['sandbox', 'auth', '403_workspace', 'token_revoked', 'context_window']) {
     const sb = sandbox(`brain-non-model-err-${kind}`);
     const env = { FAKE_AGY_FAIL_MODELS: `${carbon}:${kind}` };
     const started = run(sb, ['staffer', '--brain', '--prompt', 'Check non-model error'], env);
@@ -153,6 +153,96 @@ test('non-model errors (sandbox EPERM and UNAUTHENTICATED) on implicit brain fai
     const calls = agyCalls(sb);
     assert.equal(calls.length, 1, `${kind} failure must fail immediately on Carbon without fallback`);
     assert.equal(calls[0][calls[0].indexOf('--model') + 1], carbon);
+  }
+});
+
+test('restart after Carbon -> Argon fallback starts directly on Argon, while full chain exhaustion preserves Carbon as job.model', () => {
+  const sb = sandbox('brain-restart-after-fallback');
+  const env = { FAKE_AGY_FAIL_MODELS: `${carbon}:quota` };
+  const first = complete(sb, ['staffer', '--brain', '--prompt', 'Design schema'], env);
+  assert.equal(agyCalls(sb).length, 2);
+
+  // Restarting `first.id` must start directly on the recorded winning model (`argon`),
+  // never calling dead Carbon again, while still retaining Argon -> Flash fallback tail.
+  const restarted = complete(sb, ['restart', first.id], env);
+  assert.equal(agyCalls(sb).length, 3, 'restart after fallback must invoke Argon directly without calling Carbon');
+  checkFreshBrain(restarted, argon, 'Design schema');
+
+  // If Argon ALSO runs out of quota on a subsequent restart of `restarted.id`, its
+  // preserved tail `['gemini-4-argon-medium', 'gemini-3.8-flash-medium']` steps down to Flash.
+  const envBothDown = { FAKE_AGY_FAIL_MODELS: `${carbon}:quota,${argon}:quota` };
+  const restartedToFlash = complete(sb, ['restart', restarted.id], envBothDown);
+  assert.equal(agyCalls(sb).length, 5);
+  assert.equal(restartedToFlash.argv[restartedToFlash.argv.indexOf('--model') + 1], flash);
+
+  // When ALL candidates in the fallback chain fail on quota/unsupported, job.model
+  // stays restored to `carbon` (no stale `flash` mutation) and restart retries from `carbon`.
+  const sbAllFail = sandbox('brain-all-candidates-fail');
+  const allFailEnv = { FAKE_AGY_FAIL_MODELS: `${carbon}:quota,${argon}:quota,${flash}:quota` };
+  const startedFail = run(sbAllFail, ['staffer', '--brain', '--prompt', 'All exhausted'], allFailEnv);
+  assert.equal(startedFail.code, 0, startedFail.stderr);
+  const failId = jobIdOf(startedFail.stdout);
+  const waitedFail = run(sbAllFail, ['wait', failId], allFailEnv);
+  assert.equal(waitedFail.code, 3);
+  assert.equal(agyCalls(sbAllFail).length, 3);
+
+  const failedJob = readState(sbAllFail).jobs.find((j) => j.id === failId);
+  assert.equal(failedJob.model, carbon, 'exhausted chain must restore requested model (carbon)');
+  assert.equal(failedJob.fallback_from, undefined);
+  assert.deepEqual(failedJob.attempted_models, [carbon, argon, flash]);
+
+  // Once Carbon quota recovers, restarting `failId` starts on Carbon!
+  const recovered = complete(sbAllFail, ['restart', failId]);
+  checkFreshBrain(recovered, carbon, 'All exhausted');
+});
+
+test('mid-stream tool or text progress before a 429 error blocks fallback and preserves raw events', () => {
+  for (const [label, stepEvent] of [
+    [
+      'tool',
+      {
+        event: 'step_update',
+        step_update: {
+          step_index: 1,
+          step_type: 'tool',
+          state: 'DONE',
+          tool_name: 'read_file',
+          tool_info: { parameters: { Path: 'README.md' }, output: 'ok' },
+        },
+      },
+    ],
+    [
+      'text',
+      {
+        event: 'step_update',
+        step_update: {
+          step_index: 1,
+          step_type: 'agent_response',
+          state: 'ACTIVE',
+          text_delta: 'Partial proposal draft before rate limit...',
+        },
+      },
+    ],
+  ]) {
+    const sb = sandbox(`brain-midstream-progress-${label}`);
+    const env = {
+      FAKE_AGY_FAIL_MODELS: `${carbon}:quota`,
+      FAKE_AGY_EVENTS: JSON.stringify([stepEvent]),
+    };
+    const started = run(sb, ['staffer', '--brain', '--prompt', 'Mid-stream 429'], env);
+    assert.equal(started.code, 0, started.stderr);
+    const id = jobIdOf(started.stdout);
+
+    const waited = run(sb, ['wait', id], env);
+    assert.equal(waited.code, 3, `mid-stream ${label} progress followed by 429 must fail with exit 3`);
+    const calls = agyCalls(sb);
+    assert.equal(calls.length, 1, `mid-stream ${label} progress must NOT fall back to Argon`);
+    assert.equal(calls[0][calls[0].indexOf('--model') + 1], carbon);
+
+    const jobRecord = readState(sb).jobs.find((j) => j.id === id);
+    assert.equal(jobRecord.model, carbon);
+    assert.ok(fs.existsSync(jobRecord.events_file), 'events_file must remain preserved on mid-stream failure');
+    assert.ok(fs.readFileSync(jobRecord.events_file, 'utf8').length > 0, 'events_file must not be wiped');
   }
 });
 

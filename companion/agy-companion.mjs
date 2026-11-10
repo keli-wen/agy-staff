@@ -1243,24 +1243,41 @@ function extractBrainDiag(error, result) {
   return { rawDiag, errMsg, statuses };
 }
 
+const MODEL_TOKEN_RE = '(?:\\bmodel\\b|gemini-[\\w.-]+|\\bcarbon\\b|\\bargon\\b)';
+const ENTITLEMENT_PHRASE_RE = '(?:not (?:available|supported|enabled|allowed|found|recognized|entitled)|(?:no|not have) access|access denied|allowlist|tier)';
+const MODEL_ENTITLEMENT_RE = new RegExp(
+  `${MODEL_TOKEN_RE}[^\\n]{0,80}${ENTITLEMENT_PHRASE_RE}|${ENTITLEMENT_PHRASE_RE}[^\\n]{0,80}${MODEL_TOKEN_RE}`,
+  'i'
+);
+
 function isBrainFallbackEligibleError(error, result) {
   if (typeof result?.payload?.response === 'string' && result.payload.response.trim()) return false;
+  if (result?.hadProgress || error?.hadProgress || Number(result?.payload?.num_turns) > 1) return false;
   if (['canceled', 'hard_timeout', 'response_timeout', 'launch_error', 'stream_error'].includes(error?.reason)) return false;
   if (result?.payload && isResponseTimeout(result.payload, result.agy || {})) return false;
   const { rawDiag, errMsg, statuses } = extractBrainDiag(error, result);
   if (/operation not permitted/i.test(rawDiag) || /operation not permitted/i.test(errMsg)) return false;
-  if (statuses.includes('UNAUTHENTICATED') || /\b(unauthenticated|unauthorized|invalid.?credential|re-login|expired auth|401)\b/i.test(rawDiag)) {
+  if (
+    statuses.includes('UNAUTHENTICATED') ||
+    /\b(unauthenticated|unauthorized|invalid.?credential|re-login|expired auth|401)\b/i.test(rawDiag) ||
+    /authentication failed|invalid.?token|token[^\n]{0,30}revoked|login required/i.test(rawDiag)
+  ) {
     return false;
   }
-  const mentionsModelEntitlement = /\b(model|carbon|argon)\b|not available|not supported|\baccess\b/i.test(rawDiag);
-  if (statuses.includes('PERMISSION_DENIED') && !mentionsModelEntitlement) return false;
-  if (/authentication failed|invalid.?token|login required/i.test(rawDiag) && !mentionsModelEntitlement) return false;
+  if (/context (?:window|length)|prompt[^\n]{0,40}(?:too long|exceeds)|max(?:imum)? tokens/i.test(rawDiag)) {
+    return false;
+  }
 
-  if (isUnsupportedModelError(rawDiag)) return true;
+  const unsupported = isUnsupportedModelError(rawDiag);
+  const mentionsModelEntitlement = MODEL_ENTITLEMENT_RE.test(rawDiag);
+  if (statuses.includes('PERMISSION_DENIED') && !mentionsModelEntitlement && !unsupported) return false;
+  if (statuses.includes('INVALID_ARGUMENT') && !mentionsModelEntitlement && !unsupported) return false;
+
+  if (unsupported) return true;
   if (statuses.some((s) => s === 'RESOURCE_EXHAUSTED' || s === 'NOT_FOUND')) return true;
   if (statuses.some((s) => s === 'INVALID_ARGUMENT' || s === 'PERMISSION_DENIED') && mentionsModelEntitlement) return true;
   if (/quota|rate.?limit|resource.?exhausted|\b429\b/i.test(rawDiag)) return true;
-  if (/\bmodel\b[^\n]{0,80}\b(not available|not supported|not enabled|not found|not recognized|access)\b/i.test(rawDiag)) return true;
+  if (mentionsModelEntitlement) return true;
   return false;
 }
 
@@ -1270,6 +1287,38 @@ function shortFallbackReason(error, result) {
   if (isUnsupportedModelError(rawDiag) || statuses.includes('NOT_FOUND')) return 'unsupported_model';
   if (statuses.includes('PERMISSION_DENIED')) return 'model_entitlement';
   return 'model_unavailable';
+}
+
+function updateSpecModel(specFile, model, remainingChain) {
+  if (!specFile) return;
+  try {
+    const specData = JSON.parse(fs.readFileSync(specFile, 'utf8'));
+    if (specData?.resolved) {
+      specData.resolved.model = model;
+      if (Array.isArray(remainingChain) && remainingChain.length > 1) {
+        specData.resolved.modelFallbackChain = [...remainingChain];
+      } else {
+        delete specData.resolved.modelFallbackChain;
+      }
+      atomicJSON(specFile, specData);
+    }
+  } catch {}
+}
+
+function commitFallbackModel(opts, candidateModel, initialModel, candidates, index) {
+  if (candidateModel === initialModel) return;
+  const remainingChain = candidates.slice(index);
+  if (opts.jobId) {
+    updateState((state) => {
+      const job = state.jobs?.find((j) => j.id === opts.jobId);
+      if (job) {
+        job.model = candidateModel;
+        job.fallback_from = initialModel;
+        job.attempted_models = candidates.slice(0, index + 1);
+      }
+    });
+  }
+  updateSpecModel(opts.specFile, candidateModel, remainingChain);
 }
 
 async function executeRun(resolved, prompt, opts, execution = null) {
@@ -1304,11 +1353,14 @@ async function executeRun(resolved, prompt, opts, execution = null) {
       opts.agy = result.agy;
       rememberConversation(resolved, result.payload.conversation_id, opts.jobId);
       response = triageResult(result, resolved.mode, resolved.profile, resolved.profileSource, resolved.model, opts.jobId, { allowModelFallback: hasNextCandidate });
+      commitFallbackModel(opts, candidateModel, initialModel, candidates, i);
       if (hasNativeWarnings(result.agy)) process.stderr.write(`[agy-staff] native_result: ${JSON.stringify(result.agy)}\n`);
       break;
     } catch (error) {
       error.agy ||= result?.agy;
-      if (hasNextCandidate && isBrainFallbackEligibleError(error, result)) {
+      error.hadProgress ||= result?.hadProgress;
+      const eligible = isBrainFallbackEligibleError(error, result);
+      if (hasNextCandidate && eligible) {
         const nextModel = candidates[i + 1];
         const shortReason = shortFallbackReason(error, result);
         const fallbackLine = `[agy-staff] brain model fallback: ${candidateModel} -> ${nextModel} (${shortReason})\n`;
@@ -1324,8 +1376,6 @@ async function executeRun(resolved, prompt, opts, execution = null) {
             const job = state.jobs?.find((j) => j.id === opts.jobId);
             const failedConv = !initialConversation ? job?.conversation_id : null;
             if (job) {
-              job.model = nextModel;
-              job.fallback_from = initialModel;
               job.conversation_id = initialConversation;
             }
             if (failedConv) {
@@ -1339,6 +1389,28 @@ async function executeRun(resolved, prompt, opts, execution = null) {
           try { fs.writeFileSync(opts.eventsFile, ''); } catch {}
         }
         continue;
+      }
+      if (!hasNextCandidate && candidates.length > 1 && eligible) {
+        resolved.model = initialModel;
+        if (opts.jobId) {
+          updateState((state) => {
+            const job = state.jobs?.find((j) => j.id === opts.jobId);
+            const failedConv = !initialConversation ? job?.conversation_id : null;
+            if (job) {
+              job.model = initialModel;
+              delete job.fallback_from;
+              job.attempted_models = [...candidates];
+              job.conversation_id = initialConversation;
+            }
+            if (failedConv) {
+              if (state.conversations?.[resolved.mode] === failedConv) delete state.conversations[resolved.mode];
+              if (state.last?.id === failedConv) state.last = null;
+              if (state.conversation_configs?.[failedConv]) delete state.conversation_configs[failedConv];
+            }
+          });
+        }
+      } else if (i > 0) {
+        commitFallbackModel(opts, candidateModel, initialModel, candidates, i);
       }
       if (hasNextCandidate && !inWorker && !error.alreadyPrinted) {
         process.stderr.write(`agy-staff error: ${error.message}\n`);
@@ -1525,7 +1597,7 @@ async function workerMain(jobId) {
     cancelTimer = setInterval(checkCancellation, 100);
     if (controller.signal.aborted) throw Object.assign(new Error('Execution canceled.'), { reason: 'canceled' });
     const spec = JSON.parse(fs.readFileSync(job.spec_file, 'utf8'));
-    const opts = { ...spec.opts, jobId, eventsFile: job.events_file };
+    const opts = { ...spec.opts, jobId, eventsFile: job.events_file, specFile: job.spec_file };
     const output = await executeRun(spec.resolved, spec.prompt, opts, (invoke) => {
       const agy = agyCommand(agyArgs(invoke, 'stream-json'));
       return runStreaming({ binary: agy.cmd, args: agy.args, job,
@@ -1536,7 +1608,7 @@ async function workerMain(jobId) {
         if (!invoke.allowModelFallback && error.reason === 'missing_result' && isUnsupportedModelError(error.diagnosticText || '')) {
           if (!error.agy?.errors?.length) {
             try { handleUnsupportedModel({ requestedModel: invoke.model, errText: error.diagnosticText, originalError: error.diagnosticText }); }
-            catch (diagnostic) { diagnostic.agy = error.agy; throw diagnostic; }
+            catch (diagnostic) { diagnostic.agy = error.agy; diagnostic.diagnosticText = error.diagnosticText; diagnostic.hadProgress = error.hadProgress; throw diagnostic; }
           }
         }
         throw error;
@@ -1950,7 +2022,18 @@ function cmdRestart(opts) {
     die('restart uses the recorded brain model; omit --model and --effort, or start a new staffer --brain job with --model.');
   }
   enterOriginalWorkspace(spec.cwd);
-  const resolved = { ...spec.resolved, conversation: null, timeout: DEFAULTS.timeout[job.mode] };
+  const recordedModel = job.model || spec.resolved.model;
+  const resolved = { ...spec.resolved, model: recordedModel, conversation: null, timeout: DEFAULTS.timeout[job.mode] };
+  if (Array.isArray(resolved.modelFallbackChain)) {
+    const idx = resolved.modelFallbackChain.indexOf(recordedModel);
+    if (idx >= 0) {
+      const tail = resolved.modelFallbackChain.slice(idx);
+      if (tail.length > 1) resolved.modelFallbackChain = tail;
+      else delete resolved.modelFallbackChain;
+    } else {
+      delete resolved.modelFallbackChain;
+    }
+  }
   if (opts.timeout) {
     resolved.timeout = resolveRun(job.mode, { ...opts, model: resolved.model, [resolved.profile]: true }).timeout;
   }
