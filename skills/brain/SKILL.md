@@ -1,7 +1,7 @@
 ---
 name: brain
 description: Ask an external AGY reasoning lead to originate the proposal while the host challenges it and owns delivery. Use when the user explicitly invokes /agy:brain or requests this division of responsibilities.
-argument-hint: '[--model carbon|argon|flash|<id>] [--effort low|medium|high] [task]'
+argument-hint: '[--model carbon|argon|hydrogen|flash|<id>] [--effort low|medium|high|xhigh] [task]'
 ---
 
 # agy brain
@@ -10,7 +10,7 @@ Use the supplied task or the current request. In /agy:lead the host sets directi
 
 ## Get the first proposal
 
-Give the brain the original goal, verbatim constraints, already-settled decisions, known facts with sources, uncertainty, and available resources. Do not draft a solution, shortlist approaches or conduct an exhaustive investigation before handing off. Keep instructions about invoking this skill out of the brief. Include any budget and deadline; leave time for acceptance. The brain can reuse evidence, request targeted facts or use native Flash for read-only reconnaissance.
+Give the brain the original goal, verbatim constraints, already-settled decisions, known facts with sources, uncertainty, and available resources. Do not draft a solution, shortlist approaches or conduct an exhaustive investigation before handing off. Keep instructions about invoking this skill out of the brief. Include any budget and deadline; leave time for acceptance. The brain can reuse evidence, request targeted facts or use native Hydrogen / Flash for read-only reconnaissance.
 
 Read `../jobs/SKILL.md` for execution boundaries, waiting and recovery. Resolve `<skill-dir>` to the absolute directory containing **this installed SKILL.md**. It is a placeholder you replace before invoking the shell. From that directory, go up two levels to the plugin root and use its `companion/agy-companion.mjs`. Keep the command's working directory in the user's target workspace so the job belongs to that project. Substitute the actual brief file path as well:
 
@@ -18,7 +18,7 @@ Read `../jobs/SKILL.md` for execution boundaries, waiting and recovery. Resolve 
 node "<skill-dir>/../../companion/agy-companion.mjs" staffer --brain --prompt-file "<brief-path>"
 ```
 
-Pass `--model <carbon|argon|flash|id>` (and optional `--effort low|medium|high` when paired with `--model`) when a specific model is requested; otherwise this background job defaults to Gemini 4 Carbon (`gemini-4-carbon-medium`). Honor explicit `--model`, `--effort`, `--timeout` and permission choices: if an explicitly requested model is unavailable, surface the diagnostic rather than silently switching models or widening permissions. Keep the ID with the assignment and wait using jobs.
+Pass `--model <carbon|argon|hydrogen|flash|id>` (and optional `--effort low|medium|high|xhigh` when paired with `--model`) when a specific model is requested; otherwise this background job defaults to Gemini 4 Carbon (`gemini-4-carbon-medium`). Honor explicit `--model`, `--effort`, `--timeout` and permission choices: if an explicitly requested model is unavailable, surface the diagnostic rather than silently switching models or widening permissions. Keep the ID with the assignment and wait using jobs.
 
 ## Challenge and deliver
 

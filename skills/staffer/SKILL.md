@@ -1,7 +1,7 @@
 ---
 name: staffer
 description: Delegate a general-purpose task to Google's Antigravity CLI (agy staffer, fast Gemini) with a minimal, unopinionated prompt. Use when the user says /agy:staffer, "have agy do/handle X", "have agy generate an image", or the task fits none of the specialist personas (researcher / reviewer / implementer / ask) — the template adds no role or output format, only the shared working rules and guardrails, so the task text shapes the output. Also the route to agy-native tools no specialist covers, notably image generation (generate_image).
-argument-hint: '[--restricted|--unrestricted] [--model <id>|--effort low|medium|high] [--timeout <dur>] [--prompt-file <path>|--stdin] "task"'
+argument-hint: '[--restricted|--unrestricted] [--model <id>|--effort low|medium|high|xhigh] [--timeout <dur>] [--prompt-file <path>|--stdin] "task"'
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), Bash(gh:*)
 ---
 
@@ -38,7 +38,7 @@ The command returns a job id. Read `../jobs/SKILL.md` for result collection and 
 ## Flags (all optional)
 
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts instead of shell quoting.
-- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-medium`; `--model` also accepts family aliases `carbon` (`gemini-4-carbon`), `argon` (`gemini-4-argon`), `flash` (`gemini-3.8-flash`), and `pro` (`gemini-3.1-pro`).
+- `--model <id>` or `--effort low|medium|high|xhigh` — default model is `gemini-4-hydrogen-medium`; `--model` also accepts family aliases `hydrogen` (`gemini-4-hydrogen`), `carbon` (`gemini-4-carbon`), `argon` (`gemini-4-argon`), `flash` (`gemini-3.8-flash`), and `pro` (`gemini-3.1-pro`).
 - `--restricted` / `--unrestricted` — permission profile; staffer defaults to unrestricted like the other tool-using personas, `--restricted` is the opt-in hardening path.
 - `--timeout <dur>` — default 60m, maximum 120m hard execution limit.
 

@@ -57,6 +57,16 @@ if (argv[0] === 'models' || argv.includes('models')) {
     process.env.FAKE_AGY_MODELS_OUTPUT ??
     [
       'Fetching available models...',
+      'gemini-4-carbon-high\tGemini 4 Carbon (High)',
+      'gemini-4-carbon-medium\tGemini 4 Carbon (Medium)',
+      'gemini-4-carbon-low\tGemini 4 Carbon (Low)',
+      'gemini-4-argon-high\tGemini 4 Argon (High)',
+      'gemini-4-argon-medium\tGemini 4 Argon (Medium)',
+      'gemini-4-argon-low\tGemini 4 Argon (Low)',
+      'gemini-4-hydrogen-xhigh\tGemini 4 Hydrogen (XHigh)',
+      'gemini-4-hydrogen-high\tGemini 4 Hydrogen (High)',
+      'gemini-4-hydrogen-medium\tGemini 4 Hydrogen (Medium)',
+      'gemini-4-hydrogen-low\tGemini 4 Hydrogen (Low)',
       'gemini-3.8-flash-high\tGemini 3.8 Flash (High)',
       'gemini-3.8-flash-medium\tGemini 3.8 Flash (Medium)',
       'gemini-3.8-flash-low\tGemini 3.8 Flash (Low)',
@@ -137,6 +147,17 @@ if (modelFailure) {
       '  gemini-3.8-flash-low',
       '  claude-opus-5-5-medium',
       '  custom-auth-proxy-4030',
+    ].join('\n');
+    errorMsg = `invalid model selection (--model "${requestedModel}" --effort ""): model ${requestedModel} is not recognized as a known model or custom model in settings\n${availableBlock}`;
+    process.stderr.write(`error: ${errorMsg}\n`);
+    finishedReason = 'error';
+  } else if (kind === 'hydrogen_only_unlisted') {
+    const availableBlock = [
+      'Available models:',
+      '  gemini-4-hydrogen-xhigh',
+      '  gemini-4-hydrogen-high',
+      '  gemini-4-hydrogen-medium',
+      '  gemini-4-hydrogen-low',
     ].join('\n');
     errorMsg = `invalid model selection (--model "${requestedModel}" --effort ""): model ${requestedModel} is not recognized as a known model or custom model in settings\n${availableBlock}`;
     process.stderr.write(`error: ${errorMsg}\n`);

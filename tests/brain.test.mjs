@@ -6,7 +6,7 @@ import { sandbox, run, jobIdOf, agyCalls, promptOf, jobLog } from './helpers.mjs
 
 const carbon = 'gemini-4-carbon-medium';
 const argon = 'gemini-4-argon-medium';
-const flash = 'gemini-3.8-flash-medium';
+const hydrogen = 'gemini-4-hydrogen-medium';
 
 // Exercise the public job lifecycle and inspect what the worker actually sent to AGY.
 function complete(sb, args, extraEnv = {}) {
@@ -59,6 +59,9 @@ test('explicit models and aliases override the brain default, and using Carbon o
   const next = complete(sb, ['continue', '--job', first.id, '--prompt', 'Check the cost']);
   assert.equal(next.argv[next.argv.indexOf('--model') + 1], 'gemini-3.8-flash-low');
 
+  const explicitHydrogenBrain = complete(sb, ['staffer', '--brain', '--model', 'hydrogen', '--effort', 'xhigh', '--prompt', 'Hydrogen route']);
+  checkFreshBrain(explicitHydrogenBrain, 'gemini-4-hydrogen-xhigh', 'Hydrogen route');
+
   const explicitArgonBrain = complete(sb, ['staffer', '--brain', '--model', 'argon', '--effort', 'high', '--prompt', 'Argon route']);
   checkFreshBrain(explicitArgonBrain, 'gemini-4-argon-high', 'Argon route');
 
@@ -100,8 +103,8 @@ test('automatic fallback steps Carbon -> Argon on unsupported model or RESOURCE_
   }
 });
 
-test('automatic 3-step fallback steps Carbon -> Argon -> Flash when both Carbon and Argon fail', () => {
-  const sb = sandbox('brain-fallback-flash');
+test('automatic 3-step fallback steps Carbon -> Argon -> Hydrogen when both Carbon and Argon fail', () => {
+  const sb = sandbox('brain-fallback-hydrogen');
   const env = {
     FAKE_AGY_FAIL_MODELS: `${carbon}:quota,${argon}:unsupported`,
   };
@@ -111,22 +114,22 @@ test('automatic 3-step fallback steps Carbon -> Argon -> Flash when both Carbon 
   assert.equal(calls.length, 3);
   assert.deepEqual(
     calls.map((c) => c[c.indexOf('--model') + 1]),
-    [carbon, argon, flash]
+    [carbon, argon, hydrogen]
   );
 
   const state = readState(sb);
   const jobRecord = state.jobs.find((j) => j.id === first.id);
-  assert.equal(jobRecord.model, flash);
+  assert.equal(jobRecord.model, hydrogen);
   assert.equal(jobRecord.fallback_from, carbon);
   assert.equal(jobRecord.conversation_id, 'conv-1');
 
   const log = jobLog(sb, first.id);
   assert.match(log, /brain model fallback: gemini-4-carbon-medium -> gemini-4-argon-medium/);
-  assert.match(log, /brain model fallback: gemini-4-argon-medium -> gemini-3\.8-flash-medium/);
+  assert.match(log, /brain model fallback: gemini-4-argon-medium -> gemini-4-hydrogen-medium/);
 });
 
-test('explicit --model carbon or --model argon on staffer --brain never falls back on error', () => {
-  for (const [alias, fullId] of [['carbon', carbon], ['argon', argon]]) {
+test('explicit --model carbon, --model argon, or --model hydrogen on staffer --brain never falls back on error', () => {
+  for (const [alias, fullId] of [['carbon', carbon], ['argon', argon], ['hydrogen', hydrogen]]) {
     const sb = sandbox(`brain-explicit-no-fallback-${alias}`);
     const env = { FAKE_AGY_FAIL_MODELS: `${fullId}:quota` };
     const started = run(sb, ['staffer', '--brain', '--model', alias, '--prompt', 'Explicit model'], env);
@@ -135,7 +138,7 @@ test('explicit --model carbon or --model argon on staffer --brain never falls ba
 
     const waited = run(sb, ['wait', id], env);
     assert.equal(waited.code, 3, 'explicit model quota error must fail with exit 3');
-    assert.equal(agyCalls(sb).length, 1, 'explicit model must never retry Argon or Flash');
+    assert.equal(agyCalls(sb).length, 1, 'explicit model must never fall back');
     assert.equal(agyCalls(sb)[0][agyCalls(sb)[0].indexOf('--model') + 1], fullId);
   }
 });
@@ -163,22 +166,22 @@ test('restart after Carbon -> Argon fallback starts directly on Argon, while ful
   assert.equal(agyCalls(sb).length, 2);
 
   // Restarting `first.id` must start directly on the recorded winning model (`argon`),
-  // never calling dead Carbon again, while still retaining Argon -> Flash fallback tail.
+  // never calling dead Carbon again, while still retaining Argon -> Hydrogen fallback tail.
   const restarted = complete(sb, ['restart', first.id], env);
   assert.equal(agyCalls(sb).length, 3, 'restart after fallback must invoke Argon directly without calling Carbon');
   checkFreshBrain(restarted, argon, 'Design schema');
 
   // If Argon ALSO runs out of quota on a subsequent restart of `restarted.id`, its
-  // preserved tail `['gemini-4-argon-medium', 'gemini-3.8-flash-medium']` steps down to Flash.
+  // preserved tail `['gemini-4-argon-medium', 'gemini-4-hydrogen-medium']` steps down to Hydrogen.
   const envBothDown = { FAKE_AGY_FAIL_MODELS: `${carbon}:quota,${argon}:quota` };
-  const restartedToFlash = complete(sb, ['restart', restarted.id], envBothDown);
+  const restartedToHydrogen = complete(sb, ['restart', restarted.id], envBothDown);
   assert.equal(agyCalls(sb).length, 5);
-  assert.equal(restartedToFlash.argv[restartedToFlash.argv.indexOf('--model') + 1], flash);
+  assert.equal(restartedToHydrogen.argv[restartedToHydrogen.argv.indexOf('--model') + 1], hydrogen);
 
   // When ALL candidates in the fallback chain fail on quota/unsupported, job.model
-  // stays restored to `carbon` (no stale `flash` mutation) and restart retries from `carbon`.
+  // stays restored to `carbon` (no stale `hydrogen` mutation) and restart retries from `carbon`.
   const sbAllFail = sandbox('brain-all-candidates-fail');
-  const allFailEnv = { FAKE_AGY_FAIL_MODELS: `${carbon}:quota,${argon}:quota,${flash}:quota` };
+  const allFailEnv = { FAKE_AGY_FAIL_MODELS: `${carbon}:quota,${argon}:quota,${hydrogen}:quota` };
   const startedFail = run(sbAllFail, ['staffer', '--brain', '--prompt', 'All exhausted'], allFailEnv);
   assert.equal(startedFail.code, 0, startedFail.stderr);
   const failId = jobIdOf(startedFail.stdout);
@@ -189,7 +192,7 @@ test('restart after Carbon -> Argon fallback starts directly on Argon, while ful
   const failedJob = readState(sbAllFail).jobs.find((j) => j.id === failId);
   assert.equal(failedJob.model, carbon, 'exhausted chain must restore requested model (carbon)');
   assert.equal(failedJob.fallback_from, undefined);
-  assert.deepEqual(failedJob.attempted_models, [carbon, argon, flash]);
+  assert.deepEqual(failedJob.attempted_models, [carbon, argon, hydrogen]);
 
   // Once Carbon quota recovers, restarting `failId` starts on Carbon!
   const recovered = complete(sbAllFail, ['restart', failId]);
@@ -284,16 +287,16 @@ test('Pro-account Carbon gating (agy 1.5.4 unlisted model, Ultra 403/FAILED_PREC
   const afterQuotaRecovery = complete(sbQuota, ['staffer', '--brain', '--prompt', 'Quota recovered run 2']);
   assert.equal(afterQuotaRecovery.argv[afterQuotaRecovery.argv.indexOf('--model') + 1], carbon, '429 quota fallback must never cache Carbon as unavailable');
 
-  // Available models list in agy 1.5.4 error skips missing Argon directly to Flash in 2 calls instead of 3!
-  const sbFlashOnly = sandbox('brain-available-models-skip');
-  const flashOnlyEnv = { FAKE_AGY_FAIL_MODELS: `${carbon}:flash_only_unlisted,${argon}:flash_only_unlisted` };
-  const skipped = complete(sbFlashOnly, ['staffer', '--brain', '--prompt', 'Direct skip to Flash'], flashOnlyEnv);
-  assert.equal(agyCalls(sbFlashOnly).length, 2, 'Available models parser should jump directly Carbon -> Flash');
+  // Available models list in agy error skips missing Argon directly to Hydrogen in 2 calls instead of 3!
+  const sbHydrogenOnly = sandbox('brain-available-models-skip');
+  const hydrogenOnlyEnv = { FAKE_AGY_FAIL_MODELS: `${carbon}:hydrogen_only_unlisted,${argon}:hydrogen_only_unlisted` };
+  const skipped = complete(sbHydrogenOnly, ['staffer', '--brain', '--prompt', 'Direct skip to Hydrogen'], hydrogenOnlyEnv);
+  assert.equal(agyCalls(sbHydrogenOnly).length, 2, 'Available models parser should jump directly Carbon -> Hydrogen');
   assert.deepEqual(
-    agyCalls(sbFlashOnly).map((c) => c[c.indexOf('--model') + 1]),
-    [carbon, flash]
+    agyCalls(sbHydrogenOnly).map((c) => c[c.indexOf('--model') + 1]),
+    [carbon, hydrogen]
   );
-  assert.equal(readState(sbFlashOnly).jobs.find((j) => j.id === skipped.id).model, flash);
+  assert.equal(readState(sbHydrogenOnly).jobs.find((j) => j.id === skipped.id).model, hydrogen);
 });
 
 test('brain rejects effort alone, including on an inherited follow-up', () => {

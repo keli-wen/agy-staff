@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a><br>
-  <img src="assets/badges/model-gemini-4-carbon.svg" height="20" alt="model: Gemini 4 Carbon"> <img src="assets/badges/model-gemini-4-argon.svg" height="20" alt="model: Gemini 4 Argon"> <img src="assets/badges/model-gemini-3-8-flash.svg" height="20" alt="model: Gemini 3.8 Flash"><br>
+  <img src="assets/badges/model-gemini-4-carbon.svg" height="20" alt="model: Gemini 4 Carbon"> <img src="assets/badges/model-gemini-4-argon.svg" height="20" alt="model: Gemini 4 Argon"> <img src="assets/badges/model-gemini-4-hydrogen.svg" height="20" alt="model: Gemini 4 Hydrogen"><br>
   <a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a>
 </p>
 
@@ -16,9 +16,9 @@ Hire Google's Antigravity CLI (`agy`) as a staffer for **Claude Code**, **OpenAI
 
 ## What & Why
 
-agy-staff pairs your senior agents with `agy`, which ships <img src="assets/icons/carbon.svg" width="16" height="16" alt=""> **Gemini 4 Carbon**, <img src="assets/icons/argon.svg" width="16" height="16" alt=""> **Gemini 4 Argon**, and fast **Gemini 3.8 Flash**. Two orchestration modes (`lead` and `brain`), five personas (`staffer`, `researcher`, `reviewer` for code **and** plans, `implementer`, `ask`), and a model-facing `jobs` skill. Claude Code uses `/agy:<skill>` and Codex uses `$agy:<skill>`.
+agy-staff pairs your senior agents with `agy`, which ships <img src="assets/icons/carbon.svg" width="16" height="16" alt=""> **Gemini 4 Carbon**, <img src="assets/icons/argon.svg" width="16" height="16" alt=""> **Gemini 4 Argon**, and fast <img src="assets/icons/hydrogen.svg" width="16" height="16" alt=""> **Gemini 4 Hydrogen**. Two orchestration modes (`lead` and `brain`), five personas (`staffer`, `researcher`, `reviewer` for code **and** plans, `implementer`, `ask`), and a model-facing `jobs` skill. Claude Code uses `/agy:<skill>` and Codex uses `$agy:<skill>`.
 
-GPT-6.1-Sol is slow even with fast mode on; Claude Code is quicker, but Fable quota is too scarce to spend grinding through every survey and review. agy gives you both a **fast worker** and a **second brain**: Flash handles quick second opinions, research, reviews, and scoped implementation off to the side, while **Carbon** and **Argon** are strong enough in design and world knowledge to pair with Astra or Fable as a peer orchestrator — proposing routes from a second model family while your host checks assumptions and delivers.
+GPT-6.1-Sol is slow even with fast mode on; Claude Code is quicker, but Fable quota is too scarce to spend grinding through every survey and review. agy gives you both a **fast worker** and a **second brain**: **Hydrogen** handles quick second opinions, research, reviews, and scoped implementation off to the side, while **Carbon** and **Argon** are strong enough in design and world knowledge to pair with Astra or Fable as a peer orchestrator — proposing routes from a second model family while your host checks assumptions and delivers.
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 

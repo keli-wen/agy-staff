@@ -172,12 +172,12 @@ test('missing JSON retains unsupported-model discovery from stdout or stderr', (
   for (const channel of ['FAKE_AGY_STDERR', 'FAKE_AGY_STDOUT']) {
     const sb = sandbox('missing-model');
     const id = jobIdOf(run(sb, ['research', '--prompt', 'task'], {
-      FAKE_AGY_NO_JSON: '1', [channel]: 'invalid model selection: unknown model gemini-3.8-flash-high',
-      FAKE_AGY_MODELS_OUTPUT: 'gemini-3.7-flash-high\tFlash High',
+      FAKE_AGY_NO_JSON: '1', [channel]: 'invalid model selection: unknown model gemini-4-hydrogen-high',
+      FAKE_AGY_MODELS_OUTPUT: 'gemini-3.8-flash-high\tGemini 3.8 Flash (High)',
     }).stdout);
     const r = run(sb, ['wait', id]);
     assert.equal(r.code, 3); assert.match(r.stdout, /Available models/);
-    assert.match(r.stdout, /Best same-effort compatible recommendation: --model gemini-3.7-flash-high/);
+    assert.match(r.stdout, /Best same-effort compatible recommendation: --model gemini-3\.8-flash-high/);
   }
 });
 

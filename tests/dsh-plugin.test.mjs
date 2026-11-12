@@ -79,12 +79,15 @@ test("Item 4: root package.json, dsh/package.json, dead asset removal, and bundl
   assert.ok(clientJs.includes('shapeRendering: "crispEdges"'), "client.js must use crispEdges SVGs");
   assert.ok(clientJs.includes("PixelIconCarbon"), "client.js must define PixelIconCarbon");
   assert.ok(clientJs.includes("PixelIconArgon"), "client.js must define PixelIconArgon");
-  assert.ok(clientJs.includes("Carbon / Argon + 3.8 Flash"), "client.js must show Carbon / Argon + 3.8 Flash");
+  assert.ok(clientJs.includes("PixelIconHydrogen"), "client.js must define PixelIconHydrogen");
+  assert.ok(clientJs.includes("Carbon / Argon + Hydrogen"), "client.js must show Carbon / Argon + Hydrogen");
   assert.ok(!clientJs.includes("roleBrain:"), "client.js must remove dead roleBrain I18N keys");
   assert.ok(clientJs.includes("中 / EN"), "client.js must provide language toggle");
   assert.ok(existsSync(join(repoRoot, "assets", "icons", "carbon.svg")), "assets/icons/carbon.svg must exist");
   assert.ok(existsSync(join(repoRoot, "assets", "icons", "argon.svg")), "assets/icons/argon.svg must exist");
+  assert.ok(existsSync(join(repoRoot, "assets", "icons", "hydrogen.svg")), "assets/icons/hydrogen.svg must exist");
   assert.ok(existsSync(join(repoRoot, "assets", "badges", "model-gemini-4-carbon.svg")), "model-gemini-4-carbon.svg must exist");
+  assert.ok(existsSync(join(repoRoot, "assets", "badges", "model-gemini-4-hydrogen.svg")), "model-gemini-4-hydrogen.svg must exist");
   assert.ok(clientJs.includes("flex-shrink: 0"), "client.js must prevent capability card shrinkage");
   assert.ok(clientJs.includes("DisclosureChevron"), "client.js must use dedicated SVG chevron");
   assert.ok(clientJs.includes("IconQueryBubble") && clientJs.includes("IconReplySheet"));
@@ -328,9 +331,10 @@ test("Items 1, 4, 6, 7: dsh/index.mjs skills hydration, lifecycle tools, and /ag
     "Continue deep-dive",
   ]);
 
-  // Explicit model & effort forwarding on agy_worker
+  // Explicit model & effort forwarding on agy_worker (including xhigh)
   assert.ok(workerTool.parameters?.properties?.model, "agy_worker must expose model parameter");
   assert.ok(workerTool.parameters?.properties?.effort, "agy_worker must expose effort parameter");
+  assert.deepEqual(workerTool.parameters.properties.effort.enum, ["low", "medium", "high", "xhigh"]);
   executedRunnerCalls.length = 0;
   await workerTool.execute(
     { role: "research", prompt: "Carbon research", model: "carbon", effort: "high" },
@@ -344,6 +348,20 @@ test("Items 1, 4, 6, 7: dsh/index.mjs skills hydration, lifecycle tools, and /ag
     "carbon",
     "--effort",
     "high",
+  ]);
+  executedRunnerCalls.length = 0;
+  await workerTool.execute(
+    { role: "implement", prompt: "Deep Hydrogen build", model: "hydrogen", effort: "xhigh" },
+    { agent: fakeAgentWithCwd }
+  );
+  assert.deepEqual(executedRunnerCalls[0].args, [
+    "implement",
+    "--prompt",
+    "Deep Hydrogen build",
+    "--model",
+    "hydrogen",
+    "--effort",
+    "xhigh",
   ]);
 
   // Worker role: "ask" returns status: "done"
@@ -784,8 +802,8 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     assert.equal(iconNode.type, "svg", "GuideArtworkAgyStaff must render a transparent <svg> directly");
     assert.equal(
       registeredTab.guide[0].description(),
-      "子代理协作 · Gemini 4 Carbon / Argon & 3.8 Flash",
-      "Guide description must reflect Gemini 4 Carbon / Argon & 3.8 Flash"
+      "子代理协作 · Gemini 4 Carbon / Argon & Hydrogen",
+      "Guide description must reflect Gemini 4 Carbon / Argon & Hydrogen"
     );
 
     const SidebarBody = registeredSlots.get("sidebar.right.pane.tab:agy-staff-dsh");
@@ -1014,13 +1032,22 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
         started_at: "2026-11-07T10:01:00.000Z",
       },
       {
-        id: "staffer-brain-flash-3",
+        id: "staffer-brain-hydrogen-3",
+        mode: "staffer",
+        brain: true,
+        model: "gemini-4-hydrogen-medium",
+        status: "done",
+        task: "Hydrogen fallback proposal",
+        started_at: "2026-11-07T10:02:00.000Z",
+      },
+      {
+        id: "staffer-brain-flash-4",
         mode: "staffer",
         brain: true,
         model: "gemini-3.8-flash-medium",
         status: "done",
-        task: "Flash fallback proposal",
-        started_at: "2026-11-07T10:02:00.000Z",
+        task: "Legacy Flash proposal",
+        started_at: "2026-11-07T10:02:30.000Z",
       },
       {
         id: "research-carbon-4",
@@ -1029,6 +1056,14 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
         status: "done",
         task: "Explicit Carbon worker",
         started_at: "2026-11-07T10:03:00.000Z",
+      },
+      {
+        id: "implement-hydrogen-5",
+        mode: "implement",
+        model: "gemini-4-hydrogen-xhigh",
+        status: "done",
+        task: "XHigh Hydrogen worker",
+        started_at: "2026-11-07T10:04:00.000Z",
       },
     ];
     await refreshBtn.props.onClick();
@@ -1039,8 +1074,10 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     for (const expectedRole of [
       "brain · Carbon",
       "brain · Argon",
+      "brain · Hydrogen",
       "brain · Flash",
       "researcher · Carbon",
+      "implementer · Hydrogen",
       "staffer · Argon",
     ]) {
       assert.ok(
@@ -1055,6 +1092,10 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     assert.ok(
       findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconArgon"),
       "PixelIconArgon must render for Argon brain card"
+    );
+    assert.ok(
+      findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconHydrogen"),
+      "PixelIconHydrogen must render for Hydrogen brain card"
     );
 
     // Phase 7: Verify /agy-brain [Carbon] & [Argon] quick-chips, no nested <button>, and multi-turn model tags

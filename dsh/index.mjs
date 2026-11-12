@@ -286,11 +286,11 @@ export function apply(ctx, options = {}) {
           model: {
             type: "string",
             description:
-              "Optional model id or family alias (\"carbon\", \"argon\", \"flash\", \"pro\", or effort-suffixed id such as \"gemini-4-argon-high\"). Defaults to Gemini 4 Carbon.",
+              "Optional model id or family alias (\"carbon\", \"argon\", \"hydrogen\", \"flash\", \"pro\", or effort-suffixed id such as \"gemini-4-argon-high\"). Defaults to Gemini 4 Carbon.",
           },
           effort: {
             type: "string",
-            enum: ["low", "medium", "high"],
+            enum: ["low", "medium", "high", "xhigh"],
             description:
               "Optional reasoning effort level when model is a bare family or alias (requires model on brain runs; an effort-suffixed model id already fixes its effort).",
           },
@@ -356,7 +356,7 @@ export function apply(ctx, options = {}) {
     toolCtx.tools.register({
       name: "agy_worker",
       description:
-        "Dispatch an AGY Worker sub-agency (Gemini 3.8 Flash default, or explicit model/effort) for research, review, implement, staffer, or ask, executing outside the DSH command sandbox (implement and unrestricted roles can write directly to the workspace).",
+        "Dispatch an AGY Worker sub-agency (Gemini 4 Hydrogen default, or explicit model/effort) for research, review, implement, staffer, or ask, executing outside the DSH command sandbox (implement and unrestricted roles can write directly to the workspace).",
       parameters: {
         type: "object",
         additionalProperties: false,
@@ -378,11 +378,11 @@ export function apply(ctx, options = {}) {
           model: {
             type: "string",
             description:
-              "Optional model id or family alias (\"carbon\", \"argon\", \"flash\", \"pro\", or effort-suffixed id).",
+              "Optional model id or family alias (\"hydrogen\", \"carbon\", \"argon\", \"flash\", \"pro\", or effort-suffixed id).",
           },
           effort: {
             type: "string",
-            enum: ["low", "medium", "high"],
+            enum: ["low", "medium", "high", "xhigh"],
             description:
               "Optional reasoning effort level when model is omitted or is a bare family/alias (an effort-suffixed model id already fixes its effort).",
           },

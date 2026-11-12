@@ -1,13 +1,13 @@
 ---
 name: ask
 description: Ask Google's Antigravity CLI (agy staffer, fast Gemini) a cheap one-shot question - the fast zero-tool mode and the post-install smoke test. Use when the user says /agy:ask, "ask agy", "quick second opinion from agy", or right after installing to verify the plugin works.
-argument-hint: '[--model <id>|--effort low|medium|high] [--timeout <dur>] "question"'
+argument-hint: '[--model <id>|--effort low|medium|high|xhigh] [--timeout <dur>] "question"'
 allowed-tools: Bash(node:*)
 ---
 
 # agy ask
 
-The quick mode: one question in, one answer out, ~3 seconds on the default `gemini-3.8-flash-low`. Zero tools by design (restricted profile, question-only prompt), so it needs no setup and works on a fresh install — run it first as the smoke test: `ask --prompt "reply with OK"`.
+The quick mode: one question in, one answer out, ~2–3 seconds on the default `gemini-4-hydrogen-low`. Zero tools by design (restricted profile, question-only prompt), so it needs no setup and works on a fresh install — run it first as the smoke test: `ask --prompt "reply with OK"`.
 
 ask is the only persona that runs in the foreground: the call blocks, records an `ask-...` job ID (emitted on stderr as `job=ask-...` and listed by `status`), and returns the answer on stdout. staffer, researcher, reviewer, and implementer instead return a background job id (see the jobs skill, `../jobs/SKILL.md`).
 
@@ -32,7 +32,7 @@ node "<skill-dir>/../../companion/agy-companion.mjs" ask [flags] --prompt "quest
 ## Flags (all optional)
 
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the question, from exactly one of these three sources. Use file/stdin for a long question.
-- `--model <id>` or `--effort low|medium|high` — default model is `gemini-3.8-flash-low`; `--model` also accepts family aliases `carbon` (`gemini-4-carbon`), `argon` (`gemini-4-argon`), `flash` (`gemini-3.8-flash`), and `pro` (`gemini-3.1-pro`).
+- `--model <id>` or `--effort low|medium|high|xhigh` — default model is `gemini-4-hydrogen-low`; `--model` also accepts family aliases `hydrogen` (`gemini-4-hydrogen`), `carbon` (`gemini-4-carbon`), `argon` (`gemini-4-argon`), `flash` (`gemini-3.8-flash`), and `pro` (`gemini-3.1-pro`).
 - `--timeout <dur>` — default 2m.
 
 For a follow-up to an earlier `ask` run, use `continue --job <id> --prompt "question"` with the `ask-...` job ID recorded on stderr (or listed by `status`). A continued `ask` job stays synchronous in the foreground.
