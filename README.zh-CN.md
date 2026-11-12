@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://antigravity.google/product/antigravity-cli"><img src="assets/badges/powered-by-antigravity.svg" height="20" alt="powered by: Antigravity"></a><br>
-  <img src="assets/badges/model-gemini-4-carbon.svg" height="20" alt="model: Gemini 4 Carbon"> <img src="assets/badges/model-gemini-4-argon.svg" height="20" alt="model: Gemini 4 Argon"> <img src="assets/badges/model-gemini-3-8-flash.svg" height="20" alt="model: Gemini 3.8 Flash"><br>
+  <img src="assets/badges/model-gemini-4-carbon.svg" height="20" alt="model: Gemini 4 Carbon"> <img src="assets/badges/model-gemini-4-argon.svg" height="20" alt="model: Gemini 4 Argon"> <img src="assets/badges/model-gemini-4-hydrogen.svg" height="20" alt="model: Gemini 4 Hydrogen"><br>
   <a href="https://claude.com/claude-code"><img src="assets/badges/claude-code-plugin.svg" height="20" alt="Claude Code plugin"></a> <a href="https://developers.openai.com/codex/"><img src="assets/badges/codex-plugin.svg" height="20" alt="Codex plugin"></a> <a href="LICENSE"><img src="assets/badges/license-mit.svg" height="20" alt="license: MIT"></a>
 </p>
 
@@ -16,9 +16,9 @@
 
 ## 它适合做什么
 
-agy-staff 把自带 <img src="assets/icons/carbon.svg" width="16" height="16" alt=""> **Gemini 4 Carbon**、<img src="assets/icons/argon.svg" width="16" height="16" alt=""> **Gemini 4 Argon** 与 **Gemini 3.8 Flash** 的 `agy` 接入主力 agent：提供 `lead`、`brain` 两种编排模式，以及 `staffer`（通用）、`researcher`（调研）、`reviewer`（审代码与方案）、`implementer`（编码）、`ask`（简短问答）五种角色，配合 `jobs` 技能管理后台任务。
+agy-staff 把自带 <img src="assets/icons/carbon.svg" width="16" height="16" alt=""> **Gemini 4 Carbon**、<img src="assets/icons/argon.svg" width="16" height="16" alt=""> **Gemini 4 Argon** 与 <img src="assets/icons/hydrogen.svg" width="16" height="16" alt=""> **Gemini 4 Hydrogen** 的 `agy` 接入主力 agent：提供 `lead`、`brain` 两种编排模式，以及 `staffer`（通用）、`researcher`（调研）、`reviewer`（审代码与方案）、`implementer`（编码）、`ask`（简短问答）五种角色，配合 `jobs` 技能管理后台任务。
 
-为什么需要它：GPT-6.1-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，不划算亲自跑每一次调研和审查。agy 同时给你**高速员工**和**第二大脑**：Flash 负责秒级第二意见，并在后台高速完成调研、审查和范围明确的实现；**Carbon** 与 **Argon** 则在系统设计与世界知识上足够强，能作为与 Astra、Fable 同量级的编排搭档，从另一个模型家族的视角先出方案，再由宿主核查假设并交付。
+为什么需要它：GPT-6.1-Sol 开着 fast mode 也慢；Claude Code 快一些，但 Fable 额度有限，不划算亲自跑每一次调研和审查。agy 同时给你**高速员工**和**第二大脑**：**Hydrogen** 负责秒级第二意见，并在后台高速完成调研、审查和范围明确的实现；**Carbon** 与 **Argon** 则在系统设计与世界知识上足够强，能作为与 Astra、Fable 同量级的编排搭档，从另一个模型家族的视角先出方案，再由宿主核查假设并交付。
 
 ![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
 

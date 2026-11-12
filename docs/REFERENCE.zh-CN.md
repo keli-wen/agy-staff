@@ -8,15 +8,15 @@
 
 | 角色技能 | companion 命令 | 用途 | 默认模型 | 执行方式 |
 | --- | --- | --- | --- | --- |
-| `ask` | `ask` | 不使用工具的单轮问答，也可用于安装后的简单验证 | `gemini-3.8-flash-low` | 同步返回答案 |
-| `staffer` | `staffer` | 通用任务，由任务描述决定具体工作 | `gemini-3.8-flash-medium` | 返回后台任务 ID |
-| `researcher` | `research` | 调研并引用来源，注明尚未验证的结论 | `gemini-3.8-flash-high` | 返回后台任务 ID |
-| `reviewer` | `review` | 审查代码、方案或决策 | `gemini-3.8-flash-medium` | 返回后台任务 ID |
-| `implementer` | `implement` | 完成范围明确的编码任务 | `gemini-3.8-flash-high` | 返回后台任务 ID |
+| `ask` | `ask` | 不使用工具的单轮问答，也可用于安装后的简单验证 | `gemini-4-hydrogen-low` | 同步返回答案 |
+| `staffer` | `staffer` | 通用任务，由任务描述决定具体工作 | `gemini-4-hydrogen-medium` | 返回后台任务 ID |
+| `researcher` | `research` | 调研并引用来源，注明尚未验证的结论 | `gemini-4-hydrogen-high` | 返回后台任务 ID |
+| `reviewer` | `review` | 审查代码、方案或决策 | `gemini-4-hydrogen-medium` | 返回后台任务 ID |
+| `implementer` | `implement` | 完成范围明确的编码任务 | `gemini-4-hydrogen-high` | 返回后台任务 ID |
 
 `lead` 为当前主 agent 提供任务编排指导，复用现有 companion 模式，没有自己的运行模式；Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`，OpenCode 使用 `/agy-lead`。
 
-`brain` 让外部 AGY 推理主脑（Gemini 4 Carbon / Argon）先提出方案，由主 agent 检验关键假设、执行并交付。Claude Code 使用 `/agy:brain`，Codex 使用 `$agy:brain`，Pi 使用 `/skill:agy-brain`，DeepSeek Harness 与 OpenCode 使用 `/agy-brain`。技能通过 `staffer --brain` 启动后台任务，默认模型为 `gemini-4-carbon-medium`，支持通过 `--model`（如 `carbon`、`argon`、`flash`、`pro` 或完整模型 ID）与 `--effort` 显式指定模型；显式指定的模型不可用时直接返回诊断信息，不会静默切换模型。
+`brain` 让外部 AGY 推理主脑（Gemini 4 Carbon / Argon）先提出方案，由主 agent 检验关键假设、执行并交付。Claude Code 使用 `/agy:brain`，Codex 使用 `$agy:brain`，Pi 使用 `/skill:agy-brain`，DeepSeek Harness 与 OpenCode 使用 `/agy-brain`。技能通过 `staffer --brain` 启动后台任务，默认模型为 `gemini-4-carbon-medium`，支持通过 `--model`（如 `carbon`、`argon`、`hydrogen`、`flash`、`pro` 或完整模型 ID）与 `--effort` 显式指定模型；显式指定的模型不可用时直接返回诊断信息，不会静默切换模型。
 
 `staffer` 不预设专业分工或固定的报告格式，但仍遵守共享的操作约定。`reviewer` 会根据对象选择审查方式：代码问题按严重程度列出，并附上 `file:line` 位置；方案和决策审查则检查假设、风险和取舍。`implementer` 可以直接修改工作区，也可以完成任务明确要求的提交、推送或 PR 操作。
 
@@ -116,8 +116,8 @@ agy 还有与 `--project` 体系关联的项目级权限规则，可以将权限
 | --- | --- |
 | `--job <id>` | 仅用于 `continue`，继续指定任务对应的 AGY 会话，并沿用原任务的角色、模型与权限配置 |
 | `--brain` | 新建 `staffer` 任务时使用 brain 咨询模板（默认模型为 `gemini-4-carbon-medium`）；续接与重启时沿用已解析的任务配置 |
-| `--model <id>` | 指定模型，可用 `agy models` 查看可用 ID。模型 ID 带有推理强度后缀，如 `gemini-4-carbon-medium`、`gemini-4-argon-high`、`gemini-3.8-flash-low`；companion 也能补全模型系列名与 `carbon`、`argon`、`flash`、`pro` 别名，未知 ID 会在启动前报错，显式指定的模型不会静默替换 |
-| `--effort low\|medium\|high` | 指定推理强度，是 `gemini-3.8-flash-<effort>` 的简写 |
+| `--model <id>` | 指定模型，可用 `agy models` 查看可用 ID。模型 ID 带有推理强度后缀，如 `gemini-4-carbon-medium`、`gemini-4-argon-high`、`gemini-4-hydrogen-high`、`gemini-4-hydrogen-xhigh`、`gemini-3.8-flash-low`；companion 也能补全模型系列名与 `carbon`、`argon`、`hydrogen`、`flash`、`pro` 别名，未知 ID 会在启动前报错，显式指定的模型不会静默替换 |
+| `--effort low\|medium\|high\|xhigh` | 指定推理强度，是 `gemini-4-hydrogen-<effort>` 的简写（其中 `xhigh` 适用于 `gemini-4-hydrogen`） |
 | `--restricted` / `--unrestricted` | 覆盖本次运行的权限配置；`ask` 会忽略这两个参数 |
 | `--restrict <modes\|none>` | 用于 `setup`，设置或清除[仓库默认权限](#仓库级-policysetup---restrict) |
 | `--json` | 用于代码审查，按指定结构返回 JSON 格式的问题列表；默认使用 Markdown |
@@ -358,6 +358,12 @@ AGY 会读取工作区中的 `AGENTS.md`、`GEMINI.md` 和 `.agents/rules/*.md`�
 | `<persona> --job <id> --prompt "..."` | `continue --job <id> --prompt "..."` | 角色命令不再忽略 `--job`，而是报错并提示使用 `continue --job <id>` 沿用原角色 |
 | 不带 `--job` 的 `continue --prompt "..."` | `continue --job <id> --prompt "..."` | `continue` 必须指定 `--job <id>`；报错信息会提示最近一次记录的任务 ID |
 | 同步 `ask` 仅记录会话 ID | `ask` 同时记录 `ask-...` 任务 ID（标准错误输出 `job=ask-...`，可通过 `status` 查看） | 后续追问使用 `continue --job <ask-id> --prompt "..."`（保持前台同步返回）。0.8.1 之前未生成任务记录的旧 `ask` 会话无法通过 `continue --job` 续接，请重新发起一次 `ask` 以生成任务 ID |
+
+## 从 0.9.1 迁移
+
+0.9.2 下架 Gemini 3.8 Flash 作为默认模型，全面切换为 **Gemini 4 Hydrogen**（`gemini-4-hydrogen-{low,medium,high,xhigh}`）：各角色的默认推理强度保持不变（`ask` 为 `low`，`staffer` 和 `reviewer` 为 `medium`，`researcher` 和 `implementer` 为 `high`），`--effort <tier>` 简写（含新增的 `xhigh`）改为解析为 `gemini-4-hydrogen-<tier>`，`brain` 的兜底链末尾也由 `3.8-flash-medium` 替换为 `gemini-4-hydrogen-medium`。
+
+`gemini-3.8-flash-{low,medium,high}` 与 `--model flash` 别名仍保留在 companion 模型目录中，以确保显式指定、历史任务续接以及旧版 `agy` CLI 的兼容性。如果当前安装的 `agy` 尚不支持 Gemini 4 Hydrogen，companion 会直接报错而不会静默替换，同时查询 `agy models` 并推荐相同推理强度的兼容选项（例如 `--model gemini-3.8-flash-high`），建议执行 `agy update` 升级后使用最新默认模型。
 
 ## Windows 支持
 

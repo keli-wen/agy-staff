@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Delegate a coding task to Google's Antigravity CLI (agy staffer, fast Gemini), which edits the working tree directly and can perform explicitly requested Git delivery. Use when the user says /agy:implementer, "have agy fix/build X", or wants to hand a well-scoped coding task to the agy staffer instead of doing it in the host model.
-argument-hint: '[--restricted|--unrestricted] [--model <id>|--effort low|medium|high] [--prompt-file <path>|--stdin] "task description"'
+argument-hint: '[--restricted|--unrestricted] [--model <id>|--effort low|medium|high|xhigh] [--prompt-file <path>|--stdin] "task description"'
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), Bash(gh:*)
 ---
 
@@ -41,7 +41,7 @@ The command returns a job id. Read `../jobs/SKILL.md` for result collection and 
 ## Flags (all optional)
 
 - `--restricted` / `--unrestricted` — permission profile. implement defaults to unrestricted, so it works out of the box with no setup. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it can usually only propose rather than edit, and it needs the setup flow's evidence-gathering allowlist to be useful.
-- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-high`; `--model` accepts aliases `carbon`, `argon`, `flash`, `pro`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
+- `--model <id>` / `--effort low|medium|high|xhigh` (default `gemini-4-hydrogen-high`; `--model` accepts aliases `hydrogen`, `carbon`, `argon`, `flash`, `pro`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts.
 
 ## Rules

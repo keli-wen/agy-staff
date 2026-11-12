@@ -212,16 +212,51 @@ describe('permission profile wiring reaches the agy argv', () => {
 });
 
 describe('tiered git guards: implement', () => {
-  test('implement defaults to high effort Flash', async () => {
+  test('implement defaults to high effort Hydrogen', async () => {
     const sb = sandbox('impl-default-model');
     const started = run(sb, ['implement', '--prompt', 'a task']);
     assert.equal(started.code, 0, started.stderr);
-    assert.match(started.stdout, /model: gemini-3\.8-flash-high/);
+    assert.match(started.stdout, /model: gemini-4-hydrogen-high/);
 
     const id = jobIdOf(started.stdout);
     assert.equal(await waitForJob(sb, id), 'done');
     const [argv] = await waitForCalls(sb, 1);
-    assert.equal(argv[argv.indexOf('--model') + 1], 'gemini-3.8-flash-high');
+    assert.equal(argv[argv.indexOf('--model') + 1], 'gemini-4-hydrogen-high');
+  });
+
+  test('all persona defaults use Hydrogen, --effort xhigh targets Hydrogen, and --model flash stays compatible', async () => {
+    const sb = sandbox('hydrogen-defaults');
+
+    const askRes = run(sb, ['ask', '--prompt', 'quick check']);
+    assert.equal(askRes.code, 0, askRes.stderr);
+    assert.match(askRes.stderr, /model=gemini-4-hydrogen-low/);
+
+    for (const [mode, expected] of [
+      ['staffer', 'gemini-4-hydrogen-medium'],
+      ['review', 'gemini-4-hydrogen-medium'],
+      ['research', 'gemini-4-hydrogen-high'],
+    ]) {
+      const started = run(sb, [mode, '--prompt', `check ${mode}`]);
+      assert.equal(started.code, 0, started.stderr);
+      assert.match(started.stdout, new RegExp(`model: ${expected}`));
+      const id = jobIdOf(started.stdout);
+      assert.equal(await waitForJob(sb, id), 'done');
+    }
+
+    const xhighStarted = run(sb, ['implement', '--effort', 'xhigh', '--prompt', 'deep task']);
+    assert.equal(xhighStarted.code, 0, xhighStarted.stderr);
+    assert.match(xhighStarted.stdout, /model: gemini-4-hydrogen-xhigh/);
+    assert.equal(await waitForJob(sb, jobIdOf(xhighStarted.stdout)), 'done');
+
+    const clampedCarbon = run(sb, ['research', '--model', 'carbon', '--effort', 'xhigh', '--prompt', 'clamped']);
+    assert.equal(clampedCarbon.code, 0, clampedCarbon.stderr);
+    assert.match(clampedCarbon.stdout, /model: gemini-4-carbon-high/);
+    assert.match(clampedCarbon.stderr, /has no "xhigh" effort; using gemini-4-carbon-high/);
+    assert.equal(await waitForJob(sb, jobIdOf(clampedCarbon.stdout)), 'done');
+
+    const legacyFlash = run(sb, ['ask', '--model', 'flash', '--prompt', 'legacy flash']);
+    assert.equal(legacyFlash.code, 0, legacyFlash.stderr);
+    assert.match(legacyFlash.stderr, /model=gemini-3\.8-flash-medium/);
   });
 
   test('implement on a dirty tree injects workspace context instead of refusing', async () => {

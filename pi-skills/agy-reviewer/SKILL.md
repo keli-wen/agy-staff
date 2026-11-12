@@ -46,7 +46,7 @@ The command returns a job id. Read `../agy-jobs/SKILL.md` for result collection 
 
 - `--json` — schema-enforced JSON findings (verdict/summary/findings/could_not_verify) instead of markdown. Code-review flavor only, and only when the user asks for machine-readable output.
 - `--restricted` / `--unrestricted` — permission profile. review defaults to unrestricted, so it works out of the box and can run tests or reproduce a bug when the request asks for it. `--restricted` is the opt-in hardening path: agy may then only use allowlisted tools, so it needs the setup flow's evidence-gathering allowlist to be useful — and some native agy tools ignore allow-rules headless, so restricted runs can still come back empty.
-- `--model <id>` / `--effort low|medium|high` (default `gemini-3.8-flash-medium`; `--model` accepts aliases `carbon`, `argon`, `flash`, `pro`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
+- `--model <id>` / `--effort low|medium|high|xhigh` (default `gemini-4-hydrogen-medium`; `--model` accepts aliases `hydrogen`, `carbon`, `argon`, `flash`, `pro`), `--timeout <dur>` (default 60m, maximum 120m hard execution limit).
 - `--prompt <text>` / `--prompt-file <path>` / `--stdin` — the task, from exactly one of these three sources. Use file/stdin for long prompts (a composed task with the flavor framing usually is one).
 
 ## Reviewing untrusted content

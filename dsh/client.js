@@ -1300,7 +1300,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
     const I18N = {
       zh: {
         capSub: "子代理协作",
-        capModel: "Carbon / Argon + 3.8 Flash",
+        capModel: "Carbon / Argon + Hydrogen",
         capHint: "点击任意角色，将指令填入下方输入框",
         brainDesc: "第二大脑 · 方案推演",
         leadDesc: "任务拆解 · 协同编排",
@@ -1343,7 +1343,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
       },
       en: {
         capSub: "Subagents",
-        capModel: "Carbon / Argon + 3.8 Flash",
+        capModel: "Carbon / Argon + Hydrogen",
         capHint: "Click any role to insert its command into the input box",
         brainDesc: "Second brain · Carbon / Argon",
         leadDesc: "Task orchestration",
@@ -2487,6 +2487,46 @@ body[data-ds-dark-theme] .agy-section-glyph {
       });
     }
 
+    function PixelIconHydrogen({ size = 16 }) {
+      return jsxs("svg", {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        shapeRendering: "crispEdges",
+        children: [
+          jsxs("g", {
+            fill: "#4285F4",
+            children: [
+              jsx("rect", { x: "9", y: "1", width: "6", height: "2" }),
+              jsx("rect", { x: "7", y: "3", width: "2", height: "2" }),
+              jsx("rect", { x: "15", y: "3", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "5", width: "2", height: "2" }),
+              jsx("rect", { x: "3", y: "7", width: "2", height: "2" }),
+              jsx("rect", { x: "19", y: "7", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "9", width: "2", height: "6" }),
+              jsx("rect", { x: "21", y: "9", width: "2", height: "6" }),
+              jsx("rect", { x: "3", y: "15", width: "2", height: "2" }),
+              jsx("rect", { x: "19", y: "15", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "7", y: "19", width: "2", height: "2" }),
+              jsx("rect", { x: "15", y: "19", width: "2", height: "2" }),
+              jsx("rect", { x: "9", y: "21", width: "6", height: "2" }),
+            ],
+          }),
+          jsxs("g", {
+            fill: "#1A73E8",
+            children: [
+              jsx("rect", { x: "11", y: "9", width: "2", height: "6" }),
+              jsx("rect", { x: "9", y: "11", width: "6", height: "2" }),
+            ],
+          }),
+          jsx("rect", { x: "11", y: "11", width: "2", height: "2", fill: "#8AB4F8" }),
+          jsx("rect", { x: "17", y: "3", width: "4", height: "4", fill: "#FBBC04" }),
+        ],
+      });
+    }
+
     function PixelIconLead({ size = 16 }) {
       return jsxs("svg", {
         width: size,
@@ -2613,11 +2653,12 @@ body[data-ds-dark-theme] .agy-section-glyph {
       const lower = String(modelStr || "").toLowerCase();
       if (lower.includes("carbon")) return "Carbon";
       if (lower.includes("argon")) return "Argon";
+      if (lower.includes("hydrogen")) return "Hydrogen";
       if (lower.includes("flash")) return "Flash";
       if (lower.includes("pro")) return "Pro";
       if (lower.includes("opus")) return "Opus";
       if (lower.includes("sonnet")) return "Sonnet";
-      return isBrain ? "Carbon" : "Flash";
+      return isBrain ? "Carbon" : "Hydrogen";
     }
 
     function renderSubagentIcon(sub) {
@@ -2627,6 +2668,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
       if (sub.brain) {
         if (modelLower.includes("carbon")) return jsx(PixelIconCarbon, { size: 16 });
         if (modelLower.includes("argon")) return jsx(PixelIconArgon, { size: 16 });
+        if (modelLower.includes("hydrogen")) return jsx(PixelIconHydrogen, { size: 16 });
         return jsx(PixelIconBrain, { size: 16 });
       }
       const m = sub.mode;
@@ -4410,7 +4452,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
                 order: 25,
                 title: () => "agy staff",
                 description: () =>
-                  "子代理协作 · Gemini 4 Carbon / Argon & 3.8 Flash",
+                  "子代理协作 · Gemini 4 Carbon / Argon & Hydrogen",
                 icon: GuideArtworkAgyStaff,
               },
             ],

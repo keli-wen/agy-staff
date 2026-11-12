@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 448" fill="#202124" role="img" aria-label="agy-staff overview: AGY Brain (Antigravity CLI running Gemini 4 Carbon, with Argon and Flash fallback) acts as an external second brain that guides Claude Code and Codex via /agy:brain, while the host agents orchestrate with /agy:lead and delegate fast worker tasks via /agy:* to AGY Staff (Gemini 3.8 Flash: staffer, researcher, reviewer, implementer).">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 448" fill="#202124" role="img" aria-label="agy-staff overview: AGY Brain (Antigravity CLI running Gemini 4 Carbon, with Argon and Hydrogen fallback) acts as an external second brain that guides Claude Code and Codex via /agy:brain, while the host agents orchestrate with /agy:lead and delegate fast worker tasks via /agy:* to AGY Staff (Gemini 4 Hydrogen: staffer, researcher, reviewer, implementer).">
   <style>
     text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -98,7 +98,7 @@
 
   <!-- Right side header copy next to ID Card -->
   <text x="602" y="92" font-size="24" font-weight="700">agy staff</text>
-  <text x="602" y="114" font-size="12" class="mono muted">Antigravity CLI &#183; Gemini 3.8 Flash</text>
+  <text x="602" y="114" font-size="12" class="mono muted">Antigravity CLI &#183; Gemini 4 Hydrogen</text>
   <rect x="602" y="128" width="236" height="22" rx="4" fill="#E8F0FE"/>
   <text x="720" y="143" font-size="10" font-weight="700" fill="#1A73E8" letter-spacing="1.0" text-anchor="middle">THE FAST WORKER &#183; STAFF #001</text>
   <path d="M602,160 q 32,4 64,1.2 t 64,-0.4" fill="none" stroke="#9B72CB" stroke-width="1.6" stroke-linecap="round" opacity="0.9"/>
@@ -126,5 +126,5 @@
   </g>
   <text x="114" y="412" font-size="12.5"><tspan font-weight="700" fill="#D93025">unrestricted</tspan> + prompt guardrails</text>
   <text x="360" y="412" font-size="12.5">beyond code: docs &#183; images &#183; more</text>
-  <text x="620" y="412" font-size="12.5">Gemini Flash &#183; seconds, not minutes</text>
+  <text x="620" y="412" font-size="12.5">Gemini 4 Hydrogen &#183; seconds, not minutes</text>
 </svg>

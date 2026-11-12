@@ -12,14 +12,14 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { sandbox, run, jobIdOf, jobLog, waitForJob, agyCalls } from './helpers.mjs';
 
-const CATALOG_WITHOUT_38 = [
+const CATALOG_WITHOUT_HYDROGEN = [
   'Fetching available models...',
+  'gemini-3.8-flash-high\tGemini 3.8 Flash (High)',
+  'gemini-3.8-flash-medium\tGemini 3.8 Flash (Medium)',
+  'gemini-3.8-flash-low\tGemini 3.8 Flash (Low)',
   'gemini-3.7-flash-high\tGemini 3.7 Flash (High)',
   'gemini-3.7-flash-medium\tGemini 3.7 Flash (Medium)',
   'gemini-3.7-flash-low\tGemini 3.7 Flash (Low)',
-  'gemini-3.6-flash-high\tGemini 3.6 Flash (High)',
-  'gemini-3.6-flash-medium\tGemini 3.6 Flash (Medium)',
-  'gemini-3.6-flash-low\tGemini 3.6 Flash (Low)',
   'gemini-3.1-pro-high\tGemini 3.1 Pro (High)',
   'gemini-3.1-pro-low\tGemini 3.1 Pro (Low)',
 ].join('\n');
@@ -71,7 +71,7 @@ describe('cause hints are conditional on the error text', () => {
     const r = run(sb, ['ask', '--prompt', 'a question'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: '',
-      FAKE_AGY_ERROR: '--model gemini-3.8-flash requires --effort',
+      FAKE_AGY_ERROR: '--model gemini-4-hydrogen requires --effort',
     });
     assert.notEqual(r.code, 0);
     assert.match(r.stderr, /Likely cause: invalid model id/);
@@ -80,75 +80,88 @@ describe('cause hints are conditional on the error text', () => {
 });
 
 describe('unsupported model error handling without silent fallback', () => {
-  test('foreground (ask) fails clearly on catalog without 3.8 Flash, reports models, recommends same-effort 3.7-flash-low, and does not retry', () => {
+  test('foreground (ask) fails clearly on catalog without Hydrogen, reports models, recommends same-effort 3.8-flash-low, and does not retry', () => {
     const sb = sandbox('unsupported-ask');
     const r = run(sb, ['ask', '--prompt', 'hello'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: '',
-      FAKE_AGY_ERROR: 'invalid model selection (--model "gemini-3.8-flash-low" --effort ""): model gemini-3.8-flash-low is not recognized as a known model or custom model in settings',
-      FAKE_AGY_MODELS_OUTPUT: CATALOG_WITHOUT_38,
+      FAKE_AGY_ERROR: 'invalid model selection (--model "gemini-4-hydrogen-low" --effort ""): model gemini-4-hydrogen-low is not recognized as a known model or custom model in settings',
+      FAKE_AGY_MODELS_OUTPUT: CATALOG_WITHOUT_HYDROGEN,
     });
     assert.notEqual(r.code, 0);
     // Actionable failure behavior
-    assert.match(r.stderr, /requested model "gemini-3\.8-flash-low"/);
+    assert.match(r.stderr, /requested model "gemini-4-hydrogen-low"/);
     assert.match(r.stderr, /Available models \(from `agy models`\):/);
-    assert.match(r.stderr, /gemini-3\.7-flash-low/);
-    assert.match(r.stderr, /Best same-effort compatible recommendation: --model gemini-3\.7-flash-low/);
-    assert.match(r.stderr, /Updating agy is preferred to use the latest default/);
+    assert.match(r.stderr, /gemini-3\.8-flash-low/);
+    assert.match(r.stderr, /Best same-effort compatible recommendation: --model gemini-3\.8-flash-low/);
+    assert.match(r.stderr, /Updating agy is preferred to use the latest default \(gemini-4-hydrogen\)/);
 
     // No automatic retry or silent fallback
     const calls = agyCalls(sb);
     const taskRuns = calls.filter((args) => args.includes('-p'));
     assert.equal(taskRuns.length, 1, 'must only run agy once for the task, no retry');
-    assert.ok(!calls.some((args) => args.includes('gemini-3.7-flash-low')), 'must not silently fall back to 3.7');
+    assert.ok(!calls.some((args) => args.includes('gemini-3.8-flash-low')), 'must not silently fall back to 3.8');
   });
 
-  test('background job (implement) fails clearly on catalog without 3.8 Flash, recommending same-effort 3.7-flash-high', async () => {
+  test('background job (implement) fails clearly on catalog without Hydrogen, recommending same-effort 3.8-flash-high', async () => {
     const sb = sandbox('unsupported-implement');
     const started = run(sb, ['implement', '--prompt', 'a task'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: '',
-      FAKE_AGY_ERROR: 'model gemini-3.8-flash-high is not recognized as a known model',
-      FAKE_AGY_MODELS_OUTPUT: CATALOG_WITHOUT_38,
+      FAKE_AGY_ERROR: 'model gemini-4-hydrogen-high is not recognized as a known model',
+      FAKE_AGY_MODELS_OUTPUT: CATALOG_WITHOUT_HYDROGEN,
     });
     assert.equal(started.code, 0, started.stderr);
     const id = jobIdOf(started.stdout);
     assert.equal(await waitForJob(sb, id), 'error');
 
     const res = run(sb, ['result', id]);
-    assert.match(res.stdout, /requested model "gemini-3\.8-flash-high"/);
+    assert.match(res.stdout, /requested model "gemini-4-hydrogen-high"/);
     assert.match(res.stdout, /Available models \(from `agy models`\):/);
-    assert.match(res.stdout, /gemini-3\.7-flash-high/);
-    assert.match(res.stdout, /Best same-effort compatible recommendation: --model gemini-3\.7-flash-high/);
-    assert.match(res.stdout, /Updating agy is preferred to use the latest default/);
+    assert.match(res.stdout, /gemini-3\.8-flash-high/);
+    assert.match(res.stdout, /Best same-effort compatible recommendation: --model gemini-3\.8-flash-high/);
+    assert.match(res.stdout, /Updating agy is preferred to use the latest default \(gemini-4-hydrogen\)/);
 
     // Verify wait exit code 3
     const w = run(sb, ['wait', id]);
     assert.equal(w.code, 3);
-    assert.match(w.stdout, /Best same-effort compatible recommendation: --model gemini-3\.7-flash-high/);
+    assert.match(w.stdout, /Best same-effort compatible recommendation: --model gemini-3\.8-flash-high/);
 
     // No automatic retry or silent fallback in background execution
     const calls = agyCalls(sb);
     const taskRuns = calls.filter((args) => args.includes('-p'));
     assert.equal(taskRuns.length, 1, 'worker must not automatically retry with another model');
-    assert.ok(!calls.some((args) => args.includes('gemini-3.7-flash-high')), 'must not silently fall back to 3.7');
+    assert.ok(!calls.some((args) => args.includes('gemini-3.8-flash-high')), 'must not silently fall back to 3.8');
   });
 
-  test('background job (staffer) recommends medium effort gemini-3.7-flash-medium on catalog without 3.8 Flash', async () => {
+  test('background job (staffer) recommends medium effort gemini-3.8-flash-medium on catalog without Hydrogen', async () => {
     const sb = sandbox('unsupported-staffer');
     const started = run(sb, ['staffer', '--prompt', 'a general task'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: '',
-      FAKE_AGY_ERROR: 'unknown model: gemini-3.8-flash-medium',
-      FAKE_AGY_MODELS_OUTPUT: CATALOG_WITHOUT_38,
+      FAKE_AGY_ERROR: 'unknown model: gemini-4-hydrogen-medium',
+      FAKE_AGY_MODELS_OUTPUT: CATALOG_WITHOUT_HYDROGEN,
     });
     assert.equal(started.code, 0, started.stderr);
     const id = jobIdOf(started.stdout);
     assert.equal(await waitForJob(sb, id), 'error');
 
     const res = run(sb, ['result', id]);
-    assert.match(res.stdout, /requested model "gemini-3\.8-flash-medium"/);
-    assert.match(res.stdout, /Best same-effort compatible recommendation: --model gemini-3\.7-flash-medium/);
+    assert.match(res.stdout, /requested model "gemini-4-hydrogen-medium"/);
+    assert.match(res.stdout, /Best same-effort compatible recommendation: --model gemini-3\.8-flash-medium/);
+  });
+
+  test('unsupported xhigh falls back recommendation to high tier when xhigh is absent', () => {
+    const sb = sandbox('unsupported-xhigh');
+    const r = run(sb, ['ask', '--effort', 'xhigh', '--prompt', 'hello'], {
+      FAKE_AGY_STATUS: 'ERROR',
+      FAKE_AGY_RESPONSE: '',
+      FAKE_AGY_ERROR: 'unknown model: gemini-4-hydrogen-xhigh',
+      FAKE_AGY_MODELS_OUTPUT: CATALOG_WITHOUT_HYDROGEN,
+    });
+    assert.notEqual(r.code, 0);
+    assert.match(r.stderr, /requested model "gemini-4-hydrogen-xhigh"/);
+    assert.match(r.stderr, /Best same-effort compatible recommendation: --model gemini-3\.8-flash-high/);
   });
 
   test('preserves original error and advises running agy models when model discovery fails', () => {
@@ -156,12 +169,12 @@ describe('unsupported model error handling without silent fallback', () => {
     const r = run(sb, ['ask', '--prompt', 'hello'], {
       FAKE_AGY_STATUS: 'ERROR',
       FAKE_AGY_RESPONSE: '',
-      FAKE_AGY_ERROR: 'model gemini-3.8-flash-low is not recognized as a known model',
+      FAKE_AGY_ERROR: 'model gemini-4-hydrogen-low is not recognized as a known model',
       FAKE_AGY_MODELS_ERROR: 'daemon disconnected: unable to reach model service',
     });
     assert.notEqual(r.code, 0);
     // Original error preserved
-    assert.match(r.stderr, /model gemini-3\.8-flash-low is not recognized as a known model/);
+    assert.match(r.stderr, /model gemini-4-hydrogen-low is not recognized as a known model/);
     assert.match(r.stderr, /daemon disconnected/);
     // Advise running agy models and updating agy
     assert.match(r.stderr, /run `agy models`/i);

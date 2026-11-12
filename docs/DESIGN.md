@@ -134,7 +134,7 @@ Every state other than running is final for that job. Continue and restart never
 
 ## 10. Orchestration
 
-The two orchestration skills differ in who proposes the approach. With `brain`, the external reasoning lead originates the proposal in a `staffer --brain` job and may use a native Flash research child for read-only reconnaissance. The host challenges the proposal with evidence and owns implementation, verification and delivery.
+The two orchestration skills differ in who proposes the approach. With `brain`, the external reasoning lead originates the proposal in a `staffer --brain` job and may use a native Hydrogen / Flash research child for read-only reconnaissance. The host challenges the proposal with evidence and owns implementation, verification and delivery.
 ```mermaid
 flowchart TD
     G["Host: hand off goal, constraints and evidence"] --> P["Brain: propose a route"]

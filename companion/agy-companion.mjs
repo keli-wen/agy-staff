@@ -32,9 +32,9 @@
  *
  * Uniform flags:
  *   --job <id>            (continue) continue a specific job with its original persona/configuration
- *   --brain               (staffer) use the brain template and default to Carbon Medium (falling back to Argon -> Flash)
- *   --model <id>          explicit agy model id or alias (carbon, argon, flash, pro; overrides --effort)
- *   --effort <l|m|h>      Flash shorthand; brain jobs require an explicit --model with --effort
+ *   --brain               (staffer) use the brain template and default to Carbon Medium (falling back to Argon -> Hydrogen)
+ *   --model <id>          explicit agy model id or alias (carbon, argon, hydrogen, flash, pro; overrides --effort)
+ *   --effort <l|m|h|xh>   Hydrogen shorthand (low|medium|high|xhigh); brain jobs require an explicit --model with --effort
  *   --restricted          hardening opt-in: keep agy's permission enforcement
  *                         on (wants setup's evidence-gathering allowlist)
  *   --unrestricted        pass --dangerously-skip-permissions (already the
@@ -194,11 +194,11 @@ const MODES = ['staffer', 'research', 'review', 'implement', 'ask'];
 
 const DEFAULTS = {
   model: {
-    staffer: 'gemini-3.8-flash-medium',
-    research: 'gemini-3.8-flash-high',
-    review: 'gemini-3.8-flash-medium',
-    implement: 'gemini-3.8-flash-high',
-    ask: 'gemini-3.8-flash-low',
+    staffer: 'gemini-4-hydrogen-medium',
+    research: 'gemini-4-hydrogen-high',
+    review: 'gemini-4-hydrogen-medium',
+    implement: 'gemini-4-hydrogen-high',
+    ask: 'gemini-4-hydrogen-low',
   },
   // Every tool-using mode is unrestricted by default: headless agy denies
   // unlisted tool calls, so a restricted default made research/review come
@@ -218,11 +218,12 @@ const DEFAULTS = {
 };
 
 // agy only accepts effort-suffixed model ids; bare family names are rejected
-// with status ERROR ("--model gemini-3.8-flash requires --effort").
+// with status ERROR ("--model gemini-4-hydrogen requires --effort").
 // Known ids from `agy models`:
 const KNOWN_MODELS = new Set([
   'gemini-4-carbon-high', 'gemini-4-carbon-medium', 'gemini-4-carbon-low',
   'gemini-4-argon-high', 'gemini-4-argon-medium', 'gemini-4-argon-low',
+  'gemini-4-hydrogen-xhigh', 'gemini-4-hydrogen-high', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-low',
   'gemini-3.8-flash-high', 'gemini-3.8-flash-medium', 'gemini-3.8-flash-low',
   'gemini-3.7-flash-high', 'gemini-3.7-flash-medium', 'gemini-3.7-flash-low',
   'gemini-3.6-flash-high', 'gemini-3.6-flash-medium', 'gemini-3.6-flash-low',
@@ -235,6 +236,7 @@ const KNOWN_MODELS = new Set([
 const MODEL_FAMILIES = {
   'gemini-4-carbon': ['low', 'medium', 'high'],
   'gemini-4-argon': ['low', 'medium', 'high'],
+  'gemini-4-hydrogen': ['low', 'medium', 'high', 'xhigh'],
   'gemini-3.8-flash': ['low', 'medium', 'high'],
   'gemini-3.7-flash': ['low', 'medium', 'high'],
   'gemini-3.6-flash': ['low', 'medium', 'high'],
@@ -246,13 +248,14 @@ const MODEL_FAMILIES = {
 const MODEL_ALIASES = {
   carbon: 'gemini-4-carbon',
   argon: 'gemini-4-argon',
+  hydrogen: 'gemini-4-hydrogen',
   flash: 'gemini-3.8-flash',
   pro: 'gemini-3.1-pro',
 };
 const BRAIN_FALLBACK_CHAIN = [
   'gemini-4-carbon-medium',
   'gemini-4-argon-medium',
-  'gemini-3.8-flash-medium',
+  'gemini-4-hydrogen-medium',
 ];
 
 /** Normalize a user-supplied --model value to an id agy accepts, or die
@@ -272,11 +275,11 @@ function normalizeModel(raw, effort) {
     return `${name}-${e}`;
   }
   // future-tolerance: pass through anything already effort-suffixed
-  if (/-(low|medium|high|thinking)$/.test(name)) return name;
+  if (/-(low|medium|high|xhigh|thinking)$/.test(name)) return name;
   die(
     `unknown model id "${raw}". agy needs effort-suffixed ids, e.g. ` +
-      `gemini-4-carbon-low|medium|high, gemini-4-argon-low|medium|high, gemini-3.8-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
-      `Aliases accepted here: "carbon" (gemini-4-carbon), "argon" (gemini-4-argon), "flash" (gemini-3.8-flash), "pro" (gemini-3.1-pro), ` +
+      `gemini-4-carbon-low|medium|high, gemini-4-argon-low|medium|high, gemini-4-hydrogen-low|medium|high|xhigh, gemini-3.8-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
+      `Aliases accepted here: "carbon" (gemini-4-carbon), "argon" (gemini-4-argon), "hydrogen" (gemini-4-hydrogen), "flash" (gemini-3.8-flash), "pro" (gemini-3.1-pro), ` +
       `optionally combined with --effort. Run \`agy models\` for the full list.`
   );
 }
@@ -727,7 +730,7 @@ function queryAgyModels() {
 }
 
 function recommendCompatibleModel(requestedModel, availableModelIds) {
-  const effortMatch = requestedModel ? requestedModel.match(/-(low|medium|high)$/) : null;
+  const effortMatch = requestedModel ? requestedModel.match(/-(low|medium|high|xhigh)$/) : null;
   const effort = effortMatch ? effortMatch[1] : null;
   const isFourSeries = /^gemini-4-(carbon|argon)-/.test(requestedModel || '');
 
@@ -736,6 +739,7 @@ function recommendCompatibleModel(requestedModel, availableModelIds) {
     if (sameEffort.length > 0) {
       const preferredOrder = [
         ...(isFourSeries ? [`gemini-4-carbon-${effort}`, `gemini-4-argon-${effort}`] : []),
+        `gemini-4-hydrogen-${effort}`,
         `gemini-3.8-flash-${effort}`,
         `gemini-3.7-flash-${effort}`,
         `gemini-3.6-flash-${effort}`,
@@ -746,6 +750,9 @@ function recommendCompatibleModel(requestedModel, availableModelIds) {
           return candidate;
         }
       }
+      const otherHydrogen = sameEffort.find((id) => id.includes('hydrogen') && id !== requestedModel);
+      if (otherHydrogen) return otherHydrogen;
+
       const otherFlash = sameEffort.find((id) => id.includes('flash') && id !== requestedModel);
       if (otherFlash) return otherFlash;
 
@@ -766,6 +773,15 @@ function recommendCompatibleModel(requestedModel, availableModelIds) {
       if (match) return match;
     }
   }
+
+  if (effort === 'xhigh') {
+    for (const candidate of ['gemini-4-hydrogen-high', 'gemini-3.8-flash-high', 'gemini-3.7-flash-high']) {
+      if (availableModelIds.includes(candidate) && candidate !== requestedModel) return candidate;
+    }
+  }
+
+  const anyHydrogen = availableModelIds.find((id) => id.includes('hydrogen') && id !== requestedModel);
+  if (anyHydrogen) return anyHydrogen;
 
   const anyFlash = availableModelIds.find((id) => id.includes('flash') && id !== requestedModel);
   if (anyFlash) return anyFlash;
@@ -801,7 +817,7 @@ function handleUnsupportedModel({ requestedModel, errText, originalError, convNo
     msg +=
       `Model discovery via \`agy models\` failed (${discovery.error}).\n` +
       `Please run \`agy models\` to check available models.\n` +
-      `Updating agy is preferred to use the latest default (gemini-3.8-flash).`;
+      `Updating agy is preferred to use the latest default (gemini-4-hydrogen).`;
     die(msg + (convNote || ''));
   }
 
@@ -816,7 +832,7 @@ function handleUnsupportedModel({ requestedModel, errText, originalError, convNo
   if (best) {
     msg += `Best same-effort compatible recommendation: --model ${best}\n`;
   }
-  msg += `Updating agy is preferred to use the latest default (gemini-3.8-flash).`;
+  msg += `Updating agy is preferred to use the latest default (gemini-4-hydrogen).`;
   die(msg + (convNote || ''));
 }
 
@@ -994,7 +1010,7 @@ function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSour
     const hints = [];
     const nativeError = agy.errors?.at(-1);
     if (!nativeError && /model|effort/i.test(errText)) {
-      hints.push('invalid model id (agy needs effort-suffixed ids, e.g. gemini-3.8-flash-low — run `agy models`)');
+      hints.push('invalid model id (agy needs effort-suffixed ids, e.g. gemini-4-hydrogen-low — run `agy models`)');
     }
     if (nativeError ? ['UNAUTHENTICATED', 'PERMISSION_DENIED'].includes(nativeError.status) : /auth|login|credential|unauthorized|401|403/i.test(errText)) {
       hints.push('expired auth (run `agy` interactively once to re-login)');
@@ -1106,8 +1122,8 @@ function resolveRun(mode, opts, priorJob = null) {
   if (brain && opts.effort && !opts.model) {
     die('--effort on a brain job requires --model; pass --model <family> with --effort, or omit --effort to keep the brain job model.');
   }
-  if (opts.effort && !['low', 'medium', 'high'].includes(opts.effort)) {
-    die('--effort must be low|medium|high');
+  if (opts.effort && !['low', 'medium', 'high', 'xhigh'].includes(opts.effort)) {
+    die('--effort must be low|medium|high|xhigh');
   }
   let model;
   let modelFallbackChain = null;
@@ -1122,7 +1138,7 @@ function resolveRun(mode, opts, priorJob = null) {
     model = chain[0];
     if (chain.length > 1) modelFallbackChain = chain;
   } else if (opts.effort) {
-    model = `gemini-3.8-flash-${opts.effort}`;
+    model = `gemini-4-hydrogen-${opts.effort}`;
   } else {
     model = DEFAULTS.model[mode];
   }
@@ -1328,7 +1344,7 @@ function extractBrainDiag(error, result) {
   return { rawDiag, errMsg, statuses };
 }
 
-const MODEL_TOKEN_RE = '(?:\\bmodel\\b|(?:gemini|claude|gpt)-[\\w.-]+|\\b(?:carbon|argon|opus|sonnet|flash)\\b)';
+const MODEL_TOKEN_RE = '(?:\\bmodel\\b|(?:gemini|claude|gpt)-[\\w.-]+|\\b(?:carbon|argon|hydrogen|opus|sonnet|flash)\\b)';
 const ENTITLEMENT_PHRASE_RE = '(?:not (?:available|supported|enabled|allowed|found|recognized|entitled|included)|only available (?:to|on|for|with|in)|(?:no|not have|without) access|access denied|does not include|requires[^\\n]{0,50}\\b(?:ultra|pro|subscription|plan|upgrade|tier|allowlist)\\b|\\b(?:ultra|subscription|plan|upgrade|tier|allowlist)\\b[^\\n]{0,50}\\b(?:only|required|needed|subscribers?|members?|users?|accounts?|plans?|tiers?)\\b|\\b(?:allowlist|tier|entitlement)\\b|upgrade[^\\n]{0,25}\\b(?:plan|subscription|to ultra)\\b)';
 const MODEL_ENTITLEMENT_RE = new RegExp(
   `${MODEL_TOKEN_RE}[^\\n]{0,80}${ENTITLEMENT_PHRASE_RE}|${ENTITLEMENT_PHRASE_RE}[^\\n]{0,80}${MODEL_TOKEN_RE}`,

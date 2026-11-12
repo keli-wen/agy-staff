@@ -131,6 +131,7 @@ BLUE = "#4285F4"     # Google / Gemini blue
 PURPLE = "#9B72CB"   # Gemini heritage gradient purple
 VIOLET = "#6A3AB2"   # Deep royal purple from design.svg (/agy:brain)
 CARBON_TEAL = "#00838F"  # Gemini 4 Carbon diamond teal
+HYDROGEN_BLUE = "#1A73E8"  # Gemini 4 Hydrogen orbital blue
 YELLOW = "#FBBC04"   # Google yellow
 ARCH_APEX = "#DB863D"  # sampled from the official Antigravity mark (apex)
 ARCH_LEGS = "#3289FC"  # sampled from the official Antigravity mark (legs)
@@ -236,6 +237,40 @@ ARGON_CENTER = (
     ".........",
 )
 
+HYDROGEN_RING = (
+    "...XXX...",
+    "..X...X..",
+    ".X.......",
+    "X.......X",
+    "X.......X",
+    "X.......X",
+    ".X.....X.",
+    "..X...X..",
+    "...XXX...",
+)
+HYDROGEN_ELEC = (
+    ".........",
+    "......XX.",
+    "......XX.",
+    ".........",
+    ".........",
+    ".........",
+    ".........",
+    ".........",
+    ".........",
+)
+HYDROGEN_CORE = (
+    ".........",
+    ".........",
+    ".........",
+    "....X....",
+    "...XXX...",
+    "....X....",
+    ".........",
+    ".........",
+    ".........",
+)
+
 
 def _sprite_svg(pattern, x, y, u, fill, rows=None):
     sub = [(r if rows is None or i in rows else "." * len(r))
@@ -312,6 +347,11 @@ SPECS = [
       (ARGON_CORE, "#B388FF", 2, None),
       (ARGON_CENTER, YELLOW, 2, None)],
      "model: Gemini 4 Argon", True),
+    ("model-gemini-4-hydrogen", "MODEL", "GEMINI 4 HYDROGEN", HYDROGEN_BLUE, PAPER,
+     [(HYDROGEN_RING, "#8AB4F8", 2, None),
+      (HYDROGEN_CORE, BLUE, 2, None),
+      (HYDROGEN_ELEC, YELLOW, 2, None)],
+     "model: Gemini 4 Hydrogen", True),
     ("claude-code-plugin", "CLAUDE CODE", "PLUGIN", CLAUDE, PAPER, [],
      "Claude Code: plugin", True),
     ("codex-plugin", "CODEX", "PLUGIN", CODEX, PAPER, [],
