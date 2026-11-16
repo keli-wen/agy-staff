@@ -22,6 +22,8 @@ agy-staff 把自带 <img src="assets/icons/carbon.svg" width="16" height="16" al
 
 ![主 agent 将部分工作交给后台运行的 agy](assets/why.png)
 
+agy-staff 提供开箱即用的预设角色与编排模式，技能名直接对应任务用途；如果你更偏好不预设角色的底层原语（相当于只保留 `staffer` 与 `jobs`），以便在 `agy`、`codex`、`claude`、`dsh` 之间更灵活地双向互调，可以看 [**cospan**](https://github.com/keli-wen/cospan)。
+
 ## <img src="assets/logo/bench.svg" width="32" height="32" alt=""> 评测 — Harness 与编排
 
 agy-staff Bench v1 让 Claude Code 和 Codex 在三个 benchmark 上做题，每道题用三种编排方案各跑一次：自己做、用自家 subagent、通过 `lead` 用 agy。
@@ -178,7 +180,7 @@ install and verify the agy-staff plugin for the harness you are running in. Resp
 
 ## 为其他 CLI 做一个
 
-agy-staff 的设计是可移植（portable）的：只用 bash 和 skills，不强依赖特定的宿主、worker CLI 或运行时库。[docs/DESIGN.md](docs/DESIGN.md)（英文）把这套设计整理成了最佳实践。如果想为其他 agent CLI 做同类工具，可以把下面这段话交给你的 coding agent：
+agy-staff 的设计是可移植（portable）的：只用 bash 和 skills，不强依赖特定的宿主、worker CLI 或运行时库（[**cospan**](https://github.com/keli-wen/cospan) 已将其中 `staffer` 与 `jobs` 的核心原语推广到了 `agy`、`codex`、`claude` 和 `dsh`）。[docs/DESIGN.md](docs/DESIGN.md)（英文）把这套设计整理成了最佳实践。如果想为其他 agent CLI 做同类角色化工具，可以把下面这段话交给你的 coding agent：
 
 ```
 Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/DESIGN.md
