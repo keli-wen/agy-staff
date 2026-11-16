@@ -22,6 +22,8 @@ GPT-6.1-Sol is slow even with fast mode on; Claude Code is quicker, but Fable qu
 
 ![two overloaded senior agents hand the baton to one fast agy worker](assets/why.png)
 
+agy-staff gives you opinionated, task-named skills ready out of the box. If you prefer unopinionated primitives — essentially `staffer` plus `jobs` — for flexible, bidirectional delegation across `agy`, `codex`, `claude`, and `dsh`, see [**cospan**](https://github.com/keli-wen/cospan).
+
 ## <img src="assets/logo/bench.svg" width="32" height="32" alt=""> Bench — Harness & Orchestration
 
 agy-staff Bench v1 runs Claude Code and Codex on three benchmarks, each task three ways: alone, with their own subagents, and with agy through `lead`.
@@ -193,7 +195,7 @@ Jobs have a separate execution deadline: default 60 minutes, configurable at lau
 
 ## Build one for another CLI
 
-agy-staff's design is portable: bash plus skills, with no hard dependency on a host, a worker CLI or a runtime library. [docs/DESIGN.md](docs/DESIGN.md) writes it down as best practice. To build the same kind of tool for another agent CLI, give your coding agent this prompt:
+agy-staff's design is portable: bash plus skills, with no hard dependency on a host, a worker CLI or a runtime library ([**cospan**](https://github.com/keli-wen/cospan) already generalizes its `staffer` and `jobs` primitives across `agy`, `codex`, `claude`, and `dsh`). [docs/DESIGN.md](docs/DESIGN.md) writes the pattern down as best practice. To build a dedicated tool like this for another agent CLI, give your coding agent this prompt:
 
 ```
 Read the raw text of https://raw.githubusercontent.com/keli-wen/agy-staff/master/docs/DESIGN.md
