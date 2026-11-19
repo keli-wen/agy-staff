@@ -16,7 +16,7 @@
 
 `lead` 为当前主 agent 提供任务编排指导，复用现有 companion 模式，没有自己的运行模式；Claude Code 使用 `/agy:lead`，Codex 使用 `$agy:lead`，Pi 使用 `/skill:agy-lead`，OpenCode 使用 `/agy-lead`。
 
-`brain` 让外部 AGY 推理主脑（Gemini 4 Carbon / Argon）先提出方案，由主 agent 检验关键假设、执行并交付。Claude Code 使用 `/agy:brain`，Codex 使用 `$agy:brain`，Pi 使用 `/skill:agy-brain`，DeepSeek Harness 与 OpenCode 使用 `/agy-brain`。技能通过 `staffer --brain` 启动后台任务，默认模型为 `gemini-4-carbon-medium`，支持通过 `--model`（如 `carbon`、`argon`、`hydrogen`、`flash`、`pro` 或完整模型 ID）与 `--effort` 显式指定模型；显式指定的模型不可用时直接返回诊断信息，不会静默切换模型。
+`brain` 让外部 AGY 推理主脑（Gemini 4 Carbon / Argon）先提出方案，由主 agent 检验关键假设、执行并交付。Claude Code 使用 `/agy:brain`，Codex 使用 `$agy:brain`，Pi 使用 `/skill:agy-brain`，DeepSeek Harness 与 OpenCode 使用 `/agy-brain`。技能通过 `staffer --brain` 启动后台任务，默认模型为 `gemini-4-carbon-medium`，支持通过 `--model`（如 `neon`、`carbon`、`argon`、`hydrogen`、`flash`、`pro` 或完整模型 ID）与 `--effort` 显式指定模型；显式指定的模型不可用时直接返回诊断信息，不会静默切换模型。
 
 `staffer` 不预设专业分工或固定的报告格式，但仍遵守共享的操作约定。`reviewer` 会根据对象选择审查方式：代码问题按严重程度列出，并附上 `file:line` 位置；方案和决策审查则检查假设、风险和取舍。`implementer` 可以直接修改工作区，也可以完成任务明确要求的提交、推送或 PR 操作。
 
@@ -116,8 +116,8 @@ agy 还有与 `--project` 体系关联的项目级权限规则，可以将权限
 | --- | --- |
 | `--job <id>` | 仅用于 `continue`，继续指定任务对应的 AGY 会话，并沿用原任务的角色、模型与权限配置 |
 | `--brain` | 新建 `staffer` 任务时使用 brain 咨询模板（默认模型为 `gemini-4-carbon-medium`）；续接与重启时沿用已解析的任务配置 |
-| `--model <id>` | 指定模型，可用 `agy models` 查看可用 ID。模型 ID 带有推理强度后缀，如 `gemini-4-carbon-medium`、`gemini-4-argon-high`、`gemini-4-hydrogen-high`、`gemini-4-hydrogen-xhigh`、`gemini-3.8-flash-low`；companion 也能补全模型系列名与 `carbon`、`argon`、`hydrogen`、`flash`、`pro` 别名，未知 ID 会在启动前报错，显式指定的模型不会静默替换 |
-| `--effort low\|medium\|high\|xhigh` | 指定推理强度，是 `gemini-4-hydrogen-<effort>` 的简写（其中 `xhigh` 适用于 `gemini-4-hydrogen`） |
+| `--model <id>` | 指定模型，可用 `agy models` 查看可用 ID。模型 ID 带有推理强度后缀，如 `gemini-4-neon-high`、`gemini-4-neon-xhigh`、`gemini-4-carbon-medium`、`gemini-4-argon-high`、`gemini-4-hydrogen-high`、`gemini-4-hydrogen-xhigh`、`gemini-3.8-flash-low`；companion 也能补全模型系列名与 `neon`、`carbon`、`argon`、`hydrogen`、`flash`、`pro` 别名，未知 ID 会在启动前报错，显式指定的模型不会静默替换 |
+| `--effort low\|medium\|high\|xhigh` | 指定推理强度，是 `gemini-4-hydrogen-<effort>` 的简写（其中 `xhigh` 适用于 `gemini-4-neon` 和 `gemini-4-hydrogen`） |
 | `--restricted` / `--unrestricted` | 覆盖本次运行的权限配置；`ask` 会忽略这两个参数 |
 | `--restrict <modes\|none>` | 用于 `setup`，设置或清除[仓库默认权限](#仓库级-policysetup---restrict) |
 | `--json` | 用于代码审查，按指定结构返回 JSON 格式的问题列表；默认使用 Markdown |

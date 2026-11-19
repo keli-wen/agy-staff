@@ -286,7 +286,7 @@ export function apply(ctx, options = {}) {
           model: {
             type: "string",
             description:
-              "Optional model id or family alias (\"carbon\", \"argon\", \"hydrogen\", \"flash\", \"pro\", or effort-suffixed id such as \"gemini-4-argon-high\"). Defaults to Gemini 4 Carbon.",
+              "Optional model id or family alias (\"neon\", \"carbon\", \"argon\", \"hydrogen\", \"flash\", \"pro\", or effort-suffixed id such as \"gemini-4-neon-high\"). Defaults to Gemini 4 Carbon.",
           },
           effort: {
             type: "string",
@@ -378,7 +378,7 @@ export function apply(ctx, options = {}) {
           model: {
             type: "string",
             description:
-              "Optional model id or family alias (\"hydrogen\", \"carbon\", \"argon\", \"flash\", \"pro\", or effort-suffixed id).",
+              "Optional model id or family alias (\"hydrogen\", \"neon\", \"carbon\", \"argon\", \"flash\", \"pro\", or effort-suffixed id).",
           },
           effort: {
             type: "string",

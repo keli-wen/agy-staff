@@ -2398,6 +2398,64 @@ body[data-ds-dark-theme] .agy-section-glyph {
       });
     }
 
+    function PixelIconNeon({ size = 16 }) {
+      return jsxs("svg", {
+        width: size,
+        height: size,
+        viewBox: "0 0 24 24",
+        shapeRendering: "crispEdges",
+        children: [
+          jsxs("g", {
+            fill: "#FF5722",
+            children: [
+              jsx("rect", { x: "7", y: "1", width: "10", height: "2" }),
+              jsx("rect", { x: "5", y: "3", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "3", width: "2", height: "2" }),
+              jsx("rect", { x: "3", y: "5", width: "2", height: "2" }),
+              jsx("rect", { x: "19", y: "5", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "7", width: "2", height: "10" }),
+              jsx("rect", { x: "21", y: "7", width: "2", height: "10" }),
+              jsx("rect", { x: "3", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "19", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "19", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "19", width: "2", height: "2" }),
+              jsx("rect", { x: "7", y: "21", width: "10", height: "2" }),
+            ],
+          }),
+          jsxs("g", {
+            fill: "#FF8A65",
+            children: [
+              jsx("rect", { x: "9", y: "5", width: "6", height: "2" }),
+              jsx("rect", { x: "5", y: "9", width: "2", height: "6" }),
+              jsx("rect", { x: "17", y: "9", width: "2", height: "6" }),
+              jsx("rect", { x: "9", y: "17", width: "6", height: "2" }),
+            ],
+          }),
+          jsxs("g", {
+            fill: "#FFD54F",
+            children: [
+              jsx("rect", { x: "11", y: "1", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "5", width: "2", height: "2" }),
+              jsx("rect", { x: "21", y: "11", width: "2", height: "2" }),
+              jsx("rect", { x: "17", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "11", y: "21", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "17", width: "2", height: "2" }),
+              jsx("rect", { x: "1", y: "11", width: "2", height: "2" }),
+              jsx("rect", { x: "5", y: "5", width: "2", height: "2" }),
+            ],
+          }),
+          jsxs("g", {
+            fill: "#E64A19",
+            children: [
+              jsx("rect", { x: "11", y: "9", width: "2", height: "6" }),
+              jsx("rect", { x: "9", y: "11", width: "6", height: "2" }),
+            ],
+          }),
+          jsx("rect", { x: "11", y: "11", width: "2", height: "2", fill: "#FFF3E0" }),
+        ],
+      });
+    }
+
     function PixelIconCarbon({ size = 16 }) {
       return jsxs("svg", {
         width: size,
@@ -2651,6 +2709,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
 
     function shortModelTag(modelStr, isBrain) {
       const lower = String(modelStr || "").toLowerCase();
+      if (lower.includes("neon")) return "Neon";
       if (lower.includes("carbon")) return "Carbon";
       if (lower.includes("argon")) return "Argon";
       if (lower.includes("hydrogen")) return "Hydrogen";
@@ -2666,6 +2725,7 @@ body[data-ds-dark-theme] .agy-section-glyph {
         sub.model || sub.latestTurn?.model || sub.firstTurn?.model || ""
       ).toLowerCase();
       if (sub.brain) {
+        if (modelLower.includes("neon")) return jsx(PixelIconNeon, { size: 16 });
         if (modelLower.includes("carbon")) return jsx(PixelIconCarbon, { size: 16 });
         if (modelLower.includes("argon")) return jsx(PixelIconArgon, { size: 16 });
         if (modelLower.includes("hydrogen")) return jsx(PixelIconHydrogen, { size: 16 });

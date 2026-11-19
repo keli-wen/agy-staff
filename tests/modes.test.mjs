@@ -257,6 +257,20 @@ describe('tiered git guards: implement', () => {
     const legacyFlash = run(sb, ['ask', '--model', 'flash', '--prompt', 'legacy flash']);
     assert.equal(legacyFlash.code, 0, legacyFlash.stderr);
     assert.match(legacyFlash.stderr, /model=gemini-3\.8-flash-medium/);
+
+    const neonDefaultEffort = run(sb, ['ask', '--model', 'neon', '--prompt', 'neon default']);
+    assert.equal(neonDefaultEffort.code, 0, neonDefaultEffort.stderr);
+    assert.match(neonDefaultEffort.stderr, /model=gemini-4-neon-medium/);
+
+    const neonXhigh = run(sb, ['research', '--model', 'neon', '--effort', 'xhigh', '--prompt', 'neon xhigh']);
+    assert.equal(neonXhigh.code, 0, neonXhigh.stderr);
+    assert.match(neonXhigh.stdout, /model: gemini-4-neon-xhigh/);
+    assert.doesNotMatch(neonXhigh.stderr, /has no "xhigh" effort/);
+    assert.equal(await waitForJob(sb, jobIdOf(neonXhigh.stdout)), 'done');
+
+    const neonBareFamily = run(sb, ['ask', '--model', 'gemini-4-neon', '--effort', 'low', '--prompt', 'neon low']);
+    assert.equal(neonBareFamily.code, 0, neonBareFamily.stderr);
+    assert.match(neonBareFamily.stderr, /model=gemini-4-neon-low/);
   });
 
   test('implement on a dirty tree injects workspace context instead of refusing', async () => {
