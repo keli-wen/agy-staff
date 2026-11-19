@@ -248,3 +248,37 @@ describe('unsupported model error handling without silent fallback', () => {
     assert.doesNotMatch(rUnrelated.stderr, /Available models/);
   });
 });
+
+describe('denied_actions: headless auto-denial hidden behind status SUCCESS', () => {
+  const DENIED = JSON.stringify([{ action: 'read_file', display_name: 'ReadFile' }]);
+
+  test('non-empty response + denied_actions: exit 0, response intact, warning on stderr', () => {
+    const sb = sandbox('triage-denied-warn');
+    const r = run(sb, ['ask', '--prompt', 'a question'], {
+      FAKE_AGY_RESPONSE: 'partial answer',
+      FAKE_AGY_DENIED: DENIED,
+    });
+    assert.equal(r.code, 0, `${r.stdout}${r.stderr}`);
+    assert.match(r.stdout, /partial answer/);
+    assert.match(r.stderr, /auto-denied tool call\(s\) \[ReadFile\]/);
+    assert.doesNotMatch(r.stdout, /auto-denied/, 'the warning must not pollute the deliverable');
+  });
+
+  test('no denied_actions field: no warning', () => {
+    const sb = sandbox('triage-denied-none');
+    const r = run(sb, ['ask', '--prompt', 'a question']);
+    assert.equal(r.code, 0, `${r.stdout}${r.stderr}`);
+    assert.doesNotMatch(r.stderr, /auto-denied/);
+  });
+
+  test('empty response + denied_actions: job errors and names the denied tool', async () => {
+    const sb = sandbox('triage-denied-empty');
+    const started = run(sb, ['staffer', '--prompt', 'a task'], { FAKE_AGY_RESPONSE: '', FAKE_AGY_DENIED: DENIED });
+    assert.equal(started.code, 0, started.stderr);
+    const id = jobIdOf(started.stdout);
+    assert.equal(await waitForJob(sb, id), 'error');
+    const res = run(sb, ['result', id]);
+    assert.match(res.stdout, /agy returned an empty response/);
+    assert.match(res.stdout, /agy auto-denied tool call\(s\): ReadFile\./);
+  });
+});

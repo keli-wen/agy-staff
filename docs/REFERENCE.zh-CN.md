@@ -280,7 +280,7 @@ review --prompt "Review the patch at /tmp/change.patch"
 
 ### 任务正文超过长度上限
 
-`task text exceeds the 200KB inline limit` 表示传入 AGY 的任务正文太长。companion 最终仍会将完整提示词放在一个命令行参数中；`--prompt-file` 和 `--stdin` 能简化输入，却不会消除这个长度限制。
+`task text exceeds the 800KB inline limit` 表示传入 AGY 的任务正文太长。companion 最终仍会将完整提示词放在一个命令行参数中；`--prompt-file` 和 `--stdin` 能简化输入，却不会消除这个长度限制。
 
 可以在任务中提供 PR 编号、分支或文件路径，让 agy 自行读取材料，避免把大段内容直接粘进任务描述。
 

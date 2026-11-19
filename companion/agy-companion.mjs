@@ -308,9 +308,9 @@ const EVIDENCE_DENYLIST = [
   'command(gh release delete)',
 ];
 
-// ~200KB task-text ceiling; macOS ARG_MAX is ~1MB and the prompt
+// ~800KB task-text ceiling; macOS ARG_MAX is ~1MB (argv + env) and the prompt
 // travels as a single argv entry.
-const MAX_INLINE_BYTES = 200 * 1024;
+const MAX_INLINE_BYTES = 800 * 1024;
 const MAX_DIRTY_STATUS_LINES = 100;
 const MAX_DIRTY_STATUS_BYTES = 16 * 1024;
 
@@ -964,6 +964,12 @@ function isResponseTimeout(payload, native) {
     (status === 'ERROR' && /^timeout waiting for response[.!]?$/i.test(String(payload.error || '').trim()));
 }
 
+/** Names of tool calls agy auto-denied in headless mode ('' when none). */
+function deniedActionsOf(payload) {
+  const list = Array.isArray(payload.denied_actions) ? payload.denied_actions : [];
+  return list.map((d) => d?.display_name || d?.action).filter(Boolean).join(', ');
+}
+
 /** Triage the agy result into distinct classes with distinct guidance
  *  (never cross-suggested), or return the response text on success.
  *  1. status ERROR / nonzero exit, but response text came back
@@ -1031,7 +1037,18 @@ function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSour
     die(msg + convNote);
   }
 
-  if (response) return response;
+  // agy keeps status SUCCESS / exit 0 even when headless mode auto-denied a
+  // tool call; the denial is only visible in payload.denied_actions.
+  const denied = deniedActionsOf(payload);
+  if (response) {
+    if (denied) {
+      process.stderr.write(
+        `agy-staff warning: agy auto-denied tool call(s) [${denied}] in headless mode; ` +
+          'the response may be incomplete — verify it before relying on it.\n'
+      );
+    }
+    return response;
+  }
 
   // status SUCCESS but nothing came back
   if (mode === 'ask') {
@@ -1043,6 +1060,7 @@ function triageResult({ payload, stderr, exit, agy }, mode, profile, profileSour
     );
   }
   let msg = 'agy returned an empty response (status SUCCESS but no content).';
+  if (denied) msg += `\nagy auto-denied tool call(s): ${denied}.`;
   if (profile === 'restricted') {
     const cause =
       profileSource === 'project'
