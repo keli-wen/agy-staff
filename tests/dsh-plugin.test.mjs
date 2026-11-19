@@ -278,6 +278,22 @@ test("Items 1, 4, 6, 7: dsh/index.mjs skills hydration, lifecycle tools, and /ag
 
   executedRunnerCalls.length = 0;
   await brainTool.execute(
+    { prompt: "Explicit Neon brain", model: "neon", effort: "xhigh" },
+    { agent: fakeAgentWithCwd }
+  );
+  assert.deepEqual(executedRunnerCalls[0].args, [
+    "staffer",
+    "--brain",
+    "--prompt",
+    "Explicit Neon brain",
+    "--model",
+    "neon",
+    "--effort",
+    "xhigh",
+  ]);
+
+  executedRunnerCalls.length = 0;
+  await brainTool.execute(
     { prompt: "Continue with Carbon", job_id: "staffer-test-123", model: "carbon", effort: "medium" },
     { agent: fakeAgentWithCwd }
   );
@@ -1014,6 +1030,15 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
     // Phase 6: Verify PixelIconCarbon, PixelIconArgon, and dynamic brain/worker role tags
     mockExtraJobs = [
       {
+        id: "staffer-brain-neon-0",
+        mode: "staffer",
+        brain: true,
+        model: "gemini-4-neon-xhigh",
+        status: "done",
+        task: "Neon proposal",
+        started_at: "2026-11-07T09:59:00.000Z",
+      },
+      {
         id: "staffer-brain-carbon-1",
         mode: "staffer",
         brain: true,
@@ -1058,6 +1083,14 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
         started_at: "2026-11-07T10:03:00.000Z",
       },
       {
+        id: "research-neon-6",
+        mode: "research",
+        model: "gemini-4-neon-high",
+        status: "done",
+        task: "Explicit Neon worker",
+        started_at: "2026-11-07T10:03:30.000Z",
+      },
+      {
         id: "implement-hydrogen-5",
         mode: "implement",
         model: "gemini-4-hydrogen-xhigh",
@@ -1072,11 +1105,13 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
 
     const fullTreeText = textContent(tree);
     for (const expectedRole of [
+      "brain · Neon",
       "brain · Carbon",
       "brain · Argon",
       "brain · Hydrogen",
       "brain · Flash",
       "researcher · Carbon",
+      "researcher · Neon",
       "implementer · Hydrogen",
       "staffer · Argon",
     ]) {
@@ -1085,6 +1120,10 @@ test("Items 2, 3, 5: client UI loadTurnData running->done transition, recent_act
         `sidebar should render '${expectedRole}', got: ${fullTreeText}`
       );
     }
+    assert.ok(
+      findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconNeon"),
+      "PixelIconNeon must render for Neon brain card"
+    );
     assert.ok(
       findOne(tree, (n) => typeof n.type === "function" && n.type.name === "PixelIconCarbon"),
       "PixelIconCarbon must render for Carbon brain card"

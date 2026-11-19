@@ -33,7 +33,7 @@
  * Uniform flags:
  *   --job <id>            (continue) continue a specific job with its original persona/configuration
  *   --brain               (staffer) use the brain template and default to Carbon Medium (falling back to Argon -> Hydrogen)
- *   --model <id>          explicit agy model id or alias (carbon, argon, hydrogen, flash, pro; overrides --effort)
+ *   --model <id>          explicit agy model id or alias (neon, carbon, argon, hydrogen, flash, pro; overrides --effort)
  *   --effort <l|m|h|xh>   Hydrogen shorthand (low|medium|high|xhigh); brain jobs require an explicit --model with --effort
  *   --restricted          hardening opt-in: keep agy's permission enforcement
  *                         on (wants setup's evidence-gathering allowlist)
@@ -221,6 +221,7 @@ const DEFAULTS = {
 // with status ERROR ("--model gemini-4-hydrogen requires --effort").
 // Known ids from `agy models`:
 const KNOWN_MODELS = new Set([
+  'gemini-4-neon-xhigh', 'gemini-4-neon-high', 'gemini-4-neon-medium', 'gemini-4-neon-low',
   'gemini-4-carbon-high', 'gemini-4-carbon-medium', 'gemini-4-carbon-low',
   'gemini-4-argon-high', 'gemini-4-argon-medium', 'gemini-4-argon-low',
   'gemini-4-hydrogen-xhigh', 'gemini-4-hydrogen-high', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-low',
@@ -234,6 +235,7 @@ const KNOWN_MODELS = new Set([
   'claude-sonnet-4-6', 'claude-opus-4-6-thinking', 'gpt-oss-120b-medium',
 ]);
 const MODEL_FAMILIES = {
+  'gemini-4-neon': ['low', 'medium', 'high', 'xhigh'],
   'gemini-4-carbon': ['low', 'medium', 'high'],
   'gemini-4-argon': ['low', 'medium', 'high'],
   'gemini-4-hydrogen': ['low', 'medium', 'high', 'xhigh'],
@@ -246,6 +248,7 @@ const MODEL_FAMILIES = {
   'claude-sonnet-5-5': ['low', 'medium', 'high'],
 };
 const MODEL_ALIASES = {
+  neon: 'gemini-4-neon',
   carbon: 'gemini-4-carbon',
   argon: 'gemini-4-argon',
   hydrogen: 'gemini-4-hydrogen',
@@ -278,8 +281,8 @@ function normalizeModel(raw, effort) {
   if (/-(low|medium|high|xhigh|thinking)$/.test(name)) return name;
   die(
     `unknown model id "${raw}". agy needs effort-suffixed ids, e.g. ` +
-      `gemini-4-carbon-low|medium|high, gemini-4-argon-low|medium|high, gemini-4-hydrogen-low|medium|high|xhigh, gemini-3.8-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
-      `Aliases accepted here: "carbon" (gemini-4-carbon), "argon" (gemini-4-argon), "hydrogen" (gemini-4-hydrogen), "flash" (gemini-3.8-flash), "pro" (gemini-3.1-pro), ` +
+      `gemini-4-neon-low|medium|high|xhigh, gemini-4-carbon-low|medium|high, gemini-4-argon-low|medium|high, gemini-4-hydrogen-low|medium|high|xhigh, gemini-3.8-flash-low|medium|high, gemini-3.1-pro-low|high. ` +
+      `Aliases accepted here: "neon" (gemini-4-neon), "carbon" (gemini-4-carbon), "argon" (gemini-4-argon), "hydrogen" (gemini-4-hydrogen), "flash" (gemini-3.8-flash), "pro" (gemini-3.1-pro), ` +
       `optionally combined with --effort. Run \`agy models\` for the full list.`
   );
 }
@@ -732,13 +735,13 @@ function queryAgyModels() {
 function recommendCompatibleModel(requestedModel, availableModelIds) {
   const effortMatch = requestedModel ? requestedModel.match(/-(low|medium|high|xhigh)$/) : null;
   const effort = effortMatch ? effortMatch[1] : null;
-  const isFourSeries = /^gemini-4-(carbon|argon)-/.test(requestedModel || '');
+  const isFourSeries = /^gemini-4-(neon|carbon|argon)-/.test(requestedModel || '');
 
   if (effort) {
     const sameEffort = availableModelIds.filter((id) => id.endsWith(`-${effort}`));
     if (sameEffort.length > 0) {
       const preferredOrder = [
-        ...(isFourSeries ? [`gemini-4-carbon-${effort}`, `gemini-4-argon-${effort}`] : []),
+        ...(isFourSeries ? [`gemini-4-carbon-${effort}`, `gemini-4-argon-${effort}`, `gemini-4-neon-${effort}`] : []),
         `gemini-4-hydrogen-${effort}`,
         `gemini-3.8-flash-${effort}`,
         `gemini-3.7-flash-${effort}`,
@@ -768,7 +771,12 @@ function recommendCompatibleModel(requestedModel, availableModelIds) {
   }
 
   if (isFourSeries) {
-    for (const prefix of ['gemini-4-carbon-', 'gemini-4-argon-']) {
+    if (effort === 'xhigh') {
+      for (const candidate of ['gemini-4-carbon-high', 'gemini-4-argon-high', 'gemini-4-neon-high']) {
+        if (availableModelIds.includes(candidate) && candidate !== requestedModel) return candidate;
+      }
+    }
+    for (const prefix of ['gemini-4-carbon-', 'gemini-4-argon-', 'gemini-4-neon-']) {
       const match = availableModelIds.find((id) => id.startsWith(prefix) && id !== requestedModel);
       if (match) return match;
     }
@@ -2361,7 +2369,7 @@ function main() {
   if (!cmd) {
     die(
       'usage: agy-companion.mjs <staffer|research|review|implement|ask|continue|restart|observe|status|wait|result|cancel|setup> [flags]\n' +
-        'flags: --brain (staffer) --restricted|--unrestricted --model <id> --effort <l|m|h> --timeout <dur> ' +
+        'flags: --brain (staffer) --restricted|--unrestricted --model <id> --effort <l|m|h|xh> --timeout <dur> ' +
         '--prompt <text> --prompt-file <path> --stdin --job <id> (continue) --json (review) ' +
         '--apply --restrict <modes|none> (setup)\n' +
         'task text for staffer/research/review/implement/ask/continue comes from exactly one of ' +

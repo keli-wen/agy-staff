@@ -57,6 +57,10 @@ if (argv[0] === 'models' || argv.includes('models')) {
     process.env.FAKE_AGY_MODELS_OUTPUT ??
     [
       'Fetching available models...',
+      'gemini-4-neon-xhigh\tGemini 4 Neon (XHigh)',
+      'gemini-4-neon-high\tGemini 4 Neon (High)',
+      'gemini-4-neon-medium\tGemini 4 Neon (Medium)',
+      'gemini-4-neon-low\tGemini 4 Neon (Low)',
       'gemini-4-carbon-high\tGemini 4 Carbon (High)',
       'gemini-4-carbon-medium\tGemini 4 Carbon (Medium)',
       'gemini-4-carbon-low\tGemini 4 Carbon (Low)',

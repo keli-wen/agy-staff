@@ -164,6 +164,38 @@ describe('unsupported model error handling without silent fallback', () => {
     assert.match(r.stderr, /Best same-effort compatible recommendation: --model gemini-3\.8-flash-high/);
   });
 
+  test('unsupported Neon recommends same-effort Carbon/Argon first, and Carbon high when xhigh is absent', () => {
+    const sb = sandbox('unsupported-neon');
+    const catalogWithoutNeon = [
+      'Fetching available models...',
+      'gemini-4-carbon-high\tGemini 4 Carbon (High)',
+      'gemini-4-carbon-medium\tGemini 4 Carbon (Medium)',
+      'gemini-4-carbon-low\tGemini 4 Carbon (Low)',
+      'gemini-4-argon-high\tGemini 4 Argon (High)',
+      'gemini-4-hydrogen-high\tGemini 4 Hydrogen (High)',
+    ].join('\n');
+
+    const rHigh = run(sb, ['ask', '--model', 'neon', '--effort', 'high', '--prompt', 'hello'], {
+      FAKE_AGY_STATUS: 'ERROR',
+      FAKE_AGY_RESPONSE: '',
+      FAKE_AGY_ERROR: 'unknown model: gemini-4-neon-high',
+      FAKE_AGY_MODELS_OUTPUT: catalogWithoutNeon,
+    });
+    assert.notEqual(rHigh.code, 0);
+    assert.match(rHigh.stderr, /requested model "gemini-4-neon-high"/);
+    assert.match(rHigh.stderr, /Best same-effort compatible recommendation: --model gemini-4-carbon-high/);
+
+    const rXhigh = run(sb, ['ask', '--model', 'neon', '--effort', 'xhigh', '--prompt', 'hello'], {
+      FAKE_AGY_STATUS: 'ERROR',
+      FAKE_AGY_RESPONSE: '',
+      FAKE_AGY_ERROR: 'unknown model: gemini-4-neon-xhigh',
+      FAKE_AGY_MODELS_OUTPUT: catalogWithoutNeon,
+    });
+    assert.notEqual(rXhigh.code, 0);
+    assert.match(rXhigh.stderr, /requested model "gemini-4-neon-xhigh"/);
+    assert.match(rXhigh.stderr, /Best same-effort compatible recommendation: --model gemini-4-carbon-high/);
+  });
+
   test('preserves original error and advises running agy models when model discovery fails', () => {
     const sb = sandbox('unsupported-discovery-fail');
     const r = run(sb, ['ask', '--prompt', 'hello'], {

@@ -329,3 +329,13 @@ test('brain is only a staffer launch flag, and an empty task never dispatches', 
   assert.equal(agyCalls(sb).length, 0);
   assert.ok(!fs.existsSync(path.join(sb.repo, '.agy-staff/state.json')));
 });
+
+test('brain accepts explicit --model neon (with and without --effort xhigh) without altering defaults', () => {
+  const sb = sandbox('brain-explicit-neon');
+
+  const neonMed = complete(sb, ['staffer', '--brain', '--model', 'neon', '--prompt', 'Design with Neon']);
+  checkFreshBrain(neonMed, 'gemini-4-neon-medium', 'Design with Neon');
+
+  const neonXhigh = complete(sb, ['staffer', '--brain', '--model', 'neon', '--effort', 'xhigh', '--prompt', 'Deep Neon']);
+  checkFreshBrain(neonXhigh, 'gemini-4-neon-xhigh', 'Deep Neon');
+});
